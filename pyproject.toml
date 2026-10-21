@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nexo"
+version = "1.0.0"
+description = "Chatbot RAG que responde dúvidas com base estrita em manuais técnicos e livros em PDF."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+
+[tool.setuptools.packages.find]
+include = ["nexo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
