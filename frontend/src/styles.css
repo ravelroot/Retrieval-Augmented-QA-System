@@ -384,8 +384,8 @@ button:disabled {
 
 .login__mark {
   color: var(--paper);
-  width: min(280px, 60%);
-  height: auto;
+  width: auto;
+  height: min(136px, 24vw);
 }
 
 .login__brand h1 {
@@ -1454,7 +1454,7 @@ button:disabled {
   }
 
   .login__mark {
-    width: 120px;
+    height: 72px;
   }
 
   .dropzone {
