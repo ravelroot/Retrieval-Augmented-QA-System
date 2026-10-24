@@ -15,7 +15,9 @@
 
 ---
 
-> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica instalação, configuração, arquitetura, banco de dados e uso, passo a passo.
+> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica instalação, configuração, arquitetura, cada tela, a API, a avaliação da recuperação e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Nexo.pdf)).
+
+> **Banco de dados:** [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) traz o diagrama de relacionamentos, todas as tabelas com campos, tipos, chaves e restrições, os índices, o banco vetorial, o arquivo de contas, as decisões de arquitetura e como trocar o SQLite por outro banco (cópia em [`docs/`](docs/Banco-de-Dados-Nexo.pdf)).
 
 <p align="center">
   <img src="docs/images/tela-chat.png" alt="Conversa com trechos citados">
@@ -30,7 +32,8 @@
 - **Contexto da conversa**: perguntas como "e o passo seguinte?" são reescritas com o histórico antes da busca.
 - **Contas de acesso** com login pré-definido e cadastro próprio, gravadas em `data/usuarios.json` com senhas em bcrypt.
 - **Avaliação** de cada resposta (útil / não ajudou) e script de medição de acerto da recuperação.
-- **Tema claro e escuro**, layout responsivo para celular.
+- **Identidade "caixa única"**, a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel): fundo, menu e cabeçalhos impressos na mesa em `#F5F4F4`, conversa e trechos dividindo paredes finas dentro de uma só caixa branca, resumo do acervo na tampa preta, títulos e números em Bricolage Grotesque fina e condensada, textos em Instrument Sans e status como um ponto de cor. Paleta `#FFFFFF`, `#4D4B4B`, `#000000`, `#333232` e `#BAB7B6`.
+- **Tema claro e escuro**, layout responsivo para celular. A logo é sempre em preto e branco.
 
 ## Como o Nexo evita alucinações
 
@@ -124,9 +127,13 @@ Todas as opções ficam no `.env` (modelo em [`.env.example`](.env.example)). As
 
 A tela **Sistema e conta** mostra a configuração ativa.
 
+<p align="center">
+  <img src="docs/images/tela-sistema.png" alt="Sistema e conta: pipeline de respostas, acervo e dados da conta">
+</p>
+
 ## Banco de dados
 
-O Nexo cria tudo sozinho na primeira execução. Quem for popular ou administrar os dados encontra em [`docs/banco-de-dados.md`](docs/banco-de-dados.md) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
+O Nexo cria tudo sozinho na primeira execução. Quem for popular ou administrar os dados encontra em [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) (e no resumo em [`docs/banco-de-dados.md`](docs/banco-de-dados.md)) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
 
 ```mermaid
 erDiagram
@@ -155,7 +162,7 @@ nexo/
 frontend/            interface React + TypeScript (Vite)
 scripts/             avaliação da recuperação, PDF de exemplo, redefinição de senha
 exemplos/            PDF fictício e perguntas de avaliação
-docs/                banco de dados, DDL e imagens
+docs/                manuais em PDF, banco de dados, DDL e imagens
 tests/               testes automatizados
 ```
 
@@ -197,4 +204,4 @@ Os testes usam o modo sem modelos e cobrem autenticação, bloqueio por tentativ
 
 ## Licença
 
-[MIT](LICENSE). Use, copie, altere e distribua à vontade.
+[MIT](LICENSE). Use, copie, altere e distribua à vontade. As fontes [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans), [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) e [IBM Plex Mono](https://www.ibm.com/plex/) da interface vêm do [Fontsource](https://fontsource.org/) e são distribuídas sob a SIL Open Font License 1.1.

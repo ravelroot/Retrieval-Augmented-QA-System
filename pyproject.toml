@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexo"
-version = "1.0.0"
+version = "1.5.0"
 description = "Chatbot RAG que responde dúvidas com base estrita em manuais técnicos e livros em PDF."
 readme = "README.md"
 requires-python = ">=3.11"

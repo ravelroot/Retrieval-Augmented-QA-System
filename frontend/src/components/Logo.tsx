@@ -5,7 +5,6 @@ interface LogoProps {
 }
 
 export function LogoMark({ size = 40, title, className }: LogoProps) {
-  // N de contraste: duas colunas de texto ligadas por um fio fino
   const altura = size * 0.52;
   return (
     <svg
@@ -26,11 +25,16 @@ export function LogoMark({ size = 40, title, className }: LogoProps) {
   );
 }
 
-export function Wordmark({ size = 34 }: { size?: number }) {
+export function Brand({ subtitle = "Respostas com fonte", inverted = false }: { subtitle?: string; inverted?: boolean }) {
   return (
-    <span className="wordmark">
-      <LogoMark size={size} />
-      <span>Nexo</span>
+    <span className={`brand${inverted ? " brand--inverted" : ""}`}>
+      <span className="brand__mark">
+        <LogoMark size={34} />
+      </span>
+      <span className="brand__text">
+        <span className="brand__name">Nexo</span>
+        {subtitle && <span className="brand__sub">{subtitle}</span>}
+      </span>
     </span>
   );
 }

@@ -60,7 +60,8 @@ export function SystemPage() {
   return (
     <div className="page">
       <header className="page__head">
-        <div>
+        <div className="page__titles">
+          <span className="page__over">Configuração</span>
           <h1>Sistema e conta</h1>
           <p className="page__lead">Configuração ativa do servidor e os dados da sua conta.</p>
         </div>
@@ -68,7 +69,7 @@ export function SystemPage() {
       </header>
       {error && <p className="alert" role="alert">{error}</p>}
 
-      <div className="system">
+      <div className="system box">
         <section className="panel">
           <h2>Pipeline de respostas</h2>
           <p className="panel__lead">Para mudar qualquer item, edite o arquivo <code>.env</code> e reinicie o servidor. O passo a passo está no <code>Manual-Nexo.pdf</code>.</p>
@@ -79,7 +80,7 @@ export function SystemPage() {
           </dl>
         </section>
 
-        <section className="panel">
+        <section className="panel panel--lid">
           <h2>Acervo</h2>
           {status && (
             <div className="figures">
