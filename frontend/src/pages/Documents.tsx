@@ -80,41 +80,59 @@ export function DocumentsPage() {
   const pages = ready.reduce((sum, d) => sum + d.pages, 0);
   const chunks = ready.reduce((sum, d) => sum + d.chunks, 0);
 
+  const queued = docs?.filter((d) => d.status === "PENDING" || d.status === "PROCESSING").length ?? 0;
+  const failed = docs?.filter((d) => d.status === "FAILED").length ?? 0;
+
   return (
     <div className="page">
       <header className="page__head">
-        <div>
+        <div className="page__titles">
+          <span className="page__over">Acervo</span>
           <h1>Documentos</h1>
-          <p className="page__lead">
-            {docs === null ? "Carregando…" : docs.length === 0
-              ? "Nenhum PDF enviado ainda."
-              : `${plural(ready.length, "documento pronto", "documentos prontos")}, ${plural(pages, "página", "páginas")} e ${plural(chunks, "trecho indexado", "trechos indexados")}.`}
-          </p>
+          <p className="page__lead">Os PDFs que o Nexo consulta. Só os documentos prontos entram nas respostas.</p>
         </div>
       </header>
 
-      <div
-        className={`dropzone${dragging ? " dropzone--active" : ""}`}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-      >
-        <Icon name="upload" size={28} />
-        <div>
-          <strong>{uploading ? "Enviando…" : "Arraste PDFs para cá"}</strong>
-          <p>Manuais técnicos e livros com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
+      <div className="box box--intake">
+        <section className="lid" aria-label="Resumo do acervo">
+          <span className="lid__label">Trechos indexados</span>
+          <strong className="lid__number">{docs === null ? "—" : chunks.toLocaleString("pt-BR")}</strong>
+          <p className="lid__sub">
+            {docs === null ? "Carregando…" : docs.length === 0 ? "Nenhum PDF enviado ainda."
+              : `${plural(ready.length, "documento pronto", "documentos prontos")} e ${plural(pages, "página lida", "páginas lidas")}.`}
+          </p>
+          <dl className="lid__stats">
+            <div><dt>Prontos</dt><dd>{ready.length}</dd></div>
+            <div><dt>Páginas</dt><dd>{pages.toLocaleString("pt-BR")}</dd></div>
+            <div><dt>Na fila</dt><dd>{queued}</dd></div>
+            <div><dt>Com falha</dt><dd>{failed}</dd></div>
+          </dl>
+        </section>
+
+        <div
+          className={`dropzone${dragging ? " dropzone--active" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+        >
+          <span className="dropzone__icon"><Icon name="upload" size={22} /></span>
+          <div>
+            <strong>{uploading ? "Enviando…" : "Arraste PDFs para cá"}</strong>
+            <p>Manuais técnicos e livros com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
+          </div>
+          <button className="primary-button" onClick={() => input.current?.click()} disabled={uploading}>
+            <Icon name="plus" size={16} />
+            Escolher PDFs
+          </button>
+          <input ref={input} type="file" accept="application/pdf,.pdf" multiple hidden
+            onChange={(e) => e.target.files && send(e.target.files)} />
         </div>
-        <button className="primary-button" onClick={() => input.current?.click()} disabled={uploading}>
-          Escolher PDFs
-        </button>
-        <input ref={input} type="file" accept="application/pdf,.pdf" multiple hidden
-          onChange={(e) => e.target.files && send(e.target.files)} />
       </div>
 
       {notice && <p className={notice.kind === "ok" ? "alert alert--ok" : "alert"} role="status">{notice.text}</p>}
 
       {docs && docs.length > 0 && (
-        <ul className="doc-list">
+        <ul className="doc-list box">
           {docs.map((doc) => (
             <li key={doc.id} className="doc">
               <div className="doc__main">

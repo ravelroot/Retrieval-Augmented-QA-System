@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, type AuthOptions } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../components/Field";
-import { LogoMark } from "../components/Logo";
+import { Brand } from "../components/Logo";
 
 type Mode = "login" | "register";
 
@@ -59,11 +59,30 @@ export function LoginPage() {
   return (
     <div className="login">
       <section className="login__brand">
-        <LogoMark size={220} className="login__mark" />
-        <div>
-          <h1>Nexo</h1>
-          <p>Pergunte aos seus manuais técnicos e livros. Cada resposta vem dos PDFs enviados, com a página de onde saiu.</p>
+        <Brand subtitle="Respostas com fonte" inverted />
+        <div className="login__pitch">
+          <h1>Pergunte aos seus manuais. A resposta vem com a página.</h1>
+          <p>O Nexo lê os PDFs que você envia e responde só com o que está neles, citando o trecho e a página de cada afirmação. Se a informação não estiver lá, ele diz que não encontrou.</p>
         </div>
+        <dl className="login__box">
+          <div className="login__cell login__cell--wide">
+            <dt>Cada resposta</dt>
+            <dd>Trecho, página e nota de relevância</dd>
+          </div>
+          <div className="login__cell">
+            <dt>Base</dt>
+            <dd>Só os seus PDFs</dd>
+          </div>
+          <div className="login__cell">
+            <dt>Busca</dt>
+            <dd>Vetorial e reranking</dd>
+          </div>
+          <div className="login__cell login__cell--wide">
+            <dt>Modelos</dt>
+            <dd>Ollama local ou OpenAI</dd>
+          </div>
+        </dl>
+        <p className="login__legal">Copyright (©) 2026 Erik Pimenta. Licença MIT.</p>
       </section>
       <section className="login__panel">
         <form className="login__form" onSubmit={submit} noValidate>
@@ -77,7 +96,10 @@ export function LoginPage() {
               </button>
             )}
           </div>
-          <h2>{mode === "login" ? "Entre na sua conta" : "Crie sua conta"}</h2>
+          <div className="login__titles">
+            <h2>{mode === "login" ? "Entrar" : "Criar conta"}</h2>
+            <p>{mode === "login" ? "Use o usuário e a senha da sua conta." : "Escolha um usuário e uma senha para acessar o Nexo."}</p>
+          </div>
           {mode === "register" && (
             <Field label="Nome" name="name" autoComplete="name" value={form.name} onChange={update("name")}
               error={errors.name} required />
@@ -93,8 +115,8 @@ export function LoginPage() {
               value={form.confirm} onChange={update("confirm")} error={errors.confirm} required />
           )}
           {message && <p className="alert" role="alert">{message}</p>}
-          <button className="primary-button" type="submit" disabled={busy}>
-            {busy ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta e entrar"}
+          <button className="primary-button login__submit" type="submit" disabled={busy}>
+            {busy ? "Aguarde…" : mode === "login" ? "Entrar no Nexo" : "Criar conta e entrar"}
           </button>
           {mode === "login" && options?.default_admin && (
             <div className="note">
