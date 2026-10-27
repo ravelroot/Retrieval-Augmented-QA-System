@@ -1,69 +1,85 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, api, type Conversation, type ConversationSummary, type DocumentItem, type Message } from "../api";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ApiError, api, downloadExport, type Conversation, type Message } from "../api";
 import { AnswerText } from "../components/AnswerText";
 import { Icon } from "../components/Icon";
 import { SourcesPanel } from "../components/SourcesPanel";
-import { formatRelative, plural } from "../format";
+import { useToast } from "../components/Toast";
+import { formatDateTime, plural } from "../format";
+import { useStore } from "../store";
 
 interface Selection {
   messageId: string;
   rank: number | null;
 }
 
+function plainAnswer(m: Message): string {
+  const refs = m.sources.map((s) => `[${s.rank}] ${s.document_title}, página ${s.page}`).join("\n");
+  return refs ? `${m.content}\n\nFontes:\n${refs}` : m.content;
+}
+
 export function ChatPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [list, setList] = useState<ConversationSummary[]>([]);
+  const toast = useToast();
+  const { documents, reloadConversations, reloadDocuments } = useStore();
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [draftScope, setDraftScope] = useState<string[]>([]);
   const [question, setQuestion] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [selection, setSelection] = useState<Selection | null>(null);
   const [scopeOpen, setScopeOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [scopeFilter, setScopeFilter] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState("");
-  const [listOpen, setListOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
-  const loadList = useCallback(() => {
-    api.conversations().then(setList).catch((e: ApiError) => setError(e.message));
-  }, []);
-
-  useEffect(() => {
-    loadList();
-    api.documents().then(setDocs).catch((e: ApiError) => setError(e.message));
-  }, [loadList]);
+  useEffect(reloadDocuments, [reloadDocuments]);
 
   useEffect(() => {
     setSelection(null);
     setError("");
     setRenaming(false);
-    setListOpen(false);
+    setExportOpen(false);
     if (!id) {
       setConversation(null);
+      const doc = params.get("documento");
+      setDraftScope(doc ? [doc] : []);
+      setQuestion(params.get("pergunta") ?? "");
+      textarea.current?.focus();
       return;
     }
     if (conversation?.id === id) return;
     api.conversation(id).then(setConversation).catch((e: ApiError) => {
-      setError(e.message);
+      toast(e.message, "error");
       navigate("/conversas", { replace: true });
     });
-  }, [id]);
+  }, [id, params]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [conversation?.items.length, pending]);
 
-  const ready = useMemo(() => docs.filter((d) => d.status === "READY"), [docs]);
+  useEffect(() => {
+    const el = textarea.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+  }, [question]);
+
+  const ready = useMemo(() => documents.filter((d) => d.status === "READY"), [documents]);
   const scope = conversation ? conversation.document_ids : draftScope;
   const scoped = ready.filter((d) => scope.includes(d.id));
-
-  const selectedMessage = conversation?.items.find((m) => m.id === selection?.messageId) ?? null;
+  const items = conversation?.items ?? [];
+  const selectedIndex = items.findIndex((m) => m.id === selection?.messageId);
+  const selectedMessage = selectedIndex >= 0 ? items[selectedIndex] : null;
+  const selectedQuery = selectedIndex > 0 ? items[selectedIndex - 1].content : "";
+  const pickable = ready.filter((d) => d.title.toLowerCase().includes(scopeFilter.trim().toLowerCase()));
 
   async function setScope(next: string[]) {
     if (!conversation) {
@@ -73,15 +89,15 @@ export function ChatPage() {
     try {
       const summary = await api.updateConversation(conversation.id, { document_ids: next });
       setConversation({ ...conversation, ...summary });
-      loadList();
+      reloadConversations();
     } catch (e) {
-      setError((e as ApiError).message);
+      toast((e as ApiError).message, "error");
     }
   }
 
-  async function submit(e?: FormEvent) {
+  async function submit(e?: FormEvent, override?: string) {
     e?.preventDefault();
-    const text = question.trim();
+    const text = (override ?? question).trim();
     if (!text || pending) return;
     setError("");
     setPending(text);
@@ -96,7 +112,7 @@ export function ChatPage() {
       const exchange = await api.ask(current.id, text);
       setConversation({ ...current, ...exchange.conversation, items: [...current.items, exchange.question, exchange.answer] });
       if (exchange.answer.sources.length) setSelection({ messageId: exchange.answer.id, rank: null });
-      loadList();
+      reloadConversations();
     } catch (err) {
       setError((err as ApiError).message);
       setQuestion(text);
@@ -118,19 +134,19 @@ export function ChatPage() {
     try {
       const updated = await api.feedback(message.id, message.my_rating === rating ? 0 : rating);
       setConversation({ ...conversation, items: conversation.items.map((m) => (m.id === updated.id ? updated : m)) });
+      if (updated.my_rating === -1) toast("Avaliação registrada. Ela aparece no Painel de qualidade.");
     } catch (e) {
-      setError((e as ApiError).message);
+      toast((e as ApiError).message, "error");
     }
   }
 
-  async function remove(target: string) {
+  async function copy(m: Message) {
     try {
-      await api.deleteConversation(target);
-      setConfirmDelete(null);
-      loadList();
-      if (target === conversation?.id) navigate("/conversas");
-    } catch (e) {
-      setError((e as ApiError).message);
+      await navigator.clipboard.writeText(plainAnswer(m));
+      setCopied(m.id);
+      window.setTimeout(() => setCopied(null), 1600);
+    } catch {
+      toast("O navegador bloqueou a cópia. Selecione o texto e copie manualmente.", "error");
     }
   }
 
@@ -140,107 +156,91 @@ export function ChatPage() {
     try {
       const summary = await api.updateConversation(conversation.id, { title: title.trim() });
       setConversation({ ...conversation, ...summary });
-      loadList();
+      reloadConversations();
     } catch (err) {
-      setError((err as ApiError).message);
+      toast((err as ApiError).message, "error");
     }
     setRenaming(false);
   }
 
-  const items = conversation?.items ?? [];
+  async function exportAs(format: "markdown" | "json") {
+    if (!conversation) return;
+    setExportOpen(false);
+    try {
+      await downloadExport(conversation.id, format);
+      toast(format === "json" ? "Conversa exportada em JSON." : "Conversa exportada em Markdown.");
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    }
+  }
 
   return (
-    <div className={`chat${selectedMessage ? " chat--sources" : ""}${listOpen ? " chat--list" : ""}`}>
-      <section className="threads" aria-label="Conversas">
-        <div className="threads__head">
-          <h2>Conversas</h2>
-          <Link className="primary-button small" to="/conversas" onClick={() => setDraftScope([])}>
-            <Icon name="plus" size={16} />
-            Nova
-          </Link>
-        </div>
-        {list.length === 0 ? (
-          <p className="threads__empty">As conversas que você abrir aparecem aqui.</p>
-        ) : (
-          <ul>
-            {list.map((c) => (
-              <li key={c.id} className={c.id === id ? "thread thread--active" : "thread"}>
-                {confirmDelete === c.id ? (
-                  <div className="thread__confirm">
-                    <span>Apagar esta conversa?</span>
-                    <button className="danger-button small" onClick={() => remove(c.id)}>Apagar</button>
-                    <button className="ghost-button small" onClick={() => setConfirmDelete(null)}>Manter</button>
-                  </div>
-                ) : (
-                  <>
-                    <Link to={`/conversas/${c.id}`} className="thread__link">
-                      <span className="thread__title">{c.title}</span>
-                      <span className="thread__meta">
-                        {formatRelative(c.updated_at)}, {c.document_ids.length ? plural(c.document_ids.length, "documento", "documentos") : "todos os documentos"}
-                      </span>
-                    </Link>
-                    <button className="icon-button thread__delete" aria-label={`Apagar ${c.title}`} onClick={() => setConfirmDelete(c.id)}>
-                      <Icon name="trash" size={16} />
-                    </button>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="dialog" aria-label="Conversa">
-        <header className="dialog__head">
-          <button className="ghost-button small dialog__threads" onClick={() => setListOpen(!listOpen)}>
-            {listOpen ? "Fechar lista" : "Conversas"}
-          </button>
+    <div className={`chat${selectedMessage ? " chat--sources" : ""}`}>
+      <section className="reader" aria-label="Conversa">
+        <header className="reader__head">
           {renaming && conversation ? (
             <form className="inline-form" onSubmit={saveTitle}>
               <input aria-label="Título da conversa" value={title} autoFocus maxLength={160}
                 onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setRenaming(false)} />
-              <button className="primary-button small" type="submit">Salvar</button>
+              <button className="button button--primary button--small" type="submit">Salvar</button>
             </form>
           ) : (
-            <h1 className="dialog__title">
-              {conversation?.title ?? "Nova conversa"}
-              {conversation && (
-                <button className="icon-button" aria-label="Renomear conversa" onClick={() => { setTitle(conversation.title); setRenaming(true); }}>
-                  <Icon name="edit" size={16} />
+            <h1 className="reader__title">{conversation?.title ?? "Nova conversa"}</h1>
+          )}
+          {conversation && !renaming && (
+            <div className="reader__tools">
+              <button className="icon-button" aria-label="Renomear conversa" title="Renomear"
+                onClick={() => { setTitle(conversation.title); setRenaming(true); }}>
+                <Icon name="edit" size={17} />
+              </button>
+              <div className="menu-anchor">
+                <button className="icon-button" aria-label="Exportar conversa" title="Exportar" aria-expanded={exportOpen}
+                  onClick={() => setExportOpen(!exportOpen)} disabled={!items.length}>
+                  <Icon name="download" size={17} />
                 </button>
-              )}
-            </h1>
+                {exportOpen && (
+                  <div className="menu" role="menu">
+                    <button role="menuitem" onClick={() => exportAs("markdown")}>Markdown (.md)<small>Para ler ou colar em documentos</small></button>
+                    <button role="menuitem" onClick={() => exportAs("json")}>JSON<small>Com trechos e notas, para sistemas</small></button>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </header>
 
         <div className="scope">
-          <div className="scope__line" aria-hidden="true" />
-          <div className="scope__nodes">
-            <span className="scope__label">Consultando</span>
+          <span className="scope__label">Consultando</span>
+          <div className="scope__tabs">
             {scoped.length === 0 ? (
-              <span className="scope__node">Todos os documentos prontos ({ready.length})</span>
+              <span className="tab">Todos os documentos prontos <b>{ready.length}</b></span>
             ) : (
-              scoped.map((d) => <span key={d.id} className="scope__node">{d.title}</span>)
+              scoped.map((d) => <span key={d.id} className="tab" title={d.title}>{d.title}</span>)
             )}
-            <button className="scope__edit" onClick={() => setScopeOpen(!scopeOpen)} aria-expanded={scopeOpen}>
-              {scopeOpen ? "Concluir" : "Escolher documentos"}
-            </button>
           </div>
+          <button className="text-button" onClick={() => setScopeOpen(!scopeOpen)} aria-expanded={scopeOpen}>
+            <Icon name="filter" size={15} />
+            {scopeOpen ? "Concluir" : "Escolher documentos"}
+          </button>
           {scopeOpen && (
             <div className="scope__picker">
               {ready.length === 0 ? (
                 <p>Nenhum documento pronto. <Link to="/documentos">Envie PDFs</Link> para começar.</p>
               ) : (
                 <>
+                  {ready.length > 6 && (
+                    <input className="scope__search" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}
+                      placeholder="Filtrar documentos" aria-label="Filtrar documentos" />
+                  )}
                   <label className="check">
                     <input type="checkbox" checked={scope.length === 0} onChange={() => setScope([])} />
-                    Todos os documentos prontos
+                    <span>Todos os documentos prontos</span>
                   </label>
-                  {ready.map((d) => (
+                  {pickable.map((d) => (
                     <label key={d.id} className="check">
                       <input type="checkbox" checked={scope.includes(d.id)}
                         onChange={(e) => setScope(e.target.checked ? [...scope, d.id] : scope.filter((x) => x !== d.id))} />
-                      {d.title}
+                      <span>{d.title}</span>
                       <small>{plural(d.pages, "página", "páginas")}</small>
                     </label>
                   ))}
@@ -256,47 +256,78 @@ export function ChatPage() {
               {ready.length === 0 ? (
                 <>
                   <h2>Envie um PDF para começar</h2>
-                  <p>O Nexo só responde com o que estiver nos documentos indexados.</p>
-                  <Link className="primary-button" to="/documentos">Ir para Documentos</Link>
+                  <p>O Nexo responde só com o que está nos documentos indexados e mostra a página de cada resposta.</p>
+                  <Link className="button button--primary" to="/documentos"><Icon name="upload" size={16} />Enviar PDFs</Link>
                 </>
               ) : (
                 <>
-                  <h2>O que você quer saber?</h2>
-                  <p>Pergunte sobre {scoped.length ? plural(scoped.length, "o documento escolhido", "os documentos escolhidos") : plural(ready.length, "o documento pronto", "os documentos prontos")}. Cada resposta indica o trecho e a página de origem.</p>
+                  <h2>O que você precisa encontrar?</h2>
+                  <p>
+                    Pergunte sobre {scoped.length ? plural(scoped.length, "o documento escolhido", "os documentos escolhidos")
+                      : plural(ready.length, "documento pronto", "documentos prontos")}. Cada afirmação da resposta
+                    aponta o trecho e a página de onde saiu.
+                  </p>
+                  <ul className="empty__tips">
+                    <li><b>Use os termos do manual.</b> Nomes de peças, códigos de erro e unidades ajudam a busca.</li>
+                    <li><b>Continue a conversa.</b> “E o passo seguinte?” é entendido com o histórico.</li>
+                    <li><b>Limite o escopo</b> em “Escolher documentos” quando os PDFs tratarem de produtos parecidos.</li>
+                  </ul>
                 </>
               )}
             </div>
           )}
-          {items.map((m) =>
+          {items.map((m, index) =>
             m.role === "user" ? (
-              <div key={m.id} className="msg msg--user"><p>{m.content}</p></div>
+              <h2 key={m.id} className="q">{m.content}</h2>
             ) : (
-              <div key={m.id} className={`msg msg--bot${m.answered === false ? " msg--missing" : ""}`}>
+              <div key={m.id} className={`a${m.answered === false ? " a--missing" : ""}`}>
                 {m.answered === false ? (
                   <div className="missing">
-                    <strong>{m.content}</strong>
-                    <p>Tente outras palavras, amplie os documentos consultados ou envie o PDF que trata do assunto.</p>
+                    <p className="missing__title">{m.content}</p>
+                    <p>Nenhum trecho passou nos cortes de relevância, então o modelo não foi chamado.</p>
+                    <div className="missing__actions">
+                      <Link className="button button--small" to={`/busca?q=${encodeURIComponent(items[index - 1]?.content ?? "")}`}>
+                        <Icon name="search" size={15} />Ver trechos parecidos
+                      </Link>
+                      {scope.length > 0 && (
+                        <button className="button button--small" onClick={() => setScope([])}>Consultar todos os documentos</button>
+                      )}
+                      <Link className="button button--small" to="/documentos"><Icon name="upload" size={15} />Enviar outro PDF</Link>
+                    </div>
                   </div>
                 ) : (
                   <AnswerText text={m.content} sources={m.sources.length}
                     active={selection?.messageId === m.id ? selection.rank : null}
                     onCite={(rank) => setSelection({ messageId: m.id, rank })} />
                 )}
-                <footer className="msg__foot">
-                  {m.sources.length > 0 && (
-                    <button className="link-button" onClick={() => setSelection({ messageId: m.id, rank: null })}>
-                      Ver {plural(m.sources.length, "trecho", "trechos")}
-                    </button>
-                  )}
+                {m.sources.length > 0 && (
+                  <div className="a__refs" aria-label="Páginas citadas">
+                    {m.sources.map((s) => (
+                      <button key={s.rank} className={`ref${selection?.messageId === m.id && selection.rank === s.rank ? " ref--on" : ""}`}
+                        onClick={() => setSelection({ messageId: m.id, rank: s.rank })} title={s.document_title}>
+                        <span className="ref__n">{s.rank}</span>
+                        <span className="ref__doc">{s.document_title}</span>
+                        <span className="ref__p">p. {s.page}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <footer className="a__foot">
                   {m.grounded === false && <span className="warn">A verificação automática não confirmou todos os pontos.</span>}
-                  <span className="msg__model">{m.model}{m.latency_ms !== null ? `, ${(m.latency_ms / 1000).toFixed(1).replace(".", ",")} s` : ""}</span>
-                  <span className="rate">
+                  {m.grounded === true && m.model !== "extrativo" && <span className="ok">Verificada contra os trechos</span>}
+                  <span className="a__meta" title={formatDateTime(m.created_at)}>
+                    {m.model}{m.latency_ms !== null ? `, ${(m.latency_ms / 1000).toFixed(1).replace(".", ",")} s` : ""}
+                  </span>
+                  <span className="a__actions">
+                    <button className="icon-button" aria-label="Copiar resposta com as fontes" title="Copiar com as fontes" onClick={() => copy(m)}>
+                      <Icon name={copied === m.id ? "check" : "copy"} size={16} />
+                    </button>
                     <button className={`icon-button${m.my_rating === 1 ? " is-on" : ""}`} aria-pressed={m.my_rating === 1}
-                      aria-label="Resposta útil" onClick={() => rate(m, 1)}>
+                      aria-label="Resposta útil" title="Resposta útil" onClick={() => rate(m, 1)}>
                       <Icon name="up" size={16} />
                     </button>
                     <button className={`icon-button${m.my_rating === -1 ? " is-on" : ""}`} aria-pressed={m.my_rating === -1}
-                      aria-label="Resposta não ajudou" onClick={() => rate(m, -1)}>
+                      aria-label="Resposta não ajudou" title="Não ajudou" onClick={() => rate(m, -1)}>
                       <Icon name="down" size={16} />
                     </button>
                   </span>
@@ -306,33 +337,34 @@ export function ChatPage() {
           )}
           {pending && (
             <>
-              <div className="msg msg--user"><p>{pending}</p></div>
-              <div className="msg msg--bot msg--pending" role="status">
-                <div className="busline" aria-hidden="true"><span /></div>
-                <p>Buscando nos documentos e conferindo os trechos…</p>
+              <h2 className="q">{pending}</h2>
+              <div className="a a--pending" role="status">
+                <span className="reading" aria-hidden="true"><i /><i /><i /></span>
+                <p>Lendo os trechos mais próximos da pergunta…</p>
               </div>
             </>
           )}
           <div ref={bottom} />
         </div>
 
-        {error && <p className="alert chat__error" role="alert">{error}</p>}
-
-        <form className="composer" onSubmit={submit}>
-          <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
-            placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie um PDF em Documentos para perguntar"}
-            aria-label="Pergunta" rows={2} maxLength={4000} disabled={!!pending} />
-          <button className="send" type="submit" disabled={!question.trim() || !!pending || ready.length === 0} aria-label="Enviar pergunta">
-            <Icon name="send" />
-          </button>
-        </form>
-        <p className="composer__hint">Enter envia, Shift + Enter quebra a linha.</p>
+        <div className="composer-wrap">
+          {error && <p className="alert" role="alert">{error}</p>}
+          <form className="composer" onSubmit={submit}>
+            <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
+              placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie um PDF em Documentos para perguntar"}
+              aria-label="Pergunta" rows={1} maxLength={4000} disabled={!!pending} />
+            <button className="send" type="submit" disabled={!question.trim() || !!pending || ready.length === 0} aria-label="Enviar pergunta">
+              <Icon name="send" />
+            </button>
+          </form>
+          <p className="composer__hint"><kbd>Enter</kbd> envia, <kbd>Shift</kbd> + <kbd>Enter</kbd> quebra a linha, <kbd>Ctrl</kbd> + <kbd>K</kbd> abre a paleta.</p>
+        </div>
       </section>
 
       {selectedMessage && (
-        <SourcesPanel sources={selectedMessage.sources} active={selection?.rank ?? null}
+        <SourcesPanel sources={selectedMessage.sources} query={selectedQuery} active={selection?.rank ?? null}
           onSelect={(rank) => setSelection({ messageId: selectedMessage.id, rank })}
-          onClose={() => setSelection(null)} onError={setError} />
+          onClose={() => setSelection(null)} onError={(msg) => toast(msg, "error")} />
       )}
     </div>
   );

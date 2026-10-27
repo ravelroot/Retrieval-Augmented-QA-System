@@ -1,3 +1,17 @@
+CREATE TABLE nx_api_key (
+	id VARCHAR(32) NOT NULL,
+	owner VARCHAR(32) NOT NULL,
+	name VARCHAR(80) NOT NULL,
+	prefix VARCHAR(16) NOT NULL,
+	key_hash VARCHAR(64) NOT NULL,
+	created_at DATETIME NOT NULL,
+	last_used_at DATETIME,
+	PRIMARY KEY (id),
+	UNIQUE (key_hash)
+);
+
+CREATE INDEX ix_nx_api_key_owner ON nx_api_key (owner);
+
 CREATE TABLE nx_conversation (
 	id VARCHAR(32) NOT NULL,
 	owner VARCHAR(32) NOT NULL,
@@ -31,6 +45,20 @@ CREATE TABLE nx_document (
 CREATE INDEX ix_nx_document_status ON nx_document (status);
 
 CREATE INDEX ix_nx_document_uploaded_by ON nx_document (uploaded_by);
+
+CREATE TABLE nx_webhook (
+	id VARCHAR(32) NOT NULL,
+	url VARCHAR(500) NOT NULL,
+	events VARCHAR(300) NOT NULL,
+	secret VARCHAR(80) NOT NULL,
+	active BOOLEAN NOT NULL,
+	created_by VARCHAR(32) NOT NULL,
+	created_at DATETIME NOT NULL,
+	last_status INTEGER,
+	last_error TEXT,
+	last_delivery_at DATETIME,
+	PRIMARY KEY (id)
+);
 
 CREATE TABLE nx_conversation_document (
 	conversation_id VARCHAR(32) NOT NULL,

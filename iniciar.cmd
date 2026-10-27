@@ -14,13 +14,18 @@ if not exist .venv\.instalado (
   echo ok> .venv\.instalado
 )
 if not exist .env copy .env.example .env >nul
-if not exist frontend\dist\index.html (
+for /f "usebackq delims=" %%v in ("VERSION") do set VERSAO=%%v
+set CONSTRUIR=
+if not exist frontend\dist\index.html set CONSTRUIR=1
+findstr /x /c:"%VERSAO%" frontend\dist\.versao >nul 2>nul || set CONSTRUIR=1
+if defined CONSTRUIR (
   where npm >nul 2>nul && (
-    echo Compilando a interface...
+    echo Compilando a interface %VERSAO%...
     pushd frontend
     call npm install
     call npm run build
     popd
+    if exist frontend\dist\index.html (>frontend\dist\.versao echo %VERSAO%)
   ) || echo Node.js nao encontrado. A API sobe, mas a interface precisa do build em frontend\dist.
 )
 python -m nexo

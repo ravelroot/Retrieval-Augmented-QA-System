@@ -98,6 +98,53 @@ export interface SystemStatus {
   users: number | null;
   registration: boolean;
   database: string;
+  integrations?: { api_keys: number; webhooks: number | null };
+}
+
+export interface SearchResult {
+  query: string;
+  took_ms: number;
+  results: Source[];
+}
+
+export interface Metrics {
+  scope: "all" | "mine";
+  period_days: number;
+  questions: number;
+  answered: number;
+  unanswered: number;
+  answer_rate: number | null;
+  avg_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  feedback: { up: number; down: number };
+  conversations: number;
+  daily: { date: string; questions: number; unanswered: number }[];
+  top_documents: { document_id: string | null; title: string; citations: number }[];
+  unanswered_recent: { question: string; asked_at: string; conversation_id: string }[];
+  negative_recent: { question: string; answer: string; asked_at: string; conversation_id: string; message_id: string }[];
+}
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  key?: string;
+}
+
+export type WebhookEvent = "document.ready" | "document.failed" | "question.unanswered" | "feedback.negative";
+
+export interface Webhook {
+  id: string;
+  url: string;
+  events: WebhookEvent[];
+  active: boolean;
+  created_at: string;
+  last_status: number | null;
+  last_error: string | null;
+  last_delivery_at: string | null;
+  secret?: string;
 }
 
 export class ApiError extends Error {
@@ -197,7 +244,44 @@ export const api = {
   deleteConversation: (id: string) => request<void>("DELETE", `/conversations/${id}`),
   ask: (id: string, content: string) => request<Exchange>("POST", `/conversations/${id}/messages`, { content }),
   feedback: (id: string, rating: number) => request<Message>("POST", `/messages/${id}/feedback`, { rating }),
+  search: (query: string, document_ids: string[], rerank: boolean, limit = 8) =>
+    request<SearchResult>("POST", "/search", { query, document_ids, rerank, limit }),
+  metrics: (days: number) => request<Metrics>("GET", `/metrics?days=${days}`),
+  keys: () => request<ApiKey[]>("GET", "/keys"),
+  createKey: (name: string) => request<ApiKey>("POST", "/keys", { name }),
+  deleteKey: (id: string) => request<void>("DELETE", `/keys/${id}`),
+  webhooks: () => request<Webhook[]>("GET", "/webhooks"),
+  createWebhook: (url: string, events: WebhookEvent[], secret: string | null) =>
+    request<Webhook>("POST", "/webhooks", { url, events, secret }),
+  toggleWebhook: (id: string, active: boolean) => request<Webhook>("PATCH", `/webhooks/${id}`, { active }),
+  deleteWebhook: (id: string) => request<void>("DELETE", `/webhooks/${id}`),
+  testWebhook: (id: string) => request<{ status: number | null; error: string | null }>("POST", `/webhooks/${id}/test`),
+  users: () => request<User[]>("GET", "/users"),
+  setRole: (username: string, role: Role) => request<User>("PATCH", `/users/${username}`, { role }),
+  deleteUser: (username: string) => request<void>("DELETE", `/users/${username}`),
 };
+
+export async function downloadExport(id: string, format: "markdown" | "json"): Promise<void> {
+  const session = loadSession();
+  const response = await fetch(`/api/conversations/${id}/export?format=${format}`, {
+    headers: session ? { Authorization: `Bearer ${session.token}` } : {},
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new ApiError(response.status, data?.code ?? "ERROR", data?.message ?? "Não foi possível exportar a conversa.");
+  }
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const name = match?.[1] ?? `nexo-conversa.${format === "json" ? "json" : "md"}`;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export async function openDocument(id: string, page?: number): Promise<void> {
   const target = window.open("", "_blank");

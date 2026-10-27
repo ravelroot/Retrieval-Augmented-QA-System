@@ -4,7 +4,7 @@ O Nexo guarda informações em **três lugares**, cada um com um papel:
 
 | Camada | Onde fica (padrão) | O que guarda |
 |---|---|---|
-| Banco relacional | `data/nexo.db` (SQLite) ou o banco de `NEXO_DATABASE_URL` | Documentos, conversas, mensagens, fontes citadas e avaliações |
+| Banco relacional | `data/nexo.db` (SQLite) ou o banco de `NEXO_DATABASE_URL` | Documentos, conversas, mensagens, fontes citadas, avaliações, chaves de API e webhooks |
 | Banco vetorial | `data/chroma/` (ChromaDB) ou Qdrant | Trechos dos PDFs com os embeddings e os metadados de origem |
 | Arquivos | `data/usuarios.json` e `data/uploads/` | Contas de acesso e os PDFs originais |
 
@@ -77,7 +77,30 @@ erDiagram
         text comment
         timestamp created_at
     }
+    nx_api_key {
+        varchar32 id PK
+        varchar32 owner
+        varchar80 name
+        varchar16 prefix
+        varchar64 key_hash UK
+        timestamp created_at
+        timestamp last_used_at
+    }
+    nx_webhook {
+        varchar32 id PK
+        varchar500 url
+        varchar300 events
+        varchar80 secret
+        boolean active
+        varchar32 created_by
+        timestamp created_at
+        int last_status
+        text last_error
+        timestamp last_delivery_at
+    }
 ```
+
+`nx_api_key` e `nx_webhook` não têm chaves estrangeiras: `owner` e `created_by` apontam para contas do `usuarios.json`.
 
 ## Tabelas
 
@@ -115,6 +138,38 @@ Os trechos efetivamente enviados ao modelo, na ordem das citações `[1]`, `[2]`
 
 ### nx_feedback
 Avaliação de cada resposta: `rating` 1 (útil) ou -1 (não ajudou). Um usuário tem no máximo uma avaliação por resposta (`uk_feedback_message_owner`).
+
+### nx_api_key
+Chaves de API para integrações (planilhas, scripts, outros sistemas). Cada chave age com as permissões do dono.
+
+| Coluna | Tipo | Regra |
+|---|---|---|
+| id | varchar(32) | Chave primária, UUID em hexadecimal |
+| owner | varchar(32) | Dono da chave (ver `usuarios.json`). Se a conta deixar de existir, a chave para de valer |
+| name | varchar(80) | Nome dado pelo usuário, como "Planilha de leads" |
+| prefix | varchar(16) | Primeiros 12 caracteres da chave (`nxk_...`), para reconhecê-la na lista |
+| key_hash | varchar(64) | Único. SHA-256 da chave. A chave completa aparece uma única vez, na criação, e não é guardada |
+| created_at / last_used_at | timestamp | Criação e último uso, em UTC |
+
+A chave vai no cabeçalho `X-API-Key` ou em `Authorization: Bearer nxk_...`. Excluir a linha revoga o acesso na hora.
+
+### nx_webhook
+Avisos enviados por POST a outros sistemas quando algo acontece no Nexo. Só administradores cadastram webhooks.
+
+| Coluna | Tipo | Regra |
+|---|---|---|
+| id | varchar(32) | Chave primária, UUID em hexadecimal |
+| url | varchar(500) | Endereço `http://` ou `https://` que recebe os avisos |
+| events | varchar(300) | Eventos assinados, separados por vírgula: `document.ready`, `document.failed`, `question.unanswered`, `feedback.negative` |
+| secret | varchar(80) | Segredo da assinatura `X-Nexo-Signature: sha256=<HMAC-SHA256 do corpo>`. Fica em texto, porque é preciso para assinar |
+| active | boolean | Webhook desativado não recebe avisos |
+| created_by | varchar(32) | Administrador que cadastrou |
+| created_at | timestamp | Cadastro, em UTC |
+| last_status | integer | Código HTTP da última entrega, ou nulo se o destino não respondeu |
+| last_error | text | Motivo da última falha, quando houver |
+| last_delivery_at | timestamp | Última tentativa de entrega, em UTC |
+
+Cada entrega tem tempo limite de `NEXO_WEBHOOK_TIMEOUT` segundos (padrão 5) e não é repetida em caso de falha.
 
 ## Banco vetorial
 
@@ -154,7 +209,8 @@ O título entra no texto usado para gerar o embedding, o que ajuda perguntas com
 ```
 
 - Senhas são guardadas só como hash bcrypt.
-- `role` é `admin` (pode excluir qualquer documento e vê o total de contas) ou `user`.
+- `role` é `admin` (pode excluir qualquer documento, gerencia contas e webhooks) ou `user`.
+- Excluir uma conta apaga também as chaves de API e as conversas dela.
 - O arquivo é regravado de forma atômica a cada alteração.
 - Se o arquivo não existir, o Nexo cria o login pré-definido `admin` / `Nexo@2026`.
 

@@ -14,10 +14,11 @@ if [ ! -f .venv/.instalado ]; then
   touch .venv/.instalado
 fi
 [ -f .env ] || cp .env.example .env
-if [ ! -f frontend/dist/index.html ]; then
+VERSAO=$(tr -d '[:space:]' < VERSION)
+if [ ! -f frontend/dist/index.html ] || [ "$(tr -d '[:space:]' < frontend/dist/.versao 2>/dev/null)" != "$VERSAO" ]; then
   if command -v npm >/dev/null; then
-    echo "Compilando a interface..."
-    (cd frontend && npm install && npm run build)
+    echo "Compilando a interface $VERSAO..."
+    (cd frontend && npm install && npm run build) && echo "$VERSAO" > frontend/dist/.versao
   else
     echo "Node.js não encontrado. A API sobe, mas a interface precisa do build em frontend/dist."
   fi

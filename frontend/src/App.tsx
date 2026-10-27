@@ -1,17 +1,24 @@
-import type { ReactNode } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Shell } from "./components/Shell";
 import { ChatPage } from "./pages/Chat";
 import { DocumentsPage } from "./pages/Documents";
+import { IntegrationsPage } from "./pages/Integrations";
 import { LoginPage } from "./pages/Login";
+import { MetricsPage } from "./pages/Metrics";
+import { SearchPage } from "./pages/Search";
 import { SystemPage } from "./pages/System";
+import { StoreProvider } from "./store";
 
-function Private({ children }: { children: ReactNode }) {
+function PrivateLayout() {
   const { user } = useAuth();
   const location = useLocation();
   if (!user) return <Navigate to="/entrar" replace state={{ from: location.pathname }} />;
-  return <Shell>{children}</Shell>;
+  return (
+    <StoreProvider key={user.username}>
+      <Shell><Outlet /></Shell>
+    </StoreProvider>
+  );
 }
 
 export function App() {
@@ -19,10 +26,15 @@ export function App() {
   return (
     <Routes>
       <Route path="/entrar" element={user ? <Navigate to="/conversas" replace /> : <LoginPage />} />
-      <Route path="/conversas" element={<Private><ChatPage /></Private>} />
-      <Route path="/conversas/:id" element={<Private><ChatPage /></Private>} />
-      <Route path="/documentos" element={<Private><DocumentsPage /></Private>} />
-      <Route path="/sistema" element={<Private><SystemPage /></Private>} />
+      <Route element={<PrivateLayout />}>
+        <Route path="/conversas" element={<ChatPage />} />
+        <Route path="/conversas/:id" element={<ChatPage />} />
+        <Route path="/busca" element={<SearchPage />} />
+        <Route path="/documentos" element={<DocumentsPage />} />
+        <Route path="/painel" element={<MetricsPage />} />
+        <Route path="/integracoes" element={<IntegrationsPage />} />
+        <Route path="/sistema" element={<SystemPage />} />
+      </Route>
       <Route path="*" element={<Navigate to={user ? "/conversas" : "/entrar"} replace />} />
     </Routes>
   );

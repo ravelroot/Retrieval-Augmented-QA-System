@@ -116,6 +116,37 @@ class FeedbackRow(Base):
     message: Mapped[MessageRow] = relationship(back_populates="feedback")
 
 
+class ApiKeyRow(Base):
+    __tablename__ = "nx_api_key"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    owner: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    prefix: Mapped[str] = mapped_column(String(16))
+    key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WebhookRow(Base):
+    __tablename__ = "nx_webhook"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    url: Mapped[str] = mapped_column(String(500))
+    events: Mapped[str] = mapped_column(String(300))
+    secret: Mapped[str] = mapped_column(String(80))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_delivery_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def event_list(self) -> list[str]:
+        return [e for e in self.events.split(",") if e]
+
+
 Index("ix_nx_message_conversation_created", MessageRow.conversation_id, MessageRow.created_at)
 
 _engine: Engine | None = None

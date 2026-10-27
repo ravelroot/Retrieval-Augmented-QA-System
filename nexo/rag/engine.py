@@ -222,8 +222,10 @@ class RagEngine:
             log.warning("Falha ao reescrever a pergunta: %s", e)
             return question
 
-    def retrieve(self, question: str, document_ids: list[str] | None, rerank: bool = True) -> list[NodeWithScore]:
+    def retrieve(self, question: str, document_ids: list[str] | None, rerank: bool = True,
+                 limit: int | None = None) -> list[NodeWithScore]:
         index = self._ensure_index()
+        top_n = limit or self.s.top_n
         filters = None
         if document_ids:
             if len(document_ids) == 1:
@@ -231,19 +233,26 @@ class RagEngine:
             else:
                 filters = MetadataFilters(filters=[MetadataFilter(key="source_id", value=document_ids,
                                                                   operator=FilterOperator.IN)])
-        retriever = index.as_retriever(similarity_top_k=self.s.top_k, filters=filters)
+        retriever = index.as_retriever(similarity_top_k=max(self.s.top_k, limit or 0), filters=filters)
         found = retriever.retrieve(question)
         for n in found:
             n.score = self._cosine(n.score)
             n.node.metadata["_similarity"] = n.score
         nodes = [n for n in found if n.score >= self.s.min_similarity]
         if not rerank:
-            return nodes[: self.s.top_n]
+            return nodes[:top_n]
         reranker = self.reranker()
         if reranker is None or not nodes:
-            return nodes[: self.s.top_n]
+            return nodes[:top_n]
+        if getattr(reranker, "top_n", None) not in (None, top_n):
+            reranker = reranker.model_copy(update={"top_n": top_n})
         ranked = reranker.postprocess_nodes(nodes, query_bundle=QueryBundle(question))
-        return [n for n in ranked if (n.score or 0.0) >= self.s.min_rerank_score][: self.s.top_n]
+        return [n for n in ranked if (n.score or 0.0) >= self.s.min_rerank_score][:top_n]
+
+    def search(self, query: str, document_ids: list[str] | None, rerank: bool = True,
+               limit: int | None = None) -> list[Source]:
+        nodes = self.retrieve(query, document_ids, rerank=rerank, limit=limit)
+        return [self._source(n, i) for i, n in enumerate(nodes, start=1)]
 
     def _cosine(self, score: float | None) -> float:
         if score is None:

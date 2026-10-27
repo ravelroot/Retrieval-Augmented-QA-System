@@ -76,7 +76,7 @@ class UserStore:
         self._default_admin: bool | None = None
         with self._lock:
             users = self._read()
-            if DEFAULT_ADMIN_USERNAME not in users:
+            if DEFAULT_ADMIN_USERNAME not in users and not self._admins(users):
                 users[DEFAULT_ADMIN_USERNAME] = User(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_NAME, "admin",
                                                      hash_password(DEFAULT_ADMIN_PASSWORD), _now())
                 self._write(users)
@@ -167,6 +167,44 @@ class UserStore:
             self._write(users)
             self._failures.pop(key, None)
             self._default_admin = None
+
+    def set_role(self, username: str, role: str) -> User:
+        key = username.strip().lower()
+        if role not in ("admin", "user"):
+            raise UserError("INVALID_ROLE", "Escolha admin ou user.", "role")
+        with self._lock:
+            users = self._read()
+            user = users.get(key)
+            if user is None:
+                raise UserError("NOT_FOUND", "Usuário não encontrado.")
+            if user.role == "admin" and role != "admin" and self._admins(users) <= 1:
+                raise UserError("LAST_ADMIN", "É preciso manter ao menos um administrador.", "role")
+            user.role = role
+            users[key] = user
+            self._write(users)
+            return user
+
+    def delete(self, username: str) -> None:
+        key = username.strip().lower()
+        with self._lock:
+            users = self._read()
+            user = users.get(key)
+            if user is None:
+                raise UserError("NOT_FOUND", "Usuário não encontrado.")
+            if user.role == "admin" and self._admins(users) <= 1:
+                raise UserError("LAST_ADMIN", "É preciso manter ao menos um administrador.")
+            del users[key]
+            self._write(users)
+            self._failures.pop(key, None)
+            self._default_admin = None
+
+    def admins(self) -> int:
+        with self._lock:
+            return self._admins(self._read())
+
+    @staticmethod
+    def _admins(users: dict[str, User]) -> int:
+        return sum(1 for u in users.values() if u.role == "admin")
 
     def default_admin_active(self) -> bool:
         if self._default_admin is None:

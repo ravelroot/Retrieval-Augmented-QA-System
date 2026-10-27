@@ -59,29 +59,22 @@ export function LoginPage() {
   return (
     <div className="login">
       <section className="login__brand">
-        <Brand subtitle="Respostas com fonte" inverted />
+        <Brand />
         <div className="login__pitch">
           <h1>Pergunte aos seus manuais. A resposta vem com a página.</h1>
-          <p>O Nexo lê os PDFs que você envia e responde só com o que está neles, citando o trecho e a página de cada afirmação. Se a informação não estiver lá, ele diz que não encontrou.</p>
+          <p>O Nexo lê os PDFs que você envia e responde só com o que está neles. Se a informação não estiver lá, ele diz que não encontrou.</p>
         </div>
-        <dl className="login__box">
-          <div className="login__cell login__cell--wide">
-            <dt>Cada resposta</dt>
-            <dd>Trecho, página e nota de relevância</dd>
+        <figure className="specimen" aria-label="Exemplo de resposta com fonte">
+          <p className="specimen__q">De quanto em quanto tempo lubrificar os rolamentos?</p>
+          <p className="specimen__a">A cada 2.000 horas, com graxa de lítio grau NLGI 2.<span className="specimen__cite">1</span></p>
+          <div className="specimen__page">
+            <span className="specimen__tab">p. 2</span>
+            <p>
+              <span className="specimen__doc">Guia de Manutenção da Bomba BC-40</span>
+              2. Lubrificação. <mark>Os rolamentos devem ser lubrificados a cada 2.000 horas de operação com graxa à base de lítio, grau NLGI 2.</mark> Aplique 15 gramas de graxa em cada rolamento.
+            </p>
           </div>
-          <div className="login__cell">
-            <dt>Base</dt>
-            <dd>Só os seus PDFs</dd>
-          </div>
-          <div className="login__cell">
-            <dt>Busca</dt>
-            <dd>Vetorial e reranking</dd>
-          </div>
-          <div className="login__cell login__cell--wide">
-            <dt>Modelos</dt>
-            <dd>Ollama local ou OpenAI</dd>
-          </div>
-        </dl>
+        </figure>
         <p className="login__legal">Copyright (©) 2026 Erik Pimenta. Licença MIT.</p>
       </section>
       <section className="login__panel">
@@ -115,7 +108,7 @@ export function LoginPage() {
               value={form.confirm} onChange={update("confirm")} error={errors.confirm} required />
           )}
           {message && <p className="alert" role="alert">{message}</p>}
-          <button className="primary-button login__submit" type="submit" disabled={busy}>
+          <button className="button button--primary login__submit" type="submit" disabled={busy}>
             {busy ? "Aguarde…" : mode === "login" ? "Entrar no Nexo" : "Criar conta e entrar"}
           </button>
           {mode === "login" && options?.default_admin && (

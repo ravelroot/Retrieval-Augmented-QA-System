@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from nexo import db
+from nexo import db, webhooks
 from nexo.config import get_settings
 from nexo.rag.engine import IngestionError, get_engine
 from nexo.rag.providers import ProviderError
@@ -52,15 +52,20 @@ def process(document_id: str) -> None:
         row.chunks = chunks
         row.indexed_at = db.utcnow()
         s.commit()
+        data = {"id": row.id, "title": row.title, "pages": row.pages, "chunks": row.chunks}
+    webhooks.emit("document.ready", data)
 
 
 def _fail(document_id: str, message: str) -> None:
     with db.session() as s:
         row = s.get(db.DocumentRow, document_id)
-        if row is not None:
-            row.status = "FAILED"
-            row.error = message[:2000]
-            s.commit()
+        if row is None:
+            return
+        row.status = "FAILED"
+        row.error = message[:2000]
+        s.commit()
+        data = {"id": row.id, "title": row.title, "error": row.error}
+    webhooks.emit("document.failed", data)
 
 
 def resume_pending() -> int:

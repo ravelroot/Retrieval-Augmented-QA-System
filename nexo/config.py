@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     token_hours: int = Field(8, ge=1, le=168)
     allow_registration: bool = True
     max_upload_mb: int = Field(100, ge=1, le=2048)
+    webhook_timeout: float = Field(5.0, gt=0, le=120)
 
     llm_provider: Literal["ollama", "openai", "extrativo"] = "ollama"
     llm_model: str = "llama3.1"
