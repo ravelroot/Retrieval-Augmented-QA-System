@@ -49,7 +49,7 @@ resposta.sources.forEach((f) => console.log(\`[\${f.rank}] \${f.document_title},
 function CopyButton({ text, label = "Copiar" }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
-    <button type="button" className="button button--small" onClick={() => {
+    <button type="button" className="ghost-button small" onClick={() => {
       navigator.clipboard.writeText(text).then(() => { setDone(true); window.setTimeout(() => setDone(false), 1500); }).catch(() => undefined);
     }}>
       <Icon name={done ? "check" : "copy"} size={15} />
@@ -93,16 +93,16 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
   }
 
   return (
-    <section className="sheet">
+    <div className="box"><section className="panel">
       <h2>Chaves de API</h2>
-      <p className="sheet__lead">
+      <p className="panel__lead">
         Para sistemas externos (intranet, help desk, automações) consultarem o Nexo em seu nome. Envie a chave no cabeçalho
         <code>X-API-Key</code>. Ela tem as mesmas permissões da sua conta.
       </p>
       <form className="inline-form inline-form--wide" onSubmit={create}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da chave, ex.: Portal de suporte"
           aria-label="Nome da chave" maxLength={80} />
-        <button className="button button--primary" type="submit" disabled={!name.trim()}><Icon name="key" size={16} />Criar chave</button>
+        <button className="primary-button" type="submit" disabled={!name.trim()}><Icon name="key" size={16} />Criar chave</button>
       </form>
       {created?.key && (
         <div className="secret" role="status">
@@ -123,11 +123,11 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
                 <td className="table__actions">
                   {confirm === k.id ? (
                     <>
-                      <button className="button button--danger button--small" onClick={() => revoke(k.id)}>Revogar</button>
-                      <button className="button button--small" onClick={() => setConfirm(null)}>Manter</button>
+                      <button className="danger-button small" onClick={() => revoke(k.id)}>Revogar</button>
+                      <button className="ghost-button small" onClick={() => setConfirm(null)}>Manter</button>
                     </>
                   ) : (
-                    <button className="text-button text-button--danger" onClick={() => setConfirm(k.id)}>Revogar</button>
+                    <button className="link-button link-button--danger" onClick={() => setConfirm(k.id)}>Revogar</button>
                   )}
                 </td>
               </tr>
@@ -135,8 +135,8 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
           </tbody>
         </table>
       )}
-      {keys && keys.length === 0 && <p className="muted">Nenhuma chave criada.</p>}
-    </section>
+      {keys && keys.length === 0 && <p className="panel__lead">Nenhuma chave criada.</p>}
+    </section></div>
   );
 }
 
@@ -187,9 +187,9 @@ function Webhooks() {
   }
 
   return (
-    <section className="sheet">
+    <div className="box"><section className="panel">
       <h2>Webhooks</h2>
-      <p className="sheet__lead">
+      <p className="panel__lead">
         O Nexo avisa outro sistema (Slack via automação, Teams, n8n, Zapier, seu backend) quando algo acontece. Cada entrega é um
         POST em JSON assinado com HMAC SHA-256 no cabeçalho <code>X-Nexo-Signature</code>.
       </p>
@@ -207,7 +207,7 @@ function Webhooks() {
             </label>
           ))}
         </fieldset>
-        <button className="button button--primary" type="submit" disabled={!url.trim() || !events.length}>
+        <button className="primary-button" type="submit" disabled={!url.trim() || !events.length}>
           <Icon name="hook" size={16} />Adicionar webhook
         </button>
       </form>
@@ -233,7 +233,7 @@ function Webhooks() {
                 </span>
               </div>
               <div className="hooks__actions">
-                <button className="button button--small" onClick={() => test(h.id)} disabled={testing === h.id}>
+                <button className="ghost-button small" onClick={() => test(h.id)} disabled={testing === h.id}>
                   <Icon name="bolt" size={15} />{testing === h.id ? "Enviando…" : "Testar"}
                 </button>
                 <button className="icon-button" title={h.active ? "Pausar" : "Retomar"} aria-label={h.active ? "Pausar webhook" : "Retomar webhook"}
@@ -249,7 +249,7 @@ function Webhooks() {
           ))}
         </ul>
       )}
-    </section>
+    </section></div>
   );
 }
 
@@ -263,21 +263,24 @@ export function IntegrationsPage() {
   return (
     <div className="page">
       <header className="page__head">
-        <h1>Integrações</h1>
-        <p className="page__lead">Leve as respostas com fonte para outros sistemas: chaves de API, uma rota de pergunta direta e avisos por webhook.</p>
+        <div className="page__titles">
+          <span className="page__over">Gestão</span>
+          <h1>Integrações</h1>
+          <p className="page__lead">Leve as respostas com fonte para outros sistemas: chaves de API, uma rota de pergunta direta e avisos por webhook.</p>
+        </div>
       </header>
 
       <Keys onNewKey={setKey} />
 
-      <section className="sheet">
+      <div className="box"><section className="panel">
         <h2>Pergunta direta</h2>
-        <p className="sheet__lead">
+        <p className="panel__lead">
           <code>POST /api/ask</code> responde sem abrir conversa e devolve a resposta, as fontes com página e as notas de relevância.
           Envie <code>conversation_id</code> para manter o histórico e <code>document_ids</code> para limitar o escopo.
         </p>
         <div className="codebox">
           <div className="codebox__bar">
-            <div className="segmented segmented--small" role="tablist" aria-label="Linguagem">
+            <div className="segmented" role="tablist" aria-label="Linguagem">
               {(["curl", "python", "javascript"] as Lang[]).map((l) => (
                 <button key={l} role="tab" aria-selected={lang === l} onClick={() => setLang(l)}>
                   {l === "curl" ? "curl" : l === "python" ? "Python" : "JavaScript"}
@@ -288,17 +291,17 @@ export function IntegrationsPage() {
           </div>
           <pre><code>{code}</code></pre>
         </div>
-        <p className="muted">
+        <p className="panel__lead">
           Referência completa e teste das rotas em <a href="/api/docs" target="_blank" rel="noreferrer">/api/docs</a>.
           A conversa também pode ser exportada em Markdown ou JSON pelo botão de download no topo de cada conversa.
         </p>
-      </section>
+      </section></div>
 
       {user?.role === "admin" ? <Webhooks /> : (
-        <section className="sheet">
+        <div className="box"><section className="panel">
           <h2>Webhooks</h2>
-          <p className="muted">Só administradores configuram webhooks. Peça a um administrador se precisar de avisos automáticos.</p>
-        </section>
+          <p className="panel__lead">Só administradores configuram webhooks. Peça a um administrador se precisar de avisos automáticos.</p>
+        </section></div>
       )}
     </div>
   );

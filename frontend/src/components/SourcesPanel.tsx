@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import type { Source } from "../api";
-import { plural } from "../format";
 import { Icon } from "./Icon";
 import { SourceSlip } from "./SourceSlip";
 
@@ -21,22 +20,24 @@ export function SourcesPanel({ sources, query, active, onSelect, onClose, onErro
   }, [active]);
 
   return (
-    <aside className="sources" aria-label="Trechos citados na resposta">
+    <aside className="sources" aria-label="Trechos usados na resposta">
       <header className="sources__head">
         <div>
-          <h2>Trechos citados</h2>
-          <p>{plural(sources.length, "trecho lido", "trechos lidos")} para responder. Em amarelo, os termos da pergunta.</p>
+          <h2>Trechos usados</h2>
+          <p>O que o Nexo leu nos PDFs para responder. Os termos da pergunta aparecem destacados.</p>
         </div>
         <button className="icon-button" onClick={onClose} aria-label="Fechar trechos">
           <Icon name="close" />
         </button>
       </header>
-      <div className="sources__list">
+      <ol className="sources__list">
         {sources.map((s) => (
-          <SourceSlip key={s.rank} ref={(el) => { refs.current[s.rank] = el; }} source={s} query={query}
-            active={active === s.rank} onSelect={() => onSelect(s.rank)} onError={onError} />
+          <li key={s.rank}>
+            <SourceSlip ref={(el) => { refs.current[s.rank] = el; }} source={s} query={query}
+              active={active === s.rank} onSelect={() => onSelect(s.rank)} onError={onError} />
+          </li>
         ))}
-      </div>
+      </ol>
     </aside>
   );
 }

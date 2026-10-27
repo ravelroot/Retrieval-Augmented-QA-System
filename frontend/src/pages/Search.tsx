@@ -12,7 +12,7 @@ export function SearchPage() {
   const toast = useToast();
   const { documents, reloadDocuments } = useStore();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [scope, setScope] = useState<string>("");
+  const [scope, setScope] = useState("");
   const [rerank, setRerank] = useState(true);
   const [limit, setLimit] = useState(8);
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -51,20 +51,23 @@ export function SearchPage() {
   return (
     <div className="page">
       <header className="page__head">
-        <h1>Busca nos trechos</h1>
-        <p className="page__lead">Encontre a passagem exata sem gerar resposta. Útil para conferir o que o acervo diz e calibrar perguntas.</p>
+        <div className="page__titles">
+          <span className="page__over">Consulta</span>
+          <h1>Busca nos trechos</h1>
+          <p className="page__lead">Encontre a passagem exata sem gerar resposta, para conferir o que o acervo diz e calibrar perguntas.</p>
+        </div>
       </header>
 
-      <form className="searchbar" onSubmit={submit} role="search">
-        <div className="searchbar__field">
+      <form className="box searchbox" onSubmit={submit} role="search">
+        <div className="searchbox__field">
           <Icon name="search" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ex.: torque dos parafusos da tampa"
             aria-label="Termos da busca" maxLength={500} autoFocus />
-          <button className="button button--primary" type="submit" disabled={busy || !query.trim() || !ready.length}>
+          <button className="primary-button" type="submit" disabled={busy || !query.trim() || !ready.length}>
             {busy ? "Buscando…" : "Buscar"}
           </button>
         </div>
-        <div className="searchbar__opts">
+        <div className="searchbox__opts">
           <label className="select">
             <span>Documento</span>
             <select value={scope} onChange={(e) => setScope(e.target.value)}>
@@ -78,9 +81,8 @@ export function SearchPage() {
               {[4, 8, 12, 20].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
-          <label className="toggle">
+          <label className="check check--inline">
             <input type="checkbox" checked={rerank} onChange={(e) => setRerank(e.target.checked)} />
-            <span className="toggle__ui" aria-hidden="true" />
             Reordenar com o reranker
           </label>
         </div>
@@ -89,10 +91,10 @@ export function SearchPage() {
       {error && <p className="alert" role="alert">{error}</p>}
 
       {!ready.length && (
-        <div className="empty empty--page">
+        <div className="empty empty--compact">
           <h2>Nenhum documento pronto</h2>
           <p>A busca percorre os trechos dos PDFs indexados.</p>
-          <Link className="button button--primary" to="/documentos"><Icon name="upload" size={16} />Enviar PDFs</Link>
+          <Link className="primary-button" to="/documentos">Ir para Documentos</Link>
         </div>
       )}
 
@@ -101,21 +103,23 @@ export function SearchPage() {
           <div className="results__head">
             <p>
               {result.results.length
-                ? <>{plural(result.results.length, "trecho encontrado", "trechos encontrados")} para <b>“{result.query}”</b></>
-                : <>Nenhum trecho passou no corte de similaridade para <b>“{result.query}”</b>.</>}
-              <span className="muted"> em {(result.took_ms / 1000).toFixed(2).replace(".", ",")} s</span>
+                ? <>{plural(result.results.length, "trecho encontrado", "trechos encontrados")} para <strong>“{result.query}”</strong></>
+                : <>Nenhum trecho passou no corte de similaridade para <strong>“{result.query}”</strong>.</>}
+              <span className="muted">, em {(result.took_ms / 1000).toFixed(2).replace(".", ",")} s</span>
             </p>
             {result.results.length > 0 && (
-              <Link className="button button--small" to={`/conversas?pergunta=${encodeURIComponent(result.query)}${scope ? `&documento=${scope}` : ""}`}>
+              <Link className="ghost-button small" to={`/conversas?pergunta=${encodeURIComponent(result.query)}${scope ? `&documento=${scope}` : ""}`}>
                 <Icon name="chat" size={15} />Perguntar sobre isso
               </Link>
             )}
           </div>
-          <div className="results__list">
+          <ol className="box results__list">
             {result.results.map((s) => (
-              <SourceSlip key={`${s.document_id}-${s.rank}`} source={s} query={result.query} onError={(m) => toast(m, "error")} />
+              <li key={`${s.document_id}-${s.rank}`}>
+                <SourceSlip source={s} query={result.query} onError={(m) => toast(m, "error")} />
+              </li>
             ))}
-          </div>
+          </ol>
         </section>
       )}
     </div>

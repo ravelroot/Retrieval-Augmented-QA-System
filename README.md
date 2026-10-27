@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b>Versão 2.0.0</b><br>
+  <b>Versão 2.0.1</b><br>
   Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama ou OpenAI · React 19 · TypeScript
 </p>
 
@@ -26,17 +26,18 @@
 
 ## Novidades da 2.0
 
+A 2.0.1 mantém a identidade visual "caixa única" (a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel)) e traz as ferramentas novas da 2.0:
+
 | | O que mudou |
 |---|---|
-| **Nova identidade** | Visual de "manual de bancada": papel, tinta azul-marinho e marca-texto amarelo nas citações e nos termos encontrados. Perguntas em Barlow Semi Condensed, respostas e trechos em Literata, uma serifa feita para leitura longa. |
 | **Busca nos trechos** | Encontra a passagem exata sem gerar resposta, com escolha de documento, quantidade de resultados e reranking ligado ou desligado. |
 | **Painel de qualidade** | Taxa de resposta, tempo médio e p95, avaliações, perguntas por dia, documentos mais citados e as **lacunas do acervo** (perguntas que nenhum PDF respondeu). |
 | **Integrações** | Chaves de API pessoais, rota `POST /api/ask` para outros sistemas, exemplos prontos em curl, Python e JavaScript e **webhooks** assinados com HMAC SHA-256. |
 | **Exportação** | Cada conversa sai em Markdown ou JSON, com as fontes e as notas de relevância. |
-| **Trechos com marca-texto** | O painel de trechos destaca em amarelo os termos da pergunta dentro de cada passagem citada. |
+| **Termos destacados** | O painel de trechos destaca os termos da pergunta dentro de cada passagem citada. |
 | **Paleta de comandos** | `Ctrl + K` abre conversas, telas e "perguntar a um documento" pelo teclado. |
 | **Gestão de contas** | Administradores promovem, rebaixam e excluem contas pela tela Sistema e conta. |
-| **Mais conforto** | Conversas recentes na barra lateral com filtro, copiar resposta com as fontes, filtro e ordenação de documentos, tema claro, escuro ou automático. |
+| **Mais conforto** | Filtro de conversas, copiar resposta com as fontes, filtro e ordenação de documentos, "perguntar a este documento", tema claro, escuro ou automático. |
 
 ## O que o Nexo faz
 
@@ -50,7 +51,8 @@
 - **Integrações**: chaves de API, pergunta direta por HTTP, webhooks e exportação de conversas.
 - **Contas de acesso** com login pré-definido, cadastro próprio e gestão por administradores, gravadas em `data/usuarios.json` com senhas em bcrypt.
 - **Avaliação** de cada resposta (útil / não ajudou) e script de medição de acerto da recuperação.
-- **Tema claro, escuro ou automático**, layout responsivo para celular e atalhos de teclado. A logo é sempre de uma cor só.
+- **Identidade "caixa única"**, a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel): fundo, menu e cabeçalhos impressos na mesa em `#F5F4F4`, conversa e trechos dividindo paredes finas dentro de uma só caixa branca, resumos na tampa preta, títulos e números em Bricolage Grotesque fina e condensada, textos em Instrument Sans e status como um ponto de cor. Paleta `#FFFFFF`, `#4D4B4B`, `#000000`, `#333232` e `#BAB7B6`.
+- **Tema claro, escuro ou automático**, layout responsivo para celular e atalhos de teclado. A logo é sempre em preto e branco.
 
 ## Como o Nexo evita alucinações
 
@@ -126,11 +128,11 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. T
 | | |
 |---|---|
 | <img src="docs/images/tela-login.png" alt="Entrada"> | <img src="docs/images/tela-documentos.png" alt="Documentos"> |
-| **Entrada**, com um exemplo real de resposta citada | **Documentos**: resumo do acervo, envio, filtro e ordenação |
+| **Entrada** | **Documentos**: resumo do acervo na tampa preta, envio, filtro e ordenação |
 | <img src="docs/images/tela-busca.png" alt="Busca nos trechos"> | <img src="docs/images/tela-painel.png" alt="Painel de qualidade"> |
-| **Busca nos trechos** com os termos marcados | **Painel de qualidade** com as lacunas do acervo |
+| **Busca nos trechos** com os termos destacados | **Painel de qualidade** com as lacunas do acervo |
 | <img src="docs/images/tela-integracoes.png" alt="Integrações"> | <img src="docs/images/tela-sistema.png" alt="Sistema e conta"> |
-| **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: o caminho de cada resposta e as contas |
+| **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: pipeline de respostas, acervo e conta |
 | <img src="docs/images/tela-nao-encontrado.png" alt="Pergunta sem resposta nos documentos"> | <img src="docs/images/tela-comandos.png" alt="Paleta de comandos"> |
 | **Sem base nos PDFs**: o Nexo diz que não encontrou e sugere o próximo passo | **Paleta de comandos** (`Ctrl + K`) |
 | <img src="docs/images/tela-escuro.png" alt="Tema escuro"> | <img src="docs/images/tela-celular.png" alt="Celular" width="240"> |
@@ -220,7 +222,7 @@ Todas as opções ficam no `.env` (modelo em [`.env.example`](.env.example)). As
 | `NEXO_DATABASE_URL` | SQLite em `data/` | Outro banco relacional |
 | `NEXO_SECRET` | gerado em `data/.segredo` | Chave de assinatura das sessões |
 
-A tela **Sistema e conta** mostra a configuração ativa como o caminho que cada resposta percorre.
+A tela **Sistema e conta** mostra a configuração ativa.
 
 ## Banco de dados
 
@@ -265,7 +267,7 @@ nexo/
   api/               rotas FastAPI, esquemas e autenticação
 frontend/            interface React + TypeScript (Vite)
   src/pages/         Entrada, Conversas, Busca, Documentos, Painel, Integrações, Sistema
-  src/components/    barra lateral, paleta de comandos, trechos com marca-texto
+  src/components/    menu, paleta de comandos, trechos com termos destacados
 scripts/             avaliação da recuperação, PDF de exemplo, redefinição de senha
 exemplos/            PDF fictício e perguntas de avaliação
 docs/                manuais em PDF, banco de dados, DDL e imagens
@@ -318,4 +320,4 @@ Os testes usam o modo sem modelos e cobrem autenticação, bloqueio por tentativ
 
 ## Licença
 
-[MIT](LICENSE). Use, copie, altere e distribua à vontade. As fontes [Barlow e Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow), [Literata](https://fonts.google.com/specimen/Literata) e [IBM Plex Mono](https://www.ibm.com/plex/) da interface vêm do [Fontsource](https://fontsource.org/) e são distribuídas sob a SIL Open Font License 1.1.
+[MIT](LICENSE). Use, copie, altere e distribua à vontade. As fontes [Instrument Sans](https://fonts.google.com/specimen/Instrument+Sans), [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) e [IBM Plex Mono](https://www.ibm.com/plex/) da interface vêm do [Fontsource](https://fontsource.org/) e são distribuídas sob a SIL Open Font License 1.1.

@@ -365,7 +365,7 @@ def test_webhook_test_delivery_is_signed(client, receiver):
     assert req["headers"]["x-nexo-signature"] == expected
     assert req["headers"]["x-nexo-event"] == "ping"
     assert req["headers"]["content-type"] == "application/json"
-    assert req["headers"]["user-agent"] == f"Nexo/{__version__}" == "Nexo/2.0.0"
+    assert req["headers"]["user-agent"] == f"Nexo/{__version__}"
     payload = json.loads(req["body"])
     assert set(payload) == {"event", "created_at", "data"}
     assert payload["event"] == "ping" and payload["data"]["webhook_id"] == hook["id"]

@@ -25,9 +25,9 @@ export function LogoMark({ size = 40, title, className }: LogoProps) {
   );
 }
 
-export function Brand({ subtitle = "Respostas com a página certa" }: { subtitle?: string }) {
+export function Brand({ subtitle = "Respostas com fonte", inverted = false }: { subtitle?: string; inverted?: boolean }) {
   return (
-    <span className="brand">
+    <span className={`brand${inverted ? " brand--inverted" : ""}`}>
       <span className="brand__mark">
         <LogoMark size={34} />
       </span>

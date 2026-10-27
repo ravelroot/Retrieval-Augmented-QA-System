@@ -35,8 +35,8 @@ function Daily({ data }: { data: Metrics["daily"] }) {
           return (
             <g key={d.date}>
               <title>{`${label(d.date)}: ${plural(d.questions, "pergunta", "perguntas")}, ${d.unanswered} sem resposta`}</title>
-              <rect x={i * w + w * 0.18} width={w * 0.64} y={40 - h} height={Math.max(h - u, 0)} className="daily__ok" />
-              {u > 0 && <rect x={i * w + w * 0.18} width={w * 0.64} y={40 - u} height={u} className="daily__miss" />}
+              <rect x={i * w + w * 0.2} width={w * 0.6} y={40 - h} height={Math.max(h - u, 0)} className="daily__ok" />
+              {u > 0 && <rect x={i * w + w * 0.2} width={w * 0.6} y={40 - u} height={u} className="daily__miss" />}
             </g>
           );
         })}
@@ -47,7 +47,7 @@ function Daily({ data }: { data: Metrics["daily"] }) {
       <figcaption>
         <span className="key key--ok" />Respondidas
         <span className="key key--miss" />Sem resposta nos documentos
-        <span className="muted">Pico de {plural(max, "pergunta", "perguntas")} em um dia</span>
+        <span className="daily__peak">Pico de {plural(max, "pergunta", "perguntas")} em um dia</span>
       </figcaption>
     </figure>
   );
@@ -67,18 +67,19 @@ export function MetricsPage() {
   const rated = m ? m.feedback.up + m.feedback.down : 0;
 
   return (
-    <div className="page page--wide">
-      <header className="page__head page__head--row">
-        <div>
+    <div className="page">
+      <header className="page__head">
+        <div className="page__titles">
+          <span className="page__over">Gestão</span>
           <h1>Painel de qualidade</h1>
           <p className="page__lead">
             Quanto o acervo responde, em quanto tempo e onde faltam documentos.
             {m && (m.scope === "all" ? " Dados de todas as contas." : " Dados das suas conversas.")}
           </p>
         </div>
-        <div className="segmented" role="radiogroup" aria-label="Período">
+        <div className="segmented" role="tablist" aria-label="Período">
           {periods.map((p) => (
-            <button key={p} role="radio" aria-checked={days === p} onClick={() => setDays(p)}>{p} dias</button>
+            <button key={p} role="tab" aria-selected={days === p} onClick={() => setDays(p)}>{p} dias</button>
           ))}
         </div>
       </header>
@@ -87,28 +88,30 @@ export function MetricsPage() {
 
       {m && (
         <>
-          <dl className="ledger ledger--metrics">
-            <div><dt>Perguntas</dt><dd>{m.questions.toLocaleString("pt-BR")}</dd><small>{plural(m.conversations, "conversa", "conversas")}</small></div>
-            <div><dt>Taxa de resposta</dt><dd>{pct(m.answer_rate)}</dd><small>{m.unanswered} sem base nos documentos</small></div>
-            <div><dt>Tempo médio</dt><dd>{seconds(m.avg_latency_ms)}</dd><small>95% abaixo de {seconds(m.p95_latency_ms)}</small></div>
-            <div>
-              <dt>Avaliações</dt>
-              <dd>{rated ? pct(m.feedback.up / rated) : "—"}</dd>
-              <small>{rated ? `${m.feedback.up} úteis, ${m.feedback.down} não ajudaram` : "Nenhuma avaliação ainda"}</small>
-            </div>
-          </dl>
+          <div className="box box--metrics">
+            <section className="lid" aria-label="Resumo do período">
+              <span className="lid__label">Perguntas nos últimos {m.period_days} dias</span>
+              <strong className="lid__number">{m.questions.toLocaleString("pt-BR")}</strong>
+              <p className="lid__sub">{plural(m.conversations, "conversa", "conversas")} e {plural(m.unanswered, "pergunta", "perguntas")} sem base nos documentos.</p>
+              <dl className="lid__stats">
+                <div><dt>Taxa de resposta</dt><dd>{pct(m.answer_rate)}</dd></div>
+                <div><dt>Tempo médio</dt><dd>{seconds(m.avg_latency_ms)}</dd></div>
+                <div><dt>95% abaixo de</dt><dd>{seconds(m.p95_latency_ms)}</dd></div>
+                <div><dt>Avaliações úteis</dt><dd>{rated ? `${pct(m.feedback.up / rated)} de ${rated}` : "—"}</dd></div>
+              </dl>
+            </section>
+            <section className="panel">
+              <h2>Perguntas por dia</h2>
+              {m.questions === 0 ? <p className="panel__lead">Nenhuma pergunta no período.</p> : <Daily data={m.daily} />}
+            </section>
+          </div>
 
-          <section className="sheet">
-            <h2>Perguntas por dia</h2>
-            {m.questions === 0 ? <p className="muted">Nenhuma pergunta no período.</p> : <Daily data={m.daily} />}
-          </section>
-
-          <div className="grid-2">
-            <section className="sheet">
+          <div className="box box--two">
+            <section className="panel">
               <h2>Lacunas do acervo</h2>
-              <p className="sheet__lead">Perguntas que nenhum documento respondeu. Cada uma indica um PDF que falta ou um termo diferente do usado no manual.</p>
+              <p className="panel__lead">Perguntas que nenhum documento respondeu. Cada uma indica um PDF que falta ou um termo diferente do usado no manual.</p>
               {m.unanswered_recent.length === 0 ? (
-                <p className="muted">Nenhuma lacuna no período.</p>
+                <p className="panel__lead">Nenhuma lacuna no período.</p>
               ) : (
                 <ul className="gaps">
                   {m.unanswered_recent.map((g, i) => (
@@ -116,20 +119,19 @@ export function MetricsPage() {
                       <span className="gaps__q">{g.question}</span>
                       <span className="gaps__meta">{formatRelative(g.asked_at)}</span>
                       <span className="gaps__actions">
-                        <Link to={`/busca?q=${encodeURIComponent(g.question)}`} className="text-button"><Icon name="search" size={14} />Buscar</Link>
-                        <Link to={`/conversas/${g.conversation_id}`} className="text-button"><Icon name="chat" size={14} />Abrir</Link>
+                        <Link to={`/busca?q=${encodeURIComponent(g.question)}`} className="link-button"><Icon name="search" size={14} />Buscar</Link>
+                        <Link to={`/conversas/${g.conversation_id}`} className="link-button"><Icon name="chat" size={14} />Abrir</Link>
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
-
-            <section className="sheet">
+            <section className="panel">
               <h2>Documentos mais citados</h2>
-              <p className="sheet__lead">Quantas vezes cada PDF apareceu como fonte de uma resposta.</p>
+              <p className="panel__lead">Quantas vezes cada PDF apareceu como fonte de uma resposta.</p>
               {m.top_documents.length === 0 ? (
-                <p className="muted">Nenhuma citação no período.</p>
+                <p className="panel__lead">Nenhuma citação no período.</p>
               ) : (
                 <ol className="bars">
                   {m.top_documents.map((d) => (
@@ -144,22 +146,24 @@ export function MetricsPage() {
             </section>
           </div>
 
-          <section className="sheet">
-            <h2>Respostas avaliadas como “não ajudou”</h2>
-            {m.negative_recent.length === 0 ? (
-              <p className="muted">Nenhuma avaliação negativa no período.</p>
-            ) : (
-              <ul className="reviews">
-                {m.negative_recent.map((r) => (
-                  <li key={r.message_id}>
-                    <p className="reviews__q">{r.question}</p>
-                    <p className="reviews__a">{clip(r.answer)}</p>
-                    <Link to={`/conversas/${r.conversation_id}`} className="text-button">Abrir conversa, {formatRelative(r.asked_at)}</Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <div className="box">
+            <section className="panel">
+              <h2>Respostas avaliadas como “não ajudou”</h2>
+              {m.negative_recent.length === 0 ? (
+                <p className="panel__lead">Nenhuma avaliação negativa no período.</p>
+              ) : (
+                <ul className="reviews">
+                  {m.negative_recent.map((r) => (
+                    <li key={r.message_id}>
+                      <p className="reviews__q">{r.question}</p>
+                      <p className="reviews__a">{clip(r.answer)}</p>
+                      <Link to={`/conversas/${r.conversation_id}`} className="link-button">Abrir conversa, {formatRelative(r.asked_at)}</Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </>
       )}
     </div>
