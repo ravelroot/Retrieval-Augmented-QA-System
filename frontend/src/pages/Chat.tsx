@@ -27,7 +27,8 @@ export function ChatPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const { conversations: list, documents: docs, reloadConversations: loadList, reloadDocuments } = useStore();
+  const { conversations: everything, documents: docs, reloadConversations: loadList, reloadDocuments } = useStore();
+  const list = useMemo(() => everything.filter((c) => !c.bot_id), [everything]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [draftScope, setDraftScope] = useState<string[]>([]);
   const [question, setQuestion] = useState("");

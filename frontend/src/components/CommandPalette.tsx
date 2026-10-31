@@ -16,7 +16,7 @@ function fold(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-export function CommandPalette({ onClose, onTheme }: { onClose: () => void; onTheme: () => void }) {
+export function CommandPalette({ onClose, onTheme, onTutorial }: { onClose: () => void; onTheme: () => void; onTutorial: () => void }) {
   const navigate = useNavigate();
   const { conversations, documents } = useStore();
   const [query, setQuery] = useState("");
@@ -31,15 +31,22 @@ export function CommandPalette({ onClose, onTheme }: { onClose: () => void; onTh
   const items = useMemo<Item[]>(() => {
     const base: Item[] = [
       { id: "new", group: "Ações", label: "Nova conversa", icon: "plus", run: go("/conversas") },
+      { id: "chats", group: "Ações", label: "Conversar com agentes", icon: "chats", run: go("/chats") },
+      { id: "new-bot", group: "Ações", label: "Criar agente", icon: "bot", run: go("/agentes") },
+      { id: "new-base", group: "Ações", label: "Criar base de conhecimento", icon: "base", run: go("/bases") },
       { id: "search", group: "Ações", label: "Buscar nos trechos", icon: "search", run: go("/busca") },
       { id: "upload", group: "Ações", label: "Enviar PDFs", icon: "upload", run: go("/documentos") },
       { id: "theme", group: "Ações", label: "Trocar o tema", icon: "auto", run: () => { onTheme(); onClose(); } },
+      { id: "tutorial", group: "Ações", label: "Ver tutorial", icon: "help", run: () => { onTutorial(); } },
       { id: "nav-docs", group: "Ir para", label: "Documentos", icon: "docs", run: go("/documentos") },
+      { id: "nav-bots", group: "Ir para", label: "Agentes", icon: "bot", run: go("/agentes") },
+      { id: "nav-bases", group: "Ir para", label: "Bases de conhecimento", icon: "base", run: go("/bases") },
+      { id: "nav-wa", group: "Ir para", label: "WhatsApp", icon: "whatsapp", run: go("/whatsapp") },
       { id: "nav-metrics", group: "Ir para", label: "Painel de qualidade", icon: "chart", run: go("/painel") },
       { id: "nav-int", group: "Ir para", label: "Integrações", icon: "plug", run: go("/integracoes") },
       { id: "nav-sys", group: "Ir para", label: "Sistema e conta", icon: "system", run: go("/sistema") },
     ];
-    const convs: Item[] = conversations.slice(0, 40).map((c) => ({
+    const convs: Item[] = conversations.filter((c) => !c.bot_id).slice(0, 40).map((c) => ({
       id: `c-${c.id}`, group: "Conversas", label: c.title, icon: "chat", run: go(`/conversas/${c.id}`),
     }));
     const docs: Item[] = documents.filter((d) => d.status === "READY").map((d) => ({

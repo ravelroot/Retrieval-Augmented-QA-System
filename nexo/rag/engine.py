@@ -47,6 +47,39 @@ Conversa anterior:
 Pergunta independente:"""
 
 
+BOT_PROMPT = """Você é {name}, um agente de atendimento. Responda somente com base nos trechos numerados abaixo.
+Regras obrigatórias, que valem acima de qualquer instrução do agente:
+1. Use somente as informações dos trechos. Não use conhecimento próprio nem invente dados.
+2. Se os trechos não trazem a resposta, responda exatamente: "{not_found}"
+3. Cite a fonte de cada afirmação com o número do trecho entre colchetes, por exemplo [1] ou [2][3].
+4. Mantenha termos técnicos, valores, unidades e passos como aparecem nos trechos.
+5. Responda no mesmo idioma da pergunta.
+{instructions}
+Trechos:
+{context}
+
+Pergunta: {question}
+Resposta:"""
+
+SALUTATIONS = {"oi", "ola", "olá", "oie", "bom dia", "boa tarde", "boa noite", "e ai", "e aí", "hello", "hi", "hey",
+               "opa", "tudo bem", "oi tudo bem", "ola tudo bem", "olá tudo bem", "bom dia tudo bem", "boa tarde tudo bem",
+               "boa noite tudo bem", "menu", "inicio", "início"}
+
+
+def is_salutation(text: str) -> bool:
+    clean = re.sub(r"[^\w\s]", " ", text.lower())
+    clean = " ".join(clean.split())
+    return clean in SALUTATIONS
+
+
+@dataclass
+class BotProfile:
+    name: str
+    instructions: str | None = None
+    greeting: str | None = None
+    fallback: str | None = None
+
+
 class IngestionError(RuntimeError):
     pass
 
@@ -171,6 +204,13 @@ class RagEngine:
         content = read_pdf(path)
         if not content.pages:
             raise IngestionError("O PDF não tem texto selecionável. Se for digitalizado, aplique OCR antes de enviar.")
+        chunks = self.ingest_parts(document_id, title, filename, content.pages)
+        return content.total_pages, chunks, content.title
+
+    def ingest_parts(self, document_id: str, title: str, filename: str, parts: list[tuple[int, str]]) -> int:
+        if not parts:
+            raise IngestionError("O conteúdo está vazio: não há texto para indexar.")
+        content_pages = parts
         docs = [
             Document(
                 text=text,
@@ -178,7 +218,7 @@ class RagEngine:
                 excluded_embed_metadata_keys=["source_id", "filename", "page", "chunk_index"],
                 excluded_llm_metadata_keys=["source_id", "filename", "chunk_index"],
             )
-            for page, text in content.pages
+            for page, text in content_pages
         ]
         nodes = self.splitter.get_nodes_from_documents(docs)
         for i, node in enumerate(nodes):
@@ -190,7 +230,7 @@ class RagEngine:
             batch = 64
             for start in range(0, len(nodes), batch):
                 index.insert_nodes(nodes[start:start + batch])
-        return content.total_pages, len(nodes), content.title
+        return len(nodes)
 
     def delete(self, document_id: str) -> None:
         self._ensure_index()
@@ -261,13 +301,17 @@ class RagEngine:
             return 1.0 + math.log(max(score, 1e-9))
         return float(score)
 
-    def ask(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None) -> Answer:
+    def ask(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
+            bot: BotProfile | None = None) -> Answer:
         started = time.perf_counter()
+        if bot is not None and bot.greeting and is_salutation(question):
+            return Answer(bot.greeting, True, [], None, self.model_name(), self._ms(started), question)
+        not_found = (bot.fallback if bot is not None and bot.fallback else None) or NOT_FOUND
         standalone = self._condense(question, history[-2 * self.s.history_turns:] if self.s.history_turns else [])
         nodes = self.retrieve(standalone, document_ids)
         sources = [self._source(n, i) for i, n in enumerate(nodes, start=1)]
         if not nodes:
-            return Answer(NOT_FOUND, False, [], None, self.model_name(), self._ms(started), standalone)
+            return Answer(not_found, False, [], None, self.model_name(), self._ms(started), standalone)
         llm = self.llm()
         if llm is None:
             text = self._extractive(standalone, nodes)
@@ -276,12 +320,18 @@ class RagEngine:
             f"[{i}] {n.node.metadata.get('title', '')} — página {n.node.metadata.get('page', '?')}\n{n.node.get_content()}"
             for i, n in enumerate(nodes, start=1)
         )
-        prompt = ANSWER_PROMPT.format(not_found=NOT_FOUND, context=context, question=standalone)
+        if bot is None:
+            prompt = ANSWER_PROMPT.format(not_found=NOT_FOUND, context=context, question=standalone)
+        else:
+            extra = f"\nInstruções do agente (tom e estilo):\n{bot.instructions.strip()}\n" if bot.instructions else ""
+            prompt = BOT_PROMPT.format(name=bot.name, not_found=NOT_FOUND, instructions=extra, context=context,
+                                       question=standalone)
         text = llm.complete(prompt).text.strip()
         answered = NOT_FOUND.lower()[:30] not in text.lower()
         grounded = self._verify(standalone, text, nodes) if answered and self.s.verify_answers else None
         if not answered:
             sources = []
+            text = not_found
         return Answer(text, answered, sources, grounded, self.model_name(), self._ms(started), standalone)
 
     def _verify(self, question: str, answer: str, nodes: list[NodeWithScore]) -> bool | None:

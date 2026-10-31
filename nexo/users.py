@@ -37,10 +37,11 @@ class User:
     password_hash: str
     created_at: str
     last_login_at: str | None = None
+    tutorial_done_at: str | None = None
 
     def public(self) -> dict:
         return {"username": self.username, "name": self.name, "role": self.role, "created_at": self.created_at,
-                "last_login_at": self.last_login_at}
+                "last_login_at": self.last_login_at, "tutorial_done_at": self.tutorial_done_at}
 
 
 def _now() -> str:
@@ -85,7 +86,8 @@ class UserStore:
         if not self.path.exists():
             return {}
         data = json.loads(self.path.read_text(encoding="utf-8") or "{}")
-        return {u["username"]: User(**u) for u in data.get("usuarios", [])}
+        fields = set(User.__dataclass_fields__)
+        return {u["username"]: User(**{k: v for k, v in u.items() if k in fields}) for u in data.get("usuarios", [])}
 
     def _write(self, users: dict[str, User]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -197,6 +199,18 @@ class UserStore:
             self._write(users)
             self._failures.pop(key, None)
             self._default_admin = None
+
+    def set_tutorial(self, username: str, done: bool) -> User:
+        key = username.strip().lower()
+        with self._lock:
+            users = self._read()
+            user = users.get(key)
+            if user is None:
+                raise UserError("NOT_FOUND", "Usuário não encontrado.")
+            user.tutorial_done_at = _now() if done else None
+            users[key] = user
+            self._write(users)
+            return user
 
     def admins(self) -> int:
         with self._lock:

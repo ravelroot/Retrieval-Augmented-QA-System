@@ -10,6 +10,8 @@ import { AuthProvider } from "./auth";
 import { ToastProvider } from "./components/Toast";
 import { applyTheme, initialTheme } from "./theme";
 import "./styles.css";
+import "./agentes.css";
+import "./atendimento.css";
 
 applyTheme(initialTheme());
 

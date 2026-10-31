@@ -5,6 +5,7 @@ interface AuthValue {
   user: User | null;
   signIn: (session: Session) => void;
   signOut: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -22,6 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
+  const updateUser = useCallback((user: User) => {
+    setSession((current) => {
+      if (!current) return current;
+      const next = { ...current, user };
+      saveSession(next);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     setUnauthorizedHandler(signOut);
   }, [signOut]);
@@ -33,7 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [session, signOut]);
 
-  const value = useMemo(() => ({ user: session?.user ?? null, signIn, signOut }), [session, signIn, signOut]);
+  const value = useMemo(() => ({ user: session?.user ?? null, signIn, signOut, updateUser }),
+    [session, signIn, signOut, updateUser]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

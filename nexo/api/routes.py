@@ -13,18 +13,19 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from pypdf import PdfReader
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from nexo import __version__, db, jobs, webhooks
+from nexo import __version__, db, jobs, knowledge, webhooks
 from nexo.api import schemas as sc
 from nexo.api.deps import ApiError, Principal, current_user, get_users
 from nexo.config import Settings, get_settings
 from nexo.rag import providers
-from nexo.rag.engine import Answer, get_engine
+from nexo.migrations import ensure_default_base
+from nexo.rag.engine import Answer, BotProfile, get_engine, is_salutation
 from nexo.rag.providers import ProviderError
 from nexo.security import hash_api_key, issue_token, new_api_key
 from nexo.users import UserError, UserStore
@@ -96,6 +97,19 @@ def change_password(body: sc.PasswordIn, p: Principal = Depends(current_user), u
     return Response(status_code=204)
 
 
+@router.put("/auth/tutorial", response_model=sc.UserOut)
+def tutorial(body: sc.TutorialIn, p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
+    try:
+        return sc.UserOut(**users.set_tutorial(p.username, body.done).public())
+    except UserError as e:
+        raise _user_error(e)
+
+
+@router.get("/formats")
+def formats(settings: Settings = Depends(get_settings)) -> dict:
+    return {"extensions": list(knowledge.FILE_EXTENSIONS), "max_upload_mb": settings.max_upload_mb}
+
+
 @router.get("/system/status")
 def status(p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
            database: Session = Depends(db.get_db), users: UserStore = Depends(get_users)) -> dict:
@@ -111,6 +125,11 @@ def status(p: Principal = Depends(current_user), settings: Settings = Depends(ge
         "registration": settings.allow_registration,
         "database": "SQLite" if settings.sqlalchemy_url.startswith("sqlite") else settings.sqlalchemy_url.split(":")[0],
         "integrations": {"api_keys": int(keys or 0), "webhooks": int(hooks or 0) if p.is_admin else None},
+        "agents": {
+            "bases": int(database.scalar(select(func.count()).select_from(db.KnowledgeBaseRow)) or 0),
+            "bots": int(database.scalar(select(func.count()).select_from(db.BotRow)) or 0),
+            "channels": int(database.scalar(select(func.count()).select_from(db.WhatsAppChannelRow)) or 0),
+        },
     }
 
 
@@ -126,6 +145,82 @@ def _clean_filename(name: str) -> str:
     return base[:255]
 
 
+def default_base_id(database: Session) -> str:
+    found = database.scalar(select(db.KnowledgeBaseRow.id).where(db.KnowledgeBaseRow.is_default.is_(True))
+                            .order_by(db.KnowledgeBaseRow.created_at))
+    return found or ensure_default_base(db.engine())
+
+
+def get_base(database: Session, base_id: str) -> db.KnowledgeBaseRow:
+    row = database.get(db.KnowledgeBaseRow, base_id)
+    if row is None:
+        raise ApiError(404, "NOT_FOUND", "Base de conhecimento não encontrada.")
+    return row
+
+
+def file_on_disk(row: db.DocumentRow) -> Path:
+    return jobs.file_path(row.id, row.extension) if row.kind == "file" else jobs.pdf_path(row.id)
+
+
+async def store_files(database: Session, files: list[UploadFile], base_id: str, p: Principal,
+                      settings: Settings) -> list[db.DocumentRow]:
+    if not files:
+        raise ApiError(400, "NO_FILES", "Escolha ao menos um arquivo.")
+    limit = settings.max_upload_mb * 1024 * 1024
+    created: list[db.DocumentRow] = []
+    written: list[Path] = []
+    seen: set[str] = set()
+    for f in files:
+        name = _clean_filename(f.filename or "")
+        extension = knowledge.extension_of(name)
+        if extension not in knowledge.FILE_EXTENSIONS:
+            accepted = ", ".join(f".{e}" for e in knowledge.FILE_EXTENSIONS)
+            raise ApiError(415, "UNSUPPORTED", f"{name} não é de um formato aceito ({accepted}).")
+        data = await f.read(limit + 1)
+        if len(data) > limit:
+            raise ApiError(413, "FILE_TOO_LARGE", f"{name} passa do limite de {settings.max_upload_mb} MB.")
+        if not knowledge.looks_valid(data, extension):
+            label = "um PDF válido" if extension == "pdf" else f"um arquivo .{extension} válido"
+            raise ApiError(415, "NOT_A_PDF" if extension == "pdf" else "INVALID_FILE", f"{name} não é {label}.")
+        digest = hashlib.sha256(data).hexdigest()
+        existing = database.scalar(select(db.DocumentRow).where(db.DocumentRow.sha256 == digest,
+                                                                db.DocumentRow.base_id == base_id))
+        if existing is not None or digest in seen:
+            title = existing.title if existing is not None else name
+            raise ApiError(409, "DUPLICATE", f"{name} já está nesta base como \"{title}\".")
+        seen.add(digest)
+        kind = knowledge.kind_of(extension)
+        row = db.DocumentRow(title=Path(name).stem[:200], filename=name, sha256=digest, size_bytes=len(data),
+                             uploaded_by=p.username, status="PENDING", base_id=base_id, kind=kind, extension=extension)
+        database.add(row)
+        database.flush()
+        path = file_on_disk(row)
+        path.write_bytes(data)
+        written.append(path)
+        try:
+            if kind == "pdf":
+                meta = PdfReader(str(path)).metadata
+                if meta and meta.title and meta.title.strip():
+                    row.title = meta.title.strip()[:200]
+            elif extension in ("docx", "md", "html", "htm"):
+                found = knowledge.read_file(path, extension).title
+                if found:
+                    row.title = found
+        except Exception:
+            pass
+        created.append(row)
+    try:
+        database.commit()
+    except Exception:
+        database.rollback()
+        for path in written:
+            path.unlink(missing_ok=True)
+        raise
+    for row in created:
+        jobs.enqueue(row.id)
+    return created
+
+
 @router.get("/documents", response_model=list[sc.DocumentOut])
 def list_documents(p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
     rows = database.scalars(select(db.DocumentRow).order_by(db.DocumentRow.created_at.desc())).all()
@@ -133,39 +228,11 @@ def list_documents(p: Principal = Depends(current_user), database: Session = Dep
 
 
 @router.post("/documents", response_model=list[sc.DocumentOut], status_code=201)
-async def upload(files: list[UploadFile] = File(...), p: Principal = Depends(current_user),
-                 settings: Settings = Depends(get_settings), database: Session = Depends(db.get_db)):
-    if not files:
-        raise ApiError(400, "NO_FILES", "Escolha ao menos um PDF.")
-    limit = settings.max_upload_mb * 1024 * 1024
-    created: list[db.DocumentRow] = []
-    for f in files:
-        name = _clean_filename(f.filename or "")
-        data = await f.read(limit + 1)
-        if len(data) > limit:
-            raise ApiError(413, "FILE_TOO_LARGE", f"{name} passa do limite de {settings.max_upload_mb} MB.")
-        if not data.startswith(b"%PDF"):
-            raise ApiError(415, "NOT_A_PDF", f"{name} não é um PDF válido.")
-        digest = hashlib.sha256(data).hexdigest()
-        existing = database.scalar(select(db.DocumentRow).where(db.DocumentRow.sha256 == digest))
-        if existing is not None:
-            raise ApiError(409, "DUPLICATE", f"{name} já foi enviado como \"{existing.title}\".")
-        row = db.DocumentRow(title=Path(name).stem[:200], filename=name, sha256=digest, size_bytes=len(data),
-                             uploaded_by=p.username, status="PENDING")
-        database.add(row)
-        database.flush()
-        path = jobs.pdf_path(row.id)
-        path.write_bytes(data)
-        try:
-            meta = PdfReader(str(path)).metadata
-            if meta and meta.title and meta.title.strip():
-                row.title = meta.title.strip()[:200]
-        except Exception:
-            pass
-        created.append(row)
-    database.commit()
-    for row in created:
-        jobs.enqueue(row.id)
+async def upload(files: list[UploadFile] = File(...), base_id: str | None = Form(None),
+                 p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                 database: Session = Depends(db.get_db)):
+    target = get_base(database, base_id).id if base_id else default_base_id(database)
+    created = await store_files(database, files, target, p, settings)
     return [_doc_out(r, p) for r in created]
 
 
@@ -187,23 +254,43 @@ def rename_document(document_id: str, body: sc.DocumentPatch, p: Principal = Dep
     row = _document(database, document_id)
     if not (p.is_admin or row.uploaded_by == p.username):
         raise ApiError(403, "FORBIDDEN", "Só quem enviou o documento ou um administrador pode alterá-lo.")
-    row.title = " ".join(body.title.split())[:200]
-    database.commit()
-    if row.status == "READY":
-        row.status = "PENDING"
+    if body.base_id and body.base_id != row.base_id:
+        target = get_base(database, body.base_id)
+        clash = database.scalar(select(db.DocumentRow).where(db.DocumentRow.base_id == target.id,
+                                                             db.DocumentRow.sha256 == row.sha256))
+        if clash is not None:
+            raise ApiError(409, "DUPLICATE", f"A base \"{target.name}\" já tem esse conteúdo como \"{clash.title}\".")
+        row.base_id = target.id
+        row.updated_at = db.utcnow()
         database.commit()
-        jobs.enqueue(row.id)
+    if body.title is not None:
+        title = " ".join(body.title.split())[:200]
+        if title and title != row.title:
+            row.title = title
+            row.updated_at = db.utcnow()
+            database.commit()
+            if row.status == "READY":
+                row.status = "PENDING"
+                database.commit()
+                jobs.enqueue(row.id)
     return _doc_out(row, p)
 
 
 @router.get("/documents/{document_id}/file")
 def document_file(document_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
     row = _document(database, document_id)
-    path = jobs.pdf_path(row.id)
+    if row.kind == "note":
+        return Response(row.content or "", media_type="text/plain; charset=utf-8")
+    path = file_on_disk(row)
     if not path.exists():
         raise ApiError(404, "FILE_MISSING", "O arquivo original não está mais na pasta de uploads.")
-    return FileResponse(path, media_type="application/pdf", filename=row.filename,
-                        content_disposition_type="inline")
+    media = {"pdf": "application/pdf", "txt": "text/plain; charset=utf-8", "md": "text/markdown; charset=utf-8",
+             "csv": "text/csv; charset=utf-8", "json": "application/json",
+             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}.get(row.extension,
+                                                                                                  "application/octet-stream")
+    inline = row.extension in ("pdf", "txt", "md", "csv", "json")
+    return FileResponse(path, media_type=media, filename=row.filename,
+                        content_disposition_type="inline" if inline else "attachment")
 
 
 @router.post("/documents/{document_id}/reindex", response_model=sc.DocumentOut)
@@ -211,7 +298,7 @@ def reindex(document_id: str, p: Principal = Depends(current_user), database: Se
     row = _document(database, document_id)
     if not (p.is_admin or row.uploaded_by == p.username):
         raise ApiError(403, "FORBIDDEN", "Só quem enviou o documento ou um administrador pode reindexá-lo.")
-    if not jobs.pdf_path(row.id).exists():
+    if row.kind != "note" and not file_on_disk(row).exists():
         raise ApiError(404, "FILE_MISSING", "O arquivo original não está mais na pasta de uploads.")
     row.status = "PENDING"
     row.error = None
@@ -230,15 +317,32 @@ def delete_document(document_id: str, p: Principal = Depends(current_user), sett
         get_engine(settings).delete(row.id)
     except ProviderError as e:
         raise ApiError(503, "PROVIDER", str(e))
+    path = file_on_disk(row) if row.kind != "note" else None
     database.delete(row)
     database.commit()
-    jobs.pdf_path(document_id).unlink(missing_ok=True)
+    if path is not None:
+        path.unlink(missing_ok=True)
     return Response(status_code=204)
 
 
-def _source_out(s) -> sc.SourceOut:
+def source_kinds(database: Session, sources) -> dict[str, str]:
+    ids = {s.document_id for s in sources if s.document_id}
+    if not ids:
+        return {}
+    return dict(database.execute(select(db.DocumentRow.id, db.DocumentRow.kind).where(db.DocumentRow.id.in_(ids))).all())
+
+
+def _source_out(s, kinds: dict[str, str] | None = None) -> sc.SourceOut:
+    if isinstance(s, db.SourceRow):
+        kind = s.document.kind if s.document is not None else "pdf"
+    else:
+        kind = (kinds or {}).get(s.document_id, "pdf")
     return sc.SourceOut(rank=s.rank, document_id=s.document_id or None, document_title=s.document_title, page=s.page,
-                        similarity=s.similarity, rerank_score=s.rerank_score, excerpt=s.excerpt)
+                        similarity=s.similarity, rerank_score=s.rerank_score, excerpt=s.excerpt, kind=kind)
+
+
+def source_out(s, kinds: dict[str, str] | None = None) -> sc.SourceOut:
+    return _source_out(s, kinds)
 
 
 def _message_out(m: db.MessageRow, username: str) -> sc.MessageOut:
@@ -251,7 +355,7 @@ def _message_out(m: db.MessageRow, username: str) -> sc.MessageOut:
 
 def _summary(c: db.ConversationRow) -> sc.ConversationSummary:
     return sc.ConversationSummary(id=c.id, title=c.title, created_at=c.created_at, updated_at=c.updated_at,
-                                  document_ids=[d.id for d in c.documents], messages=len(c.messages))
+                                  document_ids=[d.id for d in c.documents], messages=len(c.messages), bot_id=c.bot_id)
 
 
 def _conversation(database: Session, conversation_id: str, p: Principal) -> db.ConversationRow:
@@ -271,9 +375,16 @@ def _documents(database: Session, ids: list[str]) -> list[db.DocumentRow]:
 
 
 @router.get("/conversations", response_model=list[sc.ConversationSummary])
-def list_conversations(p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
-    rows = database.scalars(select(db.ConversationRow).where(db.ConversationRow.owner == p.username)
-                            .order_by(db.ConversationRow.updated_at.desc())).all()
+def list_conversations(only: Literal["general", "bots"] | None = Query(None), bot_id: str | None = Query(None),
+                       p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    query = select(db.ConversationRow).where(db.ConversationRow.owner == p.username)
+    if bot_id:
+        query = query.where(db.ConversationRow.bot_id == bot_id)
+    elif only == "general":
+        query = query.where(db.ConversationRow.bot_id.is_(None))
+    elif only == "bots":
+        query = query.where(db.ConversationRow.bot_id.is_not(None))
+    rows = database.scalars(query.order_by(db.ConversationRow.updated_at.desc())).all()
     return [_summary(c) for c in rows]
 
 
@@ -281,6 +392,10 @@ def list_conversations(p: Principal = Depends(current_user), database: Session =
 def create_conversation(body: sc.ConversationIn, p: Principal = Depends(current_user),
                         database: Session = Depends(db.get_db)):
     c = db.ConversationRow(owner=p.username, title=(body.title or "Nova conversa").strip()[:160] or "Nova conversa")
+    if body.bot_id:
+        if database.get(db.BotRow, body.bot_id) is None:
+            raise ApiError(404, "NOT_FOUND", "Agente não encontrado.")
+        c.bot_id = body.bot_id
     c.documents = _documents(database, body.document_ids)
     database.add(c)
     database.commit()
@@ -355,9 +470,29 @@ def export_conversation(conversation_id: str, fmt: Literal["markdown", "json"] =
                     headers={"Content-Disposition": f'attachment; filename="{name}.md"'})
 
 
-def _run(settings: Settings, question: str, history: list[tuple[str, str]], scope: list[str]) -> Answer:
+def bot_profile(bot: db.BotRow) -> BotProfile:
+    return BotProfile(name=bot.name, instructions=bot.instructions, greeting=bot.greeting, fallback=bot.fallback)
+
+
+def base_scope(database: Session, base_id: str) -> list[str]:
+    return list(database.scalars(select(db.DocumentRow.id).where(db.DocumentRow.base_id == base_id,
+                                                                  db.DocumentRow.status == "READY")))
+
+
+def run_bot(database: Session, settings: Settings, bot: db.BotRow, question: str,
+            history: list[tuple[str, str]]) -> Answer:
+    scope = base_scope(database, bot.base_id)
+    if not scope and not (bot.greeting and is_salutation(question)):
+        name = bot.base.name if bot.base is not None else "do agente"
+        raise ApiError(409, "NO_DOCUMENTS", f"A base \"{name}\" ainda não tem conteúdo pronto. Adicione arquivos ou "
+                                             "textos e aguarde a indexação.")
+    return _run(settings, question, history, scope or ["__vazio__"], bot_profile(bot))
+
+
+def _run(settings: Settings, question: str, history: list[tuple[str, str]], scope: list[str],
+         bot: BotProfile | None = None) -> Answer:
     try:
-        return get_engine(settings).ask(question, history, scope or None)
+        return get_engine(settings).ask(question, history, scope or None, bot)
     except ProviderError as e:
         raise ApiError(503, "PROVIDER", str(e))
     except Exception as e:
@@ -398,8 +533,13 @@ def ask(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(curren
     question = body.content.strip()
     if not question:
         raise ApiError(400, "EMPTY", "Escreva uma pergunta.", {"content": "Escreva uma pergunta."})
-    _require_ready(database, "perguntar")
-    result = _run(settings, question, [(m.role, m.content) for m in c.messages], [d.id for d in c.documents])
+    history = [(m.role, m.content) for m in c.messages]
+    bot = database.get(db.BotRow, c.bot_id) if c.bot_id else None
+    if bot is not None:
+        result = run_bot(database, settings, bot, question, history)
+    else:
+        _require_ready(database, "perguntar")
+        result = _run(settings, question, history, [d.id for d in c.documents])
     user_msg, answer = _store_exchange(database, c, question, result)
     _notify_unanswered(result, question, c.id, p)
     return sc.ExchangeOut(question=_message_out(user_msg, p.username), answer=_message_out(answer, p.username),
@@ -413,15 +553,23 @@ def ask_direct(body: sc.AskIn, p: Principal = Depends(current_user), settings: S
     question = body.question.strip()
     if not question:
         raise ApiError(400, "EMPTY", "Escreva uma pergunta.", {"question": "Escreva uma pergunta."})
-    _require_ready(database, "perguntar")
-    if body.document_ids:
-        scope = [d.id for d in _documents(database, body.document_ids)]
-    else:
-        scope = [d.id for d in c.documents] if c else []
     history = [(m.role, m.content) for m in c.messages] if c else []
-    result = _run(settings, question, history, scope)
+    bot_id = body.bot_id or (c.bot_id if c else None)
+    bot = database.get(db.BotRow, bot_id) if bot_id else None
+    if bot_id and bot is None:
+        raise ApiError(404, "NOT_FOUND", "Agente não encontrado.")
+    if bot is not None:
+        result = run_bot(database, settings, bot, question, history)
+    else:
+        _require_ready(database, "perguntar")
+        if body.document_ids:
+            scope = [d.id for d in _documents(database, body.document_ids)]
+        else:
+            scope = [d.id for d in c.documents] if c else []
+        result = _run(settings, question, history, scope)
     if c is None:
-        sources = [_source_out(s) for s in result.sources]
+        kinds = source_kinds(database, result.sources)
+        sources = [_source_out(s, kinds) for s in result.sources]
     else:
         _, answer = _store_exchange(database, c, question, result)
         sources = [_source_out(s) for s in answer.sources]
@@ -438,6 +586,14 @@ def search(body: sc.SearchIn, p: Principal = Depends(current_user), settings: Se
         raise ApiError(400, "EMPTY", "Escreva o que buscar.", {"query": "Escreva o que buscar."})
     _require_ready(database, "buscar")
     scope = [d.id for d in _documents(database, body.document_ids)]
+    if body.base_id:
+        base = get_base(database, body.base_id)
+        in_base = base_scope(database, base.id)
+        if not in_base:
+            raise ApiError(409, "NO_DOCUMENTS", f"A base \"{base.name}\" ainda não tem conteúdo pronto.")
+        scope = [i for i in scope if i in in_base] if scope else in_base
+        if not scope:
+            return sc.SearchOut(query=query, took_ms=0, results=[])
     started = time.perf_counter()
     try:
         found = get_engine(settings).search(query, scope or None, rerank=body.rerank, limit=body.limit)
@@ -447,7 +603,8 @@ def search(body: sc.SearchIn, p: Principal = Depends(current_user), settings: Se
         log.exception("Falha na busca")
         raise ApiError(502, "SEARCH_FAILURE", f"A busca falhou: {e}")
     took = int((time.perf_counter() - started) * 1000)
-    return sc.SearchOut(query=query, took_ms=took, results=[_source_out(s) for s in found])
+    kinds = source_kinds(database, found)
+    return sc.SearchOut(query=query, took_ms=took, results=[_source_out(s, kinds) for s in found])
 
 
 def _question_for(m: db.MessageRow) -> str:

@@ -17,7 +17,8 @@ from nexo.config import get_settings
 
 log = logging.getLogger("nexo.webhooks")
 
-EVENTS = ("document.ready", "document.failed", "question.unanswered", "feedback.negative")
+EVENTS = ("document.ready", "document.failed", "question.unanswered", "feedback.negative", "whatsapp.message",
+          "whatsapp.handoff")
 
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="nexo-webhook")
 _pending: set[Future] = set()

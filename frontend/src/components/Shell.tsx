@@ -1,10 +1,18 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { api, type User } from "../api";
 import { useAuth } from "../auth";
 import { applyTheme, initialTheme, watchSystemTheme, type ThemeChoice } from "../theme";
 import { CommandPalette } from "./CommandPalette";
 import { Icon } from "./Icon";
 import { Brand } from "./Logo";
+import { Tutorial } from "./Tutorial";
+
+export const TUTORIAL_EVENT = "nexo:tutorial";
+
+export function openTutorial(): void {
+  window.dispatchEvent(new Event(TUTORIAL_EVENT));
+}
 
 const groups = [
   {
@@ -14,6 +22,18 @@ const groups = [
       { to: "/busca", label: "Busca nos trechos", icon: "search" },
       { to: "/documentos", label: "Documentos", icon: "docs" },
     ],
+  },
+  {
+    title: "Agentes",
+    links: [
+      { to: "/chats", label: "Chats com agentes", icon: "chats" },
+      { to: "/agentes", label: "Agentes", icon: "bot" },
+      { to: "/bases", label: "Bases de conhecimento", icon: "base" },
+    ],
+  },
+  {
+    title: "Atendimento",
+    links: [{ to: "/whatsapp", label: "WhatsApp", icon: "whatsapp" }],
   },
   {
     title: "Gestão",
@@ -37,11 +57,26 @@ const themeLabel: Record<ThemeChoice, { label: string; icon: string }> = {
 const nextTheme: Record<ThemeChoice, ThemeChoice> = { light: "dark", dark: "auto", auto: "light" };
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
   const [theme, setTheme] = useState<ThemeChoice>(initialTheme);
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(false);
+  const [tutorial, setTutorial] = useState(() => !!user && !user.tutorial_done_at);
   const location = useLocation();
+
+  useEffect(() => {
+    const show = () => { setPalette(false); setOpen(false); setTutorial(true); };
+    window.addEventListener(TUTORIAL_EVENT, show);
+    return () => window.removeEventListener(TUTORIAL_EVENT, show);
+  }, []);
+
+  function finishTutorial() {
+    setTutorial(false);
+    if (user && !user.tutorial_done_at) {
+      updateUser({ ...user, tutorial_done_at: new Date().toISOString() });
+      api.tutorial(true).then((u: User) => updateUser(u)).catch(() => undefined);
+    }
+  }
 
   useEffect(() => applyTheme(theme), [theme]);
   useEffect(() => (theme === "auto" ? watchSystemTheme(() => applyTheme("auto")) : undefined), [theme]);
@@ -102,6 +137,10 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="rail__foot">
           <div className="rail__actions">
+            <button className="rail__link" onClick={() => setTutorial(true)} title="Rever o tutorial">
+              <Icon name="help" />
+              <span>Tutorial</span>
+            </button>
             <button className="rail__link" onClick={() => setTheme(nextTheme[theme])} title="Alternar entre claro, escuro e automático">
               <Icon name={themeLabel[theme].icon} />
               <span>{themeLabel[theme].label}</span>
@@ -122,7 +161,9 @@ export function Shell({ children }: { children: ReactNode }) {
       </aside>
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
       <main className="stage">{children}</main>
-      {palette && <CommandPalette onClose={() => setPalette(false)} onTheme={() => setTheme(nextTheme[theme])} />}
+      {palette && <CommandPalette onClose={() => setPalette(false)} onTheme={() => setTheme(nextTheme[theme])}
+        onTutorial={() => { setPalette(false); setTutorial(true); }} />}
+      {tutorial && <Tutorial name={user?.name ?? ""} onDone={finishTutorial} />}
     </div>
   );
 }

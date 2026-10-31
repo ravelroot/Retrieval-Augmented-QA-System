@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, api, type SystemStatus, type User } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../components/Field";
+import { Icon } from "../components/Icon";
+import { openTutorial } from "../components/Shell";
 import { useToast } from "../components/Toast";
 import { formatDateTime } from "../format";
 
@@ -163,7 +165,11 @@ export function SystemPage() {
             <div><dt>Usuário</dt><dd>{user?.username}</dd></div>
             <div><dt>Perfil</dt><dd>{user?.role === "admin" ? "Administrador" : "Usuário"}</dd></div>
             <div><dt>Conta criada em</dt><dd>{formatDateTime(user?.created_at ?? null)}</dd></div>
+            <div><dt>Tutorial</dt><dd>{user?.tutorial_done_at ? `Visto em ${formatDateTime(user.tutorial_done_at)}` : "Ainda não visto"}</dd></div>
           </dl>
+          <button className="ghost-button tutorial-again" type="button" onClick={openTutorial}>
+            <Icon name="help" size={16} />Rever o tutorial
+          </button>
           <form className="password-form" onSubmit={changePassword} noValidate>
             <h3>Trocar senha</h3>
             <Field label="Senha atual" name="current" type="password" autoComplete="current-password" value={form.current}

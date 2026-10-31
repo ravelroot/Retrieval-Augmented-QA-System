@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { ApiError, api, openDocument, type DocumentItem, type DocumentStatus } from "../api";
+import { ApiError, api, openDocument, type DocumentItem, type DocumentStatus, type KnowledgeBase } from "../api";
 import { useAuth } from "../auth";
 import { Icon } from "../components/Icon";
 import { StatusBadge } from "../components/StatusBadge";
@@ -8,6 +8,17 @@ import { formatDateTime, formatSize, plural } from "../format";
 import { useStore } from "../store";
 
 type Sort = "recent" | "title" | "pages";
+
+const ACCEPT = ".pdf,.docx,.txt,.md,.csv,.json,.html,.htm,application/pdf";
+
+export function kindLabel(doc: DocumentItem): string {
+  if (doc.kind === "note") return "texto";
+  return (doc.extension || "pdf").toLowerCase();
+}
+
+export function unitLabel(doc: DocumentItem, count: number): string {
+  return doc.kind === "pdf" || !doc.kind ? plural(count, "página", "páginas") : plural(count, "parte", "partes");
+}
 
 function fold(text: string) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -27,9 +38,19 @@ export function DocumentsPage() {
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState<DocumentStatus | "">("");
   const [sort, setSort] = useState<Sort>("recent");
+  const [bases, setBases] = useState<KnowledgeBase[]>([]);
+  const [target, setTarget] = useState("");
+  const [baseFilter, setBaseFilter] = useState("");
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); setLoaded(true); }, [load]);
+  useEffect(() => {
+    api.bases().then((list) => {
+      setBases(list);
+      setTarget((current) => current || list.find((b) => b.is_default)?.id || list[0]?.id || "");
+    }).catch(() => undefined);
+  }, []);
+  const baseName = useMemo(() => Object.fromEntries(bases.map((b) => [b.id, b.name])), [bases]);
 
   const working = docs?.some((d) => d.status === "PENDING" || d.status === "PROCESSING");
   useEffect(() => {
@@ -39,16 +60,17 @@ export function DocumentsPage() {
   }, [working, load]);
 
   async function send(list: FileList | File[]) {
-    const files = Array.from(list).filter((f) => f.name.toLowerCase().endsWith(".pdf") || f.type === "application/pdf");
+    const allowed = [".pdf", ".docx", ".txt", ".md", ".csv", ".json", ".html", ".htm"];
+    const files = Array.from(list).filter((f) => allowed.some((ext) => f.name.toLowerCase().endsWith(ext)));
     if (!files.length) {
-      setNotice({ kind: "error", text: "Escolha arquivos PDF." });
+      setNotice({ kind: "error", text: "Escolha arquivos PDF, Word, TXT, Markdown, CSV, JSON ou HTML." });
       return;
     }
     setUploading(true);
     setNotice(null);
     try {
-      const created = await api.upload(files);
-      setNotice({ kind: "ok", text: `${plural(created.length, "PDF enviado", "PDFs enviados")}. A indexação começa em seguida.` });
+      const created = target ? await api.uploadToBase(target, files) : await api.upload(files);
+      setNotice({ kind: "ok", text: `${plural(created.length, "arquivo enviado", "arquivos enviados")}${target && baseName[target] ? ` para ${baseName[target]}` : ""}. A indexação começa em seguida.` });
       load();
     } catch (e) {
       setNotice({ kind: "error", text: (e as ApiError).message });
@@ -94,11 +116,12 @@ export function DocumentsPage() {
 
   const visible = useMemo(() => {
     const q = fold(filter.trim());
-    const list = (docs ?? []).filter((d) => (!status || d.status === status) && (!q || fold(`${d.title} ${d.filename}`).includes(q)));
+    const list = (docs ?? []).filter((d) => (!status || d.status === status) && (!baseFilter || d.base_id === baseFilter)
+      && (!q || fold(`${d.title} ${d.filename}`).includes(q)));
     if (sort === "title") return [...list].sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     if (sort === "pages") return [...list].sort((a, b) => b.pages - a.pages);
     return list;
-  }, [docs, filter, status, sort]);
+  }, [docs, filter, status, sort, baseFilter]);
 
   return (
     <div className="page">
@@ -106,7 +129,7 @@ export function DocumentsPage() {
         <div className="page__titles">
           <span className="page__over">Acervo</span>
           <h1>Documentos</h1>
-          <p className="page__lead">Os PDFs que o Nexo consulta. Só os documentos prontos entram nas respostas.</p>
+          <p className="page__lead">Tudo o que o Nexo consulta, de todas as bases de conhecimento. Só os itens prontos entram nas respostas. Para organizar por agente, use <Link to="/bases">Bases de conhecimento</Link>.</p>
         </div>
       </header>
 
@@ -134,14 +157,24 @@ export function DocumentsPage() {
         >
           <span className="dropzone__icon"><Icon name="upload" size={22} /></span>
           <div>
-            <strong>{uploading ? "Enviando…" : "Arraste PDFs para cá"}</strong>
-            <p>Manuais técnicos e livros com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
+            <strong>{uploading ? "Enviando…" : "Arraste arquivos para cá"}</strong>
+            <p>PDF, Word, TXT, Markdown, CSV, JSON ou HTML com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
           </div>
-          <button className="primary-button" onClick={() => input.current?.click()} disabled={uploading}>
-            <Icon name="plus" size={16} />
-            Escolher PDFs
-          </button>
-          <input ref={input} type="file" accept="application/pdf,.pdf" multiple hidden
+          <div className="upload-target">
+            {bases.length > 0 && (
+              <label className="select">
+                <span>Enviar para a base</span>
+                <select value={target} onChange={(e) => setTarget(e.target.value)}>
+                  {bases.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </label>
+            )}
+            <button className="primary-button" onClick={() => input.current?.click()} disabled={uploading}>
+              <Icon name="plus" size={16} />
+              Escolher arquivos
+            </button>
+          </div>
+          <input ref={input} type="file" accept={ACCEPT} multiple hidden
             onChange={(e) => e.target.files && send(e.target.files)} />
         </div>
       </div>
@@ -152,6 +185,15 @@ export function DocumentsPage() {
         <div className="toolbar">
           <input className="toolbar__search" value={filter} onChange={(e) => setFilter(e.target.value)}
             placeholder="Filtrar por título ou arquivo" aria-label="Filtrar documentos" />
+          {bases.length > 1 && (
+            <label className="select">
+              <span>Base</span>
+              <select value={baseFilter} onChange={(e) => setBaseFilter(e.target.value)}>
+                <option value="">Todas</option>
+                {bases.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </label>
+          )}
           <label className="select">
             <span>Situação</span>
             <select value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | "")}>
@@ -191,9 +233,11 @@ export function DocumentsPage() {
                   <h2 className="doc__title">{doc.title}</h2>
                 )}
                 <p className="doc__meta">
+                  <span className="kind-tag">{kindLabel(doc)}</span>
+                  {baseName[doc.base_id] && <Link className="doc__base" to={`/bases/${doc.base_id}`}>{baseName[doc.base_id]}</Link>}
                   <span>{doc.filename}</span>
                   <span>{formatSize(doc.size_bytes)}</span>
-                  {doc.status === "READY" && <span>{plural(doc.pages, "página", "páginas")}</span>}
+                  {doc.status === "READY" && <span>{unitLabel(doc, doc.pages)}</span>}
                   {doc.status === "READY" && <span>{plural(doc.chunks, "trecho", "trechos")}</span>}
                   <span>Enviado por {doc.uploaded_by === user?.username ? "você" : doc.uploaded_by} em {formatDateTime(doc.created_at)}</span>
                 </p>
@@ -218,10 +262,12 @@ export function DocumentsPage() {
                         <Icon name="chat" />
                       </Link>
                     )}
-                    <button className="icon-button" title="Abrir PDF" aria-label={`Abrir ${doc.title}`}
-                      onClick={() => openDocument(doc.id).catch((e: ApiError) => setNotice({ kind: "error", text: e.message }))}>
-                      <Icon name="open" />
-                    </button>
+                    {doc.kind !== "note" && (
+                      <button className="icon-button" title="Abrir arquivo" aria-label={`Abrir ${doc.title}`}
+                        onClick={() => openDocument(doc.id).catch((e: ApiError) => setNotice({ kind: "error", text: e.message }))}>
+                        <Icon name="open" />
+                      </button>
+                    )}
                     {doc.can_delete && (
                       <>
                         <button className="icon-button" title="Renomear" aria-label={`Renomear ${doc.title}`}

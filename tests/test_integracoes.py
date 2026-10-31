@@ -95,7 +95,8 @@ def test_search_returns_excerpts_without_calling_the_llm(client, monkeypatch):
     assert isinstance(out["took_ms"], int)
     assert 1 <= len(out["results"]) <= 3
     first = out["results"][0]
-    assert set(first) == {"rank", "document_id", "document_title", "page", "similarity", "rerank_score", "excerpt"}
+    assert set(first) == {"rank", "document_id", "document_title", "page", "similarity", "rerank_score", "excerpt",
+                          "kind"}
     assert (first["rank"], first["page"], first["document_id"]) == (1, 4, doc["id"])
     assert first["document_title"] == TITLE
     assert "recuperação" in first["excerpt"]
@@ -435,7 +436,7 @@ def test_account_management(client):
     assert r.status_code == 403 and r.json()["code"] == "FORBIDDEN"
     listed = client.get("/api/users", headers=admin).json()
     assert [u["username"] for u in listed] == ["admin", "maria"]
-    assert set(listed[0]) == {"username", "name", "role", "created_at", "last_login_at"}
+    assert set(listed[0]) == {"username", "name", "role", "created_at", "last_login_at", "tutorial_done_at"}
     assert client.patch("/api/users/maria", headers=maria, json={"role": "admin"}).status_code == 403
 
     r = client.patch("/api/users/admin", headers=admin, json={"role": "user"})

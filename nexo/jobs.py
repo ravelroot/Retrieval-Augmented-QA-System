@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from nexo import db, webhooks
+from nexo import db, knowledge, webhooks
 from nexo.config import get_settings
 from nexo.rag.engine import IngestionError, get_engine
 from nexo.rag.providers import ProviderError
@@ -17,6 +17,10 @@ _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="nexo-ingest")
 
 def pdf_path(document_id: str) -> Path:
     return get_settings().uploads_dir / f"{document_id}.pdf"
+
+
+def file_path(document_id: str, extension: str) -> Path:
+    return get_settings().uploads_dir / f"{document_id}.{extension or 'pdf'}"
 
 
 def enqueue(document_id: str) -> None:
@@ -32,10 +36,20 @@ def process(document_id: str) -> None:
         row.status = "PROCESSING"
         row.error = None
         s.commit()
-        title, filename = row.title, row.filename
+        title, filename, kind, extension, content = row.title, row.filename, row.kind, row.extension, row.content
+    engine = get_engine(settings)
     try:
-        pages, chunks, pdf_title = get_engine(settings).ingest(document_id, title, filename, pdf_path(document_id))
-    except (IngestionError, ProviderError) as e:
+        if kind == "note":
+            parts = knowledge.split_parts(f"{title}\n\n{content or ''}")
+            chunks = engine.ingest_parts(document_id, title, filename, parts)
+            pages = len(parts)
+        elif kind == "file":
+            read = knowledge.read_file(file_path(document_id, extension), extension)
+            chunks = engine.ingest_parts(document_id, title, filename, read.parts)
+            pages = len(read.parts)
+        else:
+            pages, chunks, _ = engine.ingest(document_id, title, filename, pdf_path(document_id))
+    except (IngestionError, ProviderError, knowledge.ReadError) as e:
         _fail(document_id, str(e))
         return
     except Exception as e:
@@ -52,7 +66,8 @@ def process(document_id: str) -> None:
         row.chunks = chunks
         row.indexed_at = db.utcnow()
         s.commit()
-        data = {"id": row.id, "title": row.title, "pages": row.pages, "chunks": row.chunks}
+        data = {"id": row.id, "title": row.title, "pages": row.pages, "chunks": row.chunks, "base_id": row.base_id,
+                "kind": row.kind}
     webhooks.emit("document.ready", data)
 
 

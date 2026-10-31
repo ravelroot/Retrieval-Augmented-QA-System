@@ -10,6 +10,8 @@ const EVENTS: { name: WebhookEvent; label: string }[] = [
   { name: "document.failed", label: "Falha na indexação" },
   { name: "question.unanswered", label: "Pergunta sem resposta" },
   { name: "feedback.negative", label: "Resposta avaliada como “não ajudou”" },
+  { name: "whatsapp.message", label: "Nova mensagem no WhatsApp" },
+  { name: "whatsapp.handoff", label: "Cliente aguardando atendente" },
 ];
 
 type Lang = "curl" | "python" | "javascript";

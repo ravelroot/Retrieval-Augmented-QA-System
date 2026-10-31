@@ -1,13 +1,17 @@
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Shell } from "./components/Shell";
+import { AgentsPage } from "./pages/Agents";
+import { BasesPage } from "./pages/Bases";
 import { ChatPage } from "./pages/Chat";
+import { ChatsPage } from "./pages/Chats";
 import { DocumentsPage } from "./pages/Documents";
 import { IntegrationsPage } from "./pages/Integrations";
 import { LoginPage } from "./pages/Login";
 import { MetricsPage } from "./pages/Metrics";
 import { SearchPage } from "./pages/Search";
 import { SystemPage } from "./pages/System";
+import { WhatsAppPage } from "./pages/WhatsApp";
 import { StoreProvider } from "./store";
 
 function PrivateLayout() {
@@ -29,6 +33,11 @@ export function App() {
       <Route element={<PrivateLayout />}>
         <Route path="/conversas" element={<ChatPage />} />
         <Route path="/conversas/:id" element={<ChatPage />} />
+        <Route path="/chats" element={<ChatsPage />} />
+        <Route path="/agentes" element={<AgentsPage />} />
+        <Route path="/bases" element={<BasesPage />} />
+        <Route path="/bases/:id" element={<BasesPage />} />
+        <Route path="/whatsapp" element={<WhatsAppPage />} />
         <Route path="/busca" element={<SearchPage />} />
         <Route path="/documentos" element={<DocumentsPage />} />
         <Route path="/painel" element={<MetricsPage />} />

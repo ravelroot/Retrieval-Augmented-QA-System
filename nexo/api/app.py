@@ -11,7 +11,9 @@ from fastapi.staticfiles import StaticFiles
 
 from nexo import __version__, db, jobs
 from nexo.api.deps import ApiError, get_users
+from nexo.api.agents import router as agents_router
 from nexo.api.routes import router
+from nexo.api.whatsapp import router as whatsapp_router
 from nexo.config import get_settings
 
 WEB_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -57,6 +59,8 @@ def create_app() -> FastAPI:
         return response
 
     app.include_router(router)
+    app.include_router(agents_router)
+    app.include_router(whatsapp_router)
 
     if WEB_DIR.exists():
         assets = WEB_DIR / "assets"

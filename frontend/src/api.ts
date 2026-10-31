@@ -6,6 +6,7 @@ export interface User {
   role: Role;
   created_at: string;
   last_login_at: string | null;
+  tutorial_done_at: string | null;
 }
 
 export interface Session {
@@ -29,7 +30,13 @@ export interface DocumentItem {
   created_at: string;
   indexed_at: string | null;
   can_delete: boolean;
+  base_id: string;
+  kind: DocumentKind;
+  extension: string;
+  updated_at: string | null;
 }
+
+export type DocumentKind = "pdf" | "file" | "note";
 
 export interface Source {
   rank: number;
@@ -39,6 +46,7 @@ export interface Source {
   similarity: number | null;
   rerank_score: number | null;
   excerpt: string;
+  kind?: DocumentKind;
 }
 
 export interface Message {
@@ -61,6 +69,7 @@ export interface ConversationSummary {
   updated_at: string;
   document_ids: string[];
   messages: number;
+  bot_id: string | null;
 }
 
 export interface Conversation extends ConversationSummary {
@@ -133,7 +142,8 @@ export interface ApiKey {
   key?: string;
 }
 
-export type WebhookEvent = "document.ready" | "document.failed" | "question.unanswered" | "feedback.negative";
+export type WebhookEvent = "document.ready" | "document.failed" | "question.unanswered" | "feedback.negative"
+  | "whatsapp.message" | "whatsapp.handoff";
 
 export interface Webhook {
   id: string;
@@ -146,6 +156,147 @@ export interface Webhook {
   last_delivery_at: string | null;
   secret?: string;
 }
+
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  is_default: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  documents: number;
+  ready: number;
+  processing: number;
+  failed: number;
+  notes: number;
+  files: number;
+  pages: number;
+  chunks: number;
+  bots: number;
+  can_edit: boolean;
+}
+
+export interface BaseInput {
+  name?: string;
+  description?: string | null;
+  color?: string;
+}
+
+export interface Bot {
+  id: string;
+  name: string;
+  description: string | null;
+  base_id: string;
+  base_name: string;
+  instructions: string | null;
+  greeting: string | null;
+  fallback: string | null;
+  color: string;
+  cite_sources: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  conversations: number;
+  ready: boolean;
+  can_edit: boolean;
+}
+
+export interface BotInput {
+  name?: string;
+  base_id?: string;
+  description?: string | null;
+  instructions?: string | null;
+  greeting?: string | null;
+  fallback?: string | null;
+  color?: string;
+  cite_sources?: boolean;
+}
+
+export type Provider = "cloud" | "evolution" | "simulador";
+
+export interface Channel {
+  id: string;
+  name: string;
+  provider: Provider;
+  bot_id: string | null;
+  bot_name: string | null;
+  auto_reply: boolean;
+  active: boolean;
+  phone: string | null;
+  webhook_path: string;
+  verify_token: string;
+  settings: { api_version: string | null; phone_number_id: string | null; base_url: string | null; instance: string | null };
+  secrets: { access_token: string | null; app_secret: string | null; api_key: string | null };
+  created_at: string;
+  last_event_at: string | null;
+  last_error: string | null;
+  contacts: number;
+  unread: number;
+  waiting: number;
+}
+
+export interface ChannelInput {
+  name?: string;
+  provider?: Provider;
+  bot_id?: string | null;
+  auto_reply?: boolean;
+  active?: boolean;
+  phone?: string | null;
+  api_version?: string | null;
+  phone_number_id?: string | null;
+  access_token?: string | null;
+  app_secret?: string | null;
+  base_url?: string | null;
+  api_key?: string | null;
+  instance?: string | null;
+}
+
+export interface ChannelStatus {
+  state: "open" | "connecting" | "close" | "unknown";
+  detail: string | null;
+}
+
+export interface Contact {
+  id: string;
+  channel_id: string;
+  phone: string;
+  name: string | null;
+  bot_enabled: boolean;
+  needs_human: boolean;
+  unread: number;
+  last_message: string | null;
+  last_direction: "in" | "out" | null;
+  last_message_at: string | null;
+  created_at: string;
+}
+
+export interface WaMessage {
+  id: string;
+  direction: "in" | "out";
+  author: string;
+  body: string;
+  status: "received" | "pending" | "sent" | "delivered" | "read" | "failed";
+  error: string | null;
+  created_at: string;
+  answered: boolean | null;
+  sources: Source[];
+}
+
+export interface ContactDetail extends Contact {
+  messages: WaMessage[];
+}
+
+export interface WaSummary {
+  channels: number;
+  contacts: number;
+  unread: number;
+  waiting: number;
+  bot_answers_today: number;
+}
+
+export type ContactFilter = "all" | "unread" | "waiting" | "bot" | "human";
 
 export class ApiError extends Error {
   status: number;
@@ -259,6 +410,55 @@ export const api = {
   users: () => request<User[]>("GET", "/users"),
   setRole: (username: string, role: Role) => request<User>("PATCH", `/users/${username}`, { role }),
   deleteUser: (username: string) => request<void>("DELETE", `/users/${username}`),
+  tutorial: (done: boolean) => request<User>("PUT", "/auth/tutorial", { done }),
+  formats: () => request<{ extensions: string[]; max_upload_mb: number }>("GET", "/formats"),
+  bases: () => request<KnowledgeBase[]>("GET", "/bases"),
+  base: (id: string) => request<KnowledgeBase>("GET", `/bases/${id}`),
+  createBase: (input: BaseInput) => request<KnowledgeBase>("POST", "/bases", input),
+  updateBase: (id: string, input: BaseInput) => request<KnowledgeBase>("PATCH", `/bases/${id}`, input),
+  deleteBase: (id: string) => request<void>("DELETE", `/bases/${id}`),
+  baseDocuments: (id: string) => request<DocumentItem[]>("GET", `/bases/${id}/documents`),
+  uploadToBase: (id: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    return request<DocumentItem[]>("POST", `/bases/${id}/documents`, form);
+  },
+  createText: (id: string, title: string, content: string) =>
+    request<DocumentItem>("POST", `/bases/${id}/texts`, { title, content }),
+  documentText: (id: string) => request<{ title: string; content: string }>("GET", `/documents/${id}/text`),
+  updateText: (id: string, title: string, content: string) =>
+    request<DocumentItem>("PUT", `/documents/${id}/text`, { title, content }),
+  moveDocument: (id: string, base_id: string) => request<DocumentItem>("PATCH", `/documents/${id}`, { base_id }),
+  searchBase: (query: string, base_id: string, rerank: boolean, limit = 8) =>
+    request<SearchResult>("POST", "/search", { query, base_id, rerank, limit }),
+  bots: () => request<Bot[]>("GET", "/bots"),
+  bot: (id: string) => request<Bot>("GET", `/bots/${id}`),
+  createBot: (input: BotInput) => request<Bot>("POST", "/bots", input),
+  updateBot: (id: string, input: BotInput) => request<Bot>("PATCH", `/bots/${id}`, input),
+  deleteBot: (id: string) => request<void>("DELETE", `/bots/${id}`),
+  botConversations: (bot_id?: string) =>
+    request<ConversationSummary[]>("GET", bot_id ? `/conversations?bot_id=${bot_id}` : "/conversations?only=bots"),
+  generalConversations: () => request<ConversationSummary[]>("GET", "/conversations?only=general"),
+  createBotConversation: (bot_id: string) => request<Conversation>("POST", "/conversations", { bot_id }),
+  channels: () => request<Channel[]>("GET", "/whatsapp/channels"),
+  createChannel: (input: ChannelInput) => request<Channel>("POST", "/whatsapp/channels", input),
+  updateChannel: (id: string, input: ChannelInput) => request<Channel>("PATCH", `/whatsapp/channels/${id}`, input),
+  deleteChannel: (id: string) => request<void>("DELETE", `/whatsapp/channels/${id}`),
+  channelStatus: (id: string) => request<ChannelStatus>("GET", `/whatsapp/channels/${id}/status`),
+  channelQr: (id: string) =>
+    request<{ state: ChannelStatus["state"]; base64: string | null; pairing_code: string | null }>("GET", `/whatsapp/channels/${id}/qrcode`),
+  channelWebhook: (id: string, public_url: string) =>
+    request<{ ok: boolean; url: string; detail: string | null }>("POST", `/whatsapp/channels/${id}/webhook`, { public_url }),
+  simulate: (id: string, phone: string, name: string, text: string) =>
+    request<{ contact_id: string }>("POST", `/whatsapp/channels/${id}/simulate`, { phone, name, text }),
+  waSummary: () => request<WaSummary>("GET", "/whatsapp/summary"),
+  contacts: (channel_id: string, filter: ContactFilter, q: string) =>
+    request<Contact[]>("GET", `/whatsapp/contacts?channel_id=${encodeURIComponent(channel_id)}&filter=${filter}&q=${encodeURIComponent(q)}`),
+  contact: (id: string) => request<ContactDetail>("GET", `/whatsapp/contacts/${id}`),
+  sendToContact: (id: string, text: string) => request<WaMessage>("POST", `/whatsapp/contacts/${id}/messages`, { text }),
+  updateContact: (id: string, patch: { bot_enabled?: boolean; needs_human?: boolean; name?: string }) =>
+    request<Contact>("PATCH", `/whatsapp/contacts/${id}`, patch),
+  suggest: (id: string) => request<{ text: string; answered: boolean; sources: Source[] }>("POST", `/whatsapp/contacts/${id}/suggest`),
 };
 
 export async function downloadExport(id: string, format: "markdown" | "json"): Promise<void> {

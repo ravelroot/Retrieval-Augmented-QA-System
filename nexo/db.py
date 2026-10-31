@@ -32,13 +32,31 @@ conversation_documents = Table(
 )
 
 
-class DocumentRow(Base):
-    __tablename__ = "nx_document"
+class KnowledgeBaseRow(Base):
+    __tablename__ = "nx_knowledge_base"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    color: Mapped[str] = mapped_column(String(16), default="#000000")
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class DocumentRow(Base):
+    __tablename__ = "nx_document"
+    __table_args__ = (UniqueConstraint("base_id", "sha256", name="uk_document_base_sha256"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    base_id: Mapped[str] = mapped_column(String(32), ForeignKey("nx_knowledge_base.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10), default="pdf")
+    extension: Mapped[str] = mapped_column(String(10), default="pdf")
     title: Mapped[str] = mapped_column(String(200))
     filename: Mapped[str] = mapped_column(String(255))
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    sha256: Mapped[str] = mapped_column(String(64))
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
     size_bytes: Mapped[int] = mapped_column(Integer)
     pages: Mapped[int] = mapped_column(Integer, default=0)
     chunks: Mapped[int] = mapped_column(Integer, default=0)
@@ -47,6 +65,26 @@ class DocumentRow(Base):
     uploaded_by: Mapped[str] = mapped_column(String(32), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class BotRow(Base):
+    __tablename__ = "nx_bot"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    base_id: Mapped[str] = mapped_column(String(32), ForeignKey("nx_knowledge_base.id"), index=True)
+    instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    greeting: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    fallback: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    color: Mapped[str] = mapped_column(String(16), default="#000000")
+    cite_sources: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    base: Mapped[KnowledgeBaseRow] = relationship(lazy="selectin")
 
 
 class ConversationRow(Base):
@@ -54,6 +92,8 @@ class ConversationRow(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     owner: Mapped[str] = mapped_column(String(32), index=True)
+    bot_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("nx_bot.id", ondelete="CASCADE"), nullable=True,
+                                               index=True)
     title: Mapped[str] = mapped_column(String(160), default="Nova conversa")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
@@ -100,6 +140,7 @@ class SourceRow(Base):
     excerpt: Mapped[str] = mapped_column(Text)
 
     message: Mapped[MessageRow] = relationship(back_populates="sources")
+    document: Mapped[DocumentRow | None] = relationship(lazy="selectin")
 
 
 class FeedbackRow(Base):
@@ -147,7 +188,67 @@ class WebhookRow(Base):
         return [e for e in self.events.split(",") if e]
 
 
+class WhatsAppChannelRow(Base):
+    __tablename__ = "nx_whatsapp_channel"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80))
+    provider: Mapped[str] = mapped_column(String(16))
+    bot_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("nx_bot.id", ondelete="SET NULL"), nullable=True)
+    auto_reply: Mapped[bool] = mapped_column(Boolean, default=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    verify_token: Mapped[str] = mapped_column(String(64))
+    webhook_token: Mapped[str] = mapped_column(String(64))
+    api_version: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    phone_number_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    app_secret: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    base_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    api_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    instance: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_event_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    bot: Mapped[BotRow | None] = relationship(lazy="selectin")
+
+
+class WhatsAppContactRow(Base):
+    __tablename__ = "nx_whatsapp_contact"
+    __table_args__ = (UniqueConstraint("channel_id", "phone", name="uk_whatsapp_contact_channel_phone"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    channel_id: Mapped[str] = mapped_column(String(32), ForeignKey("nx_whatsapp_channel.id", ondelete="CASCADE"),
+                                            index=True)
+    phone: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bot_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    needs_human: Mapped[bool] = mapped_column(Boolean, default=False)
+    unread: Mapped[int] = mapped_column(Integer, default=0)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WhatsAppMessageRow(Base):
+    __tablename__ = "nx_whatsapp_message"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    contact_id: Mapped[str] = mapped_column(String(32), ForeignKey("nx_whatsapp_contact.id", ondelete="CASCADE"))
+    direction: Mapped[str] = mapped_column(String(3))
+    author: Mapped[str] = mapped_column(String(40))
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(12))
+    external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answered: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    sources_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 Index("ix_nx_message_conversation_created", MessageRow.conversation_id, MessageRow.created_at)
+Index("ix_nx_whatsapp_message_contact_created", WhatsAppMessageRow.contact_id, WhatsAppMessageRow.created_at)
 
 _engine: Engine | None = None
 _factory: sessionmaker[Session] | None = None
@@ -166,7 +267,8 @@ def engine() -> Engine:
                 cur.execute("PRAGMA foreign_keys=ON")
                 cur.execute("PRAGMA journal_mode=WAL")
                 cur.close()
-        Base.metadata.create_all(_engine)
+        from nexo.migrations import migrate
+        migrate(_engine)
         _factory = sessionmaker(_engine, expire_on_commit=False)
     return _engine
 

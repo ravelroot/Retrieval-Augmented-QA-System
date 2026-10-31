@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     allow_registration: bool = True
     max_upload_mb: int = Field(100, ge=1, le=2048)
     webhook_timeout: float = Field(5.0, gt=0, le=120)
+    public_url: str | None = None
+    whatsapp_history: int = Field(6, ge=0, le=30)
+    whatsapp_timeout: float = Field(15.0, gt=0, le=120)
 
     llm_provider: Literal["ollama", "openai", "extrativo"] = "ollama"
     llm_model: str = "llama3.1"
@@ -53,7 +56,7 @@ class Settings(BaseSettings):
     history_turns: int = Field(3, ge=0, le=10)
     verify_answers: bool = False
 
-    @field_validator("database_url", "secret", "openai_base_url", "openai_api_key", "cohere_api_key", "chroma_host",
+    @field_validator("database_url", "secret", "public_url", "openai_base_url", "openai_api_key", "cohere_api_key", "chroma_host",
                      "qdrant_url", "qdrant_api_key", mode="before")
     @classmethod
     def _blank_is_none(cls, value):

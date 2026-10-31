@@ -1883,7 +1883,6 @@ button:disabled {
   }
 }
 
-/* Ferramentas da 2.0, no mesmo desenho de caixa única */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .muted { color: var(--texto-3); }
 .ok { color: var(--alta); }
@@ -1950,7 +1949,6 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .rail__palette:hover { color: var(--texto); border-color: var(--parede-forte); }
 .topbar__palette { margin-left: auto; }
 
-/* Paleta de comandos */
 .palette-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.35); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; }
 .palette { width: min(600px, 100%); max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; background: var(--caixa); border: 1px solid var(--parede); border-radius: var(--raio-caixa); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22); }
 .palette__input { display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--parede); color: var(--texto-3); }
@@ -1966,14 +1964,12 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .palette__foot { display: flex; gap: 16px; padding: 9px 16px; border-top: 1px solid var(--parede); background: var(--mesa); font-size: 12px; color: var(--texto-3); }
 .palette__foot kbd { margin-right: 3px; }
 
-/* Avisos */
 .toasts { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: grid; gap: 8px; max-width: min(420px, calc(100vw - 32px)); }
 .toast { display: flex; align-items: baseline; gap: 10px; padding: 11px 16px; border-radius: 12px; background: var(--tampa); color: var(--tampa-texto); font-size: 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2); }
 .toast::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--alta); transform: translateY(-2px); }
 :root[data-theme="dark"] .toast::before { background: #9cc787; }
 .toast--error::before { background: #e89a87; }
 
-/* Conversa */
 .threads__filter {
   margin: 0 4px 10px 12px;
   height: 34px;
@@ -1994,13 +1990,11 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .menu button:hover { background: var(--mesa); }
 .missing__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-left: 16px; }
 
-/* Documentos */
 .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
 .toolbar__search { flex: 1; min-width: 220px; height: 36px; border: 1px solid var(--parede-forte); border-radius: var(--raio-controle); background: var(--caixa); padding: 0 12px; font-size: 14px; }
 .toolbar__search:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 0 0 1px var(--texto); }
 .toolbar__empty { color: var(--texto-3); font-size: 14px; }
 
-/* Busca nos trechos */
 .searchbox > * { padding: 18px 22px; }
 .searchbox__field { display: flex; align-items: center; gap: 12px; color: var(--texto-3); }
 .searchbox__field input { flex: 1; min-width: 0; height: 44px; border: none; background: none; outline: none; font-size: 18px; color: var(--texto); }
@@ -2013,7 +2007,6 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .results__list .source blockquote { max-height: none; font-size: 15px; }
 .empty--compact { margin-top: 0; }
 
-/* Painel de qualidade */
 .box--metrics { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
 .box--metrics .lid { display: flex; flex-direction: column; padding: 28px; min-height: 300px; }
 .box--metrics .lid__stats dd { font-size: 16px; }
@@ -2047,7 +2040,6 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .reviews__q { font-weight: 500; font-size: 15px; }
 .reviews__a { color: var(--texto-3); font-size: 14px; line-height: 1.6; }
 
-/* Integrações e contas */
 .inline-form--wide { max-width: 640px; }
 .secret { display: grid; gap: 10px; padding: 14px 16px; border-radius: 12px; background: var(--mesa); border: 1px solid var(--parede); font-size: 14px; }
 .secret strong, .secret b { font-weight: 500; }
