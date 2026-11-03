@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
+import json
 import logging
 import math
 import re
@@ -14,7 +17,7 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pypdf import PdfReader
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -40,7 +43,7 @@ def _user_error(e: UserError) -> ApiError:
 
 
 def _session(settings: Settings, user) -> sc.SessionOut:
-    token, expires = issue_token(settings, user.username, user.role)
+    token, expires = issue_token(settings, user.username, user.role, user.session_version)
     return sc.SessionOut(token=token, expires_at=expires, user=sc.UserOut(**user.public()))
 
 
@@ -58,6 +61,19 @@ def _require_ready(database: Session, action: str) -> None:
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok", "version": __version__}
+
+
+@router.get("/health/ready")
+def ready() -> Response:
+    try:
+        with db.session() as s:
+            s.execute(select(1))
+    except Exception as e:
+        log.warning("Banco indisponível: %s", e)
+        return Response(json.dumps({"status": "unavailable", "version": __version__, "database": False}),
+                        status_code=503, media_type="application/json")
+    return Response(json.dumps({"status": "ok", "version": __version__, "database": True}),
+                    media_type="application/json")
 
 
 @router.get("/auth/options")
@@ -88,13 +104,30 @@ def me(p: Principal = Depends(current_user), users: UserStore = Depends(get_user
     return sc.UserOut(**users.get(p.username).public())
 
 
-@router.put("/auth/password", status_code=204)
-def change_password(body: sc.PasswordIn, p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
+@router.patch("/auth/me", response_model=sc.UserOut)
+def update_me(body: sc.ProfilePatch, p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
     try:
-        users.change_password(p.username, body.current_password, body.new_password)
+        return sc.UserOut(**users.rename(p.username, body.name).public())
     except UserError as e:
         raise _user_error(e)
-    return Response(status_code=204)
+
+
+@router.put("/auth/password", response_model=sc.SessionOut)
+def change_password(body: sc.PasswordIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                    users: UserStore = Depends(get_users)):
+    try:
+        return _session(settings, users.change_password(p.username, body.current_password, body.new_password))
+    except UserError as e:
+        raise _user_error(e)
+
+
+@router.post("/auth/sessions/revoke", response_model=sc.SessionOut)
+def revoke_sessions(p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                    users: UserStore = Depends(get_users)):
+    try:
+        return _session(settings, users.revoke_sessions(p.username))
+    except UserError as e:
+        raise _user_error(e)
 
 
 @router.put("/auth/tutorial", response_model=sc.UserOut)
@@ -202,7 +235,7 @@ async def store_files(database: Session, files: list[UploadFile], base_id: str, 
                 meta = PdfReader(str(path)).metadata
                 if meta and meta.title and meta.title.strip():
                     row.title = meta.title.strip()[:200]
-            elif extension in ("docx", "md", "html", "htm"):
+            elif extension in ("docx", "md", "html", "htm", "epub", "pptx", "odt"):
                 found = knowledge.read_file(path, extension).title
                 if found:
                     row.title = found
@@ -286,8 +319,11 @@ def document_file(document_id: str, p: Principal = Depends(current_user), databa
         raise ApiError(404, "FILE_MISSING", "O arquivo original não está mais na pasta de uploads.")
     media = {"pdf": "application/pdf", "txt": "text/plain; charset=utf-8", "md": "text/markdown; charset=utf-8",
              "csv": "text/csv; charset=utf-8", "json": "application/json",
-             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}.get(row.extension,
-                                                                                                  "application/octet-stream")
+             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+             "epub": "application/epub+zip",
+             "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+             "odt": "application/vnd.oasis.opendocument.text"}.get(row.extension, "application/octet-stream")
     inline = row.extension in ("pdf", "txt", "md", "csv", "json")
     return FileResponse(path, media_type=media, filename=row.filename,
                         content_disposition_type="inline" if inline else "attachment")
@@ -323,6 +359,65 @@ def delete_document(document_id: str, p: Principal = Depends(current_user), sett
     if path is not None:
         path.unlink(missing_ok=True)
     return Response(status_code=204)
+
+
+@router.post("/documents/bulk", response_model=sc.BulkOut)
+def bulk_documents(body: sc.BulkIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                   database: Session = Depends(db.get_db)):
+    ids = list(dict.fromkeys(body.ids))
+    target = None
+    if body.action == "move":
+        if not body.base_id:
+            message = "Escolha a base de destino."
+            raise ApiError(400, "NO_BASE", message, {"base_id": message})
+        target = get_base(database, body.base_id)
+    rows = {r.id: r for r in database.scalars(select(db.DocumentRow).where(db.DocumentRow.id.in_(ids))).all()}
+    done: list[str] = []
+    skipped: dict[str, str] = {}
+    paths: list[Path] = []
+    queue: list[str] = []
+    for document_id in ids:
+        row = rows.get(document_id)
+        if row is None:
+            skipped[document_id] = "Documento não encontrado."
+            continue
+        if not (p.is_admin or row.uploaded_by == p.username):
+            skipped[document_id] = "Sem permissão para alterar este documento."
+            continue
+        if body.action == "reindex":
+            if row.kind != "note" and not file_on_disk(row).exists():
+                skipped[document_id] = "O arquivo original não está mais na pasta de uploads."
+                continue
+            row.status = "PENDING"
+            row.error = None
+            queue.append(row.id)
+        elif body.action == "move":
+            if row.base_id == target.id:
+                done.append(row.id)
+                continue
+            clash = database.scalar(select(db.DocumentRow).where(db.DocumentRow.base_id == target.id,
+                                                                 db.DocumentRow.sha256 == row.sha256))
+            if clash is not None:
+                skipped[document_id] = f"A base \"{target.name}\" já tem esse conteúdo como \"{clash.title}\"."
+                continue
+            row.base_id = target.id
+            row.updated_at = db.utcnow()
+        else:
+            try:
+                get_engine(settings).delete(row.id)
+            except ProviderError as e:
+                skipped[document_id] = str(e)
+                continue
+            if row.kind != "note":
+                paths.append(file_on_disk(row))
+            database.delete(row)
+        done.append(document_id)
+    database.commit()
+    for path in paths:
+        path.unlink(missing_ok=True)
+    for document_id in queue:
+        jobs.enqueue(document_id)
+    return sc.BulkOut(done=done, skipped=skipped)
 
 
 def source_kinds(database: Session, sources) -> dict[str, str]:
@@ -376,8 +471,17 @@ def _documents(database: Session, ids: list[str]) -> list[db.DocumentRow]:
 
 @router.get("/conversations", response_model=list[sc.ConversationSummary])
 def list_conversations(only: Literal["general", "bots"] | None = Query(None), bot_id: str | None = Query(None),
-                       p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+                       q: str = Query("", max_length=200), p: Principal = Depends(current_user),
+                       database: Session = Depends(db.get_db)):
     query = select(db.ConversationRow).where(db.ConversationRow.owner == p.username)
+    term = " ".join(q.split())
+    if term:
+        escaped = term.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        matching = select(db.MessageRow.conversation_id).where(
+            func.lower(db.MessageRow.content).like(pattern, escape="\\"))
+        query = query.where(func.lower(db.ConversationRow.title).like(pattern, escape="\\")
+                            | db.ConversationRow.id.in_(matching))
     if bot_id:
         query = query.where(db.ConversationRow.bot_id == bot_id)
     elif only == "general":
@@ -479,14 +583,18 @@ def base_scope(database: Session, base_id: str) -> list[str]:
                                                                   db.DocumentRow.status == "READY")))
 
 
-def run_bot(database: Session, settings: Settings, bot: db.BotRow, question: str,
-            history: list[tuple[str, str]]) -> Answer:
+def bot_scope(database: Session, bot: db.BotRow, question: str) -> list[str]:
     scope = base_scope(database, bot.base_id)
     if not scope and not (bot.greeting and is_salutation(question)):
         name = bot.base.name if bot.base is not None else "do agente"
         raise ApiError(409, "NO_DOCUMENTS", f"A base \"{name}\" ainda não tem conteúdo pronto. Adicione arquivos ou "
                                              "textos e aguarde a indexação.")
-    return _run(settings, question, history, scope or ["__vazio__"], bot_profile(bot))
+    return scope or ["__vazio__"]
+
+
+def run_bot(database: Session, settings: Settings, bot: db.BotRow, question: str,
+            history: list[tuple[str, str]]) -> Answer:
+    return _run(settings, question, history, bot_scope(database, bot, question), bot_profile(bot))
 
 
 def _run(settings: Settings, question: str, history: list[tuple[str, str]], scope: list[str],
@@ -500,6 +608,12 @@ def _run(settings: Settings, question: str, history: list[tuple[str, str]], scop
         raise ApiError(502, "LLM_FAILURE", f"O modelo não respondeu: {e}")
 
 
+def _source_rows(result: Answer) -> list[db.SourceRow]:
+    return [db.SourceRow(document_id=s.document_id or None, document_title=s.document_title, chunk_id=s.chunk_id,
+                         page=s.page, rank=s.rank, similarity=s.similarity, rerank_score=s.rerank_score,
+                         excerpt=s.excerpt) for s in result.sources]
+
+
 def _store_exchange(database: Session, c: db.ConversationRow, question: str,
                     result: Answer) -> tuple[db.MessageRow, db.MessageRow]:
     user_msg = db.MessageRow(conversation_id=c.id, role="user", content=question)
@@ -508,9 +622,7 @@ def _store_exchange(database: Session, c: db.ConversationRow, question: str,
     answer = db.MessageRow(conversation_id=c.id, role="assistant", content=result.text, answered=result.answered,
                            grounded=result.grounded, model=result.model, latency_ms=result.latency_ms,
                            created_at=db.utcnow())
-    answer.sources = [db.SourceRow(document_id=s.document_id or None, document_title=s.document_title,
-                                   chunk_id=s.chunk_id, page=s.page, rank=s.rank, similarity=s.similarity,
-                                   rerank_score=s.rerank_score, excerpt=s.excerpt) for s in result.sources]
+    answer.sources = _source_rows(result)
     database.add(answer)
     if c.title == "Nova conversa":
         c.title = (question[:77] + "…") if len(question) > 80 else question
@@ -544,6 +656,99 @@ def ask(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(curren
     _notify_unanswered(result, question, c.id, p)
     return sc.ExchangeOut(question=_message_out(user_msg, p.username), answer=_message_out(answer, p.username),
                           conversation=_summary(c))
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False, default=str)}\n\n"
+
+
+def _stream_answer(settings: Settings, conversation_id: str, p: Principal, question: str,
+                   history: list[tuple[str, str]], scope: list[str], profile: BotProfile | None):
+    yield _sse("status", {"stage": "searching"})
+    result: Answer | None = None
+    writing = False
+    try:
+        for item in get_engine(settings).ask_stream(question, history, scope or None, profile):
+            if isinstance(item, Answer):
+                result = item
+                continue
+            if not writing:
+                writing = True
+                yield _sse("status", {"stage": "writing"})
+            yield _sse("delta", {"text": item})
+    except ProviderError as e:
+        yield _sse("error", {"code": "PROVIDER", "message": str(e)})
+        return
+    except Exception as e:
+        log.exception("Falha ao responder")
+        yield _sse("error", {"code": "LLM_FAILURE", "message": f"O modelo não respondeu: {e}"})
+        return
+    if result is None:
+        yield _sse("error", {"code": "LLM_FAILURE", "message": "O modelo encerrou sem responder."})
+        return
+    with db.session() as s:
+        c = s.get(db.ConversationRow, conversation_id)
+        if c is None or c.owner != p.username:
+            yield _sse("error", {"code": "NOT_FOUND", "message": "Conversa não encontrada."})
+            return
+        user_msg, answer = _store_exchange(s, c, question, result)
+        payload = sc.ExchangeOut(question=_message_out(user_msg, p.username), answer=_message_out(answer, p.username),
+                                 conversation=_summary(c)).model_dump(mode="json")
+    _notify_unanswered(result, question, conversation_id, p)
+    yield _sse("done", payload)
+
+
+@router.post("/conversations/{conversation_id}/messages/stream")
+def ask_stream(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(current_user),
+               settings: Settings = Depends(get_settings), database: Session = Depends(db.get_db)):
+    c = _conversation(database, conversation_id, p)
+    question = body.content.strip()
+    if not question:
+        raise ApiError(400, "EMPTY", "Escreva uma pergunta.", {"content": "Escreva uma pergunta."})
+    history = [(m.role, m.content) for m in c.messages]
+    bot = database.get(db.BotRow, c.bot_id) if c.bot_id else None
+    if bot is not None:
+        scope, profile = bot_scope(database, bot, question), bot_profile(bot)
+    else:
+        _require_ready(database, "perguntar")
+        scope, profile = [d.id for d in c.documents], None
+    return StreamingResponse(_stream_answer(settings, c.id, p, question, history, scope, profile),
+                             media_type="text/event-stream",
+                             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+@router.post("/messages/{message_id}/regenerate", response_model=sc.MessageOut)
+def regenerate(message_id: str, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+               database: Session = Depends(db.get_db)):
+    m = database.get(db.MessageRow, message_id)
+    if m is None or m.role != "assistant" or m.conversation.owner != p.username:
+        raise ApiError(404, "NOT_FOUND", "Resposta não encontrada.")
+    c = m.conversation
+    items = c.messages
+    index = next((i for i, x in enumerate(items) if x.id == m.id), len(items))
+    asked = next((i for i in range(index - 1, -1, -1) if items[i].role == "user"), None)
+    if asked is None:
+        raise ApiError(400, "NO_QUESTION", "Não há pergunta para refazer esta resposta.")
+    question = items[asked].content
+    history = [(x.role, x.content) for x in items[:asked]]
+    bot = database.get(db.BotRow, c.bot_id) if c.bot_id else None
+    if bot is not None:
+        result = run_bot(database, settings, bot, question, history)
+    else:
+        _require_ready(database, "perguntar")
+        result = _run(settings, question, history, [d.id for d in c.documents])
+    m.content = result.text
+    m.answered = result.answered
+    m.grounded = result.grounded
+    m.model = result.model
+    m.latency_ms = result.latency_ms
+    m.sources = _source_rows(result)
+    m.feedback = []
+    c.updated_at = db.utcnow()
+    database.commit()
+    database.refresh(m)
+    _notify_unanswered(result, question, c.id, p)
+    return _message_out(m, p.username)
 
 
 @router.post("/ask", response_model=sc.AskOut)
@@ -716,6 +921,36 @@ def metrics(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_
     )
 
 
+@router.get("/metrics/export")
+def metrics_export(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_user),
+                   database: Session = Depends(db.get_db)):
+    first = db.utcnow().date() - timedelta(days=days - 1)
+    query = (select(db.MessageRow).join(db.ConversationRow, db.MessageRow.conversation_id == db.ConversationRow.id)
+             .where(db.MessageRow.created_at >= datetime.combine(first, datetime.min.time())))
+    if not p.is_admin:
+        query = query.where(db.ConversationRow.owner == p.username)
+    pairs = sorted(_pairs(list(database.scalars(query).all())), key=lambda qa: qa[0].created_at)
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
+    writer.writerow(["data_utc", "usuario", "conversa", "agente", "pergunta", "respondida", "avaliacao", "latencia_ms",
+                     "modelo", "fontes"])
+    bots = dict(database.execute(select(db.BotRow.id, db.BotRow.name)).all())
+    for question, answer in pairs:
+        conversation = question.conversation
+        ratings = [f.rating for f in answer.feedback] if answer is not None else []
+        rating = "" if not ratings else ("positiva" if sum(ratings) > 0 else "negativa" if sum(ratings) < 0 else "mista")
+        sources = "; ".join(f"{s.document_title} (p. {s.page})" for s in answer.sources) if answer is not None else ""
+        answered = "" if answer is None or answer.answered is None else ("sim" if answer.answered else "não")
+        writer.writerow([question.created_at.strftime("%Y-%m-%d %H:%M:%S"), conversation.owner, conversation.title,
+                         bots.get(conversation.bot_id, "") if conversation.bot_id else "",
+                         " ".join(question.content.split()), answered, rating,
+                         answer.latency_ms if answer is not None and answer.latency_ms is not None else "",
+                         answer.model if answer is not None and answer.model else "", sources])
+    name = f"nexo-perguntas-{db.utcnow().date().isoformat()}-{days}d.csv"
+    return Response("\ufeff" + out.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 def _key_out(row: db.ApiKeyRow) -> sc.ApiKeyOut:
     return sc.ApiKeyOut.model_validate(row, from_attributes=True)
 
@@ -820,7 +1055,8 @@ def delete_webhook(webhook_id: str, p: Principal = Depends(current_user), databa
 def test_webhook(webhook_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
     row = _webhook(database, webhook_id, p)
     database.commit()
-    status, error = webhooks.deliver(row.id, "ping", {"webhook_id": row.id, "message": "Teste de entrega do Nexo."})
+    status, error = webhooks.deliver(row.id, "ping", {"webhook_id": row.id, "message": "Teste de entrega do Nexo."},
+                                     retries=False)
     return sc.WebhookTestOut(status=status, error=error)
 
 
@@ -831,6 +1067,33 @@ USERS_ADMIN = "Só administradores podem gerenciar contas."
 def list_users(p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
     _require_admin(p, USERS_ADMIN)
     return [sc.UserOut(**u.public()) for u in users.all()]
+
+
+@router.post("/users", response_model=sc.UserOut, status_code=201)
+def create_user(body: sc.UserCreateIn, p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
+    _require_admin(p, USERS_ADMIN)
+    try:
+        return sc.UserOut(**users.create(body.name, body.username, body.password, body.role).public())
+    except UserError as e:
+        raise _user_error(e)
+
+
+@router.put("/users/{username}/password", response_model=sc.UserOut)
+def reset_user_password(username: str, body: sc.PasswordResetIn, p: Principal = Depends(current_user),
+                        users: UserStore = Depends(get_users)):
+    _require_admin(p, USERS_ADMIN)
+    key = username.strip().lower()
+    if key == p.username:
+        message = "Para trocar a sua senha, use o formulário Senha, com a senha atual."
+        raise ApiError(400, "SELF", message, {"password": message})
+    try:
+        user = users.reset_password(key, body.password)
+    except UserError as e:
+        if e.field == "username":
+            raise ApiError(404, "NOT_FOUND", e.message)
+        raise ApiError(400, e.code, e.message, {"password": e.message})
+    users.unlock(key)
+    return sc.UserOut(**user.public())
 
 
 @router.patch("/users/{username}", response_model=sc.UserOut)

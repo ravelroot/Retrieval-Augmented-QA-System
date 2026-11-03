@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ApiError, api, downloadExport, type Conversation, type Message } from "../api";
+import { ApiError, api, askStream, downloadExport, type Conversation, type ConversationSummary, type Message, type StreamStage } from "../api";
 import { AnswerText } from "../components/AnswerText";
 import { Icon } from "../components/Icon";
 import { SourcesPanel } from "../components/SourcesPanel";
@@ -43,6 +43,11 @@ export function ChatPage() {
   const [filter, setFilter] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [streamText, setStreamText] = useState("");
+  const [stage, setStage] = useState<StreamStage>("searching");
+  const [redoing, setRedoing] = useState<string | null>(null);
+  const [found, setFound] = useState<ConversationSummary[] | null>(null);
+  const aborter = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -73,7 +78,34 @@ export function ChatPage() {
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [conversation?.items.length, pending]);
+  }, [conversation?.items.length, pending, Math.floor(streamText.length / 160)]);
+
+  useEffect(() => () => aborter.current?.abort(), []);
+
+  useEffect(() => {
+    if (!pending) return;
+    const onEscape = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") aborter.current?.abort();
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [pending]);
+
+  useEffect(() => {
+    const term = filter.trim();
+    if (term.length < 2) {
+      setFound(null);
+      return;
+    }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      api.searchConversations(term).then((rows) => alive && setFound(rows)).catch(() => alive && setFound(null));
+    }, 250);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [filter, everything]);
 
   const ready = useMemo(() => docs.filter((d) => d.status === "READY"), [docs]);
   const scope = conversation ? conversation.document_ids : draftScope;
@@ -84,8 +116,10 @@ export function ChatPage() {
   const selectedQuery = selectedIndex > 0 ? items[selectedIndex - 1].content : "";
   const visible = useMemo(() => {
     const q = fold(filter.trim());
-    return q ? list.filter((c) => fold(c.title).includes(q)) : list;
-  }, [list, filter]);
+    if (!q) return list;
+    const ids = new Set(found?.map((c) => c.id) ?? []);
+    return list.filter((c) => ids.has(c.id) || fold(c.title).includes(q));
+  }, [list, filter, found]);
 
   async function setScope(next: string[]) {
     if (!conversation) {
@@ -108,6 +142,10 @@ export function ChatPage() {
     setError("");
     setPending(text);
     setQuestion("");
+    setStreamText("");
+    setStage("searching");
+    const controller = new AbortController();
+    aborter.current = controller;
     try {
       let current = conversation;
       if (!current) {
@@ -115,16 +153,46 @@ export function ChatPage() {
         setConversation(current);
         navigate(`/conversas/${current.id}`, { replace: true });
       }
-      const exchange = await api.ask(current.id, text);
+      const exchange = await askStream(current.id, text, {
+        signal: controller.signal,
+        onStage: setStage,
+        onDelta: (piece) => setStreamText((value) => value + piece),
+      });
       setConversation({ ...current, ...exchange.conversation, items: [...current.items, exchange.question, exchange.answer] });
       if (exchange.answer.sources.length) setSelection({ messageId: exchange.answer.id, rank: null });
       loadList();
     } catch (err) {
-      setError((err as ApiError).message);
+      const apiError = err as ApiError;
+      if (apiError.code === "ABORTED") toast("Resposta interrompida. A pergunta voltou para a caixa de texto.");
+      else setError(apiError.message);
       setQuestion(text);
     } finally {
+      if (aborter.current === controller) aborter.current = null;
       setPending(null);
+      setStreamText("");
       textarea.current?.focus();
+    }
+  }
+
+  function stop() {
+    aborter.current?.abort();
+  }
+
+  async function redo(message: Message) {
+    if (!conversation || pending || redoing) return;
+    setError("");
+    setRedoing(message.id);
+    try {
+      const updated = await api.regenerate(message.id);
+      setConversation((current) => current && ({ ...current, items: current.items.map((m) => (m.id === updated.id ? updated : m)) }));
+      if (updated.sources.length) setSelection({ messageId: updated.id, rank: null });
+      else if (selection?.messageId === updated.id) setSelection(null);
+      toast(updated.answered ? "Resposta refeita." : "Refiz a busca, mas os documentos não trazem a resposta.");
+      loadList();
+    } catch (e) {
+      setError((e as ApiError).message);
+    } finally {
+      setRedoing(null);
     }
   }
 
@@ -352,6 +420,9 @@ export function ChatPage() {
                     active={selection?.messageId === m.id ? selection.rank : null}
                     onCite={(rank) => setSelection({ messageId: m.id, rank })} />
                 )}
+                {redoing === m.id && (
+                  <div className="busline" aria-hidden="true"><span /></div>
+                )}
                 <footer className="msg__foot">
                   {m.sources.length > 0 && (
                     <button className="link-button" onClick={() => setSelection({ messageId: m.id, rank: null })}>
@@ -361,6 +432,10 @@ export function ChatPage() {
                   {m.grounded === false && <span className="warn">A verificação automática não confirmou todos os pontos.</span>}
                   <span className="msg__model">{m.model}{m.latency_ms !== null ? `, ${(m.latency_ms / 1000).toFixed(1).replace(".", ",")} s` : ""}</span>
                   <span className="rate">
+                    <button className="icon-button" aria-label="Refazer a resposta" title="Refazer a resposta"
+                      onClick={() => redo(m)} disabled={!!pending || !!redoing}>
+                      <Icon name="refresh" size={16} />
+                    </button>
                     <button className="icon-button" aria-label="Copiar resposta com as fontes" title="Copiar com as fontes" onClick={() => copy(m)}>
                       <Icon name={copied === m.id ? "check" : "copy"} size={16} />
                     </button>
@@ -380,10 +455,17 @@ export function ChatPage() {
           {pending && (
             <>
               <div className="msg msg--user"><p>{pending}</p></div>
-              <div className="msg msg--bot msg--pending" role="status">
-                <div className="busline" aria-hidden="true"><span /></div>
-                <p>Buscando nos documentos e conferindo os trechos…</p>
-              </div>
+              {streamText ? (
+                <div className="msg msg--bot" aria-live="polite">
+                  <AnswerText text={streamText} sources={0} active={null} onCite={() => undefined} />
+                  <div className="busline" aria-hidden="true"><span /></div>
+                </div>
+              ) : (
+                <div className="msg msg--bot msg--pending" role="status">
+                  <div className="busline" aria-hidden="true"><span /></div>
+                  <p>{stage === "writing" ? "Escrevendo a resposta com base nos trechos…" : "Buscando nos documentos e conferindo os trechos…"}</p>
+                </div>
+              )}
             </>
           )}
           <div ref={bottom} />
@@ -395,11 +477,17 @@ export function ChatPage() {
           <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
             placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie um PDF em Documentos para perguntar"}
             aria-label="Pergunta" rows={2} maxLength={4000} disabled={!!pending} />
-          <button className="send" type="submit" disabled={!question.trim() || !!pending || ready.length === 0} aria-label="Enviar pergunta">
-            <Icon name="send" />
-          </button>
+          {pending ? (
+            <button className="send" type="button" onClick={stop} aria-label="Parar a resposta" title="Parar a resposta">
+              <Icon name="pause" />
+            </button>
+          ) : (
+            <button className="send" type="submit" disabled={!question.trim() || ready.length === 0} aria-label="Enviar pergunta">
+              <Icon name="send" />
+            </button>
+          )}
         </form>
-        <p className="composer__hint">Enter envia, Shift + Enter quebra a linha, Ctrl + K abre a paleta de comandos.</p>
+        <p className="composer__hint">{pending ? "Esc ou o botão ao lado interrompem a resposta." : "Enter envia, Shift + Enter quebra a linha, Ctrl + K abre a paleta de comandos."}</p>
       </section>
 
       {selectedMessage && (

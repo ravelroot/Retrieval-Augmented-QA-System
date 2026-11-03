@@ -2045,7 +2045,7 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
 .secret strong, .secret b { font-weight: 500; }
 .secret__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .secret__row code { flex: 1; min-width: 0; padding: 7px 10px; background: var(--caixa); }
-.table-wrap { overflow-x: auto; }
+.table-wrap { position: relative; overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th { text-align: left; font-weight: 400; font-size: 13px; color: var(--texto-3); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--parede-forte); }
 .table td { padding: 11px 12px 11px 0; border-top: 1px solid var(--parede); vertical-align: middle; }
@@ -2080,3 +2080,41 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
   .searchbox > * { padding: 14px 16px; }
 }
 .box--two > .panel:first-child { grid-row: auto; }
+
+.panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.doc__actions input[type="checkbox"] {
+  accent-color: var(--tinta);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toolbar--bulk {
+  align-items: center;
+}
+
+.page__tools {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .page__head:has(.page__tools) {
+    flex-wrap: wrap;
+  }
+
+  .page__tools {
+    flex-shrink: 1;
+    justify-content: flex-start;
+  }
+}

@@ -16,8 +16,9 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("NEXO_RERANKER", "none")
     monkeypatch.setenv("NEXO_MIN_SIMILARITY", "0.1")
     monkeypatch.setenv("NEXO_SECRET", "segredo-de-teste-com-tamanho-suficiente-para-hs256")
-    from nexo import db
+    from nexo import db, webhooks
     from nexo.api import deps
+    monkeypatch.setattr(webhooks, "RETRY_DELAYS", (0.01, 0.02))
     from nexo.config import get_settings
     from nexo.rag import engine
     get_settings.cache_clear()

@@ -29,6 +29,33 @@ class UserOut(BaseModel):
     created_at: str
     last_login_at: str | None = None
     tutorial_done_at: str | None = None
+    password_changed_at: str | None = None
+
+
+class ProfilePatch(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class UserCreateIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=200)
+    role: Literal["admin", "user"] = "user"
+
+
+class PasswordResetIn(BaseModel):
+    password: str = Field(min_length=1, max_length=200)
+
+
+class BulkIn(BaseModel):
+    action: Literal["reindex", "delete", "move"]
+    ids: list[str] = Field(min_length=1, max_length=500)
+    base_id: str | None = Field(None, min_length=1, max_length=32)
+
+
+class BulkOut(BaseModel):
+    done: list[str]
+    skipped: dict[str, str]
 
 
 class TutorialIn(BaseModel):

@@ -64,4 +64,6 @@ def current_user(authorization: str | None = Header(None), x_api_key: str | None
     user: User | None = users.get(claims.get("sub", ""))
     if user is None:
         raise ApiError(401, "UNAUTHENTICATED", "Usuário não encontrado.")
+    if int(claims.get("ver", 0) or 0) != user.session_version:
+        raise ApiError(401, "SESSION_REVOKED", "Sua sessão foi encerrada. Entre novamente.")
     return Principal(user.username, user.name, user.role)

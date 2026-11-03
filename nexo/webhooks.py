@@ -5,7 +5,9 @@ import hmac
 import json
 import logging
 import threading
+import time
 import urllib.error
+import uuid
 import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor, wait
 from datetime import UTC, datetime
@@ -20,6 +22,9 @@ log = logging.getLogger("nexo.webhooks")
 EVENTS = ("document.ready", "document.failed", "question.unanswered", "feedback.negative", "whatsapp.message",
           "whatsapp.handoff")
 
+RETRY_DELAYS = (1.0, 3.0)
+RETRY_STATUS = {408, 425, 429, 500, 502, 503, 504}
+
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="nexo-webhook")
 _pending: set[Future] = set()
 _pending_lock = threading.Lock()
@@ -29,13 +34,14 @@ def sign(secret: str, body: bytes) -> str:
     return "sha256=" + hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
 
 
-def _post(url: str, secret: str, event: str, data: dict) -> tuple[int | None, str | None]:
-    payload = {"event": event, "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(), "data": data}
-    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+def _post(url: str, secret: str, event: str, body: bytes, delivery: str,
+          attempt: int) -> tuple[int | None, str | None]:
     request = urllib.request.Request(url, data=body, method="POST", headers={
         "Content-Type": "application/json",
         "User-Agent": f"Nexo/{__version__}",
         "X-Nexo-Event": event,
+        "X-Nexo-Delivery": delivery,
+        "X-Nexo-Attempt": str(attempt),
         "X-Nexo-Signature": sign(secret, body),
     })
     try:
@@ -54,14 +60,30 @@ def _post(url: str, secret: str, event: str, data: dict) -> tuple[int | None, st
         return None, f"Falha na entrega: {e}"
 
 
-def deliver(webhook_id: str, event: str, data: dict) -> tuple[int | None, str | None]:
+def _retryable(status: int | None, error: str | None) -> bool:
+    return bool(error) and (status is None or status in RETRY_STATUS)
+
+
+def deliver(webhook_id: str, event: str, data: dict, retries: bool = True) -> tuple[int | None, str | None]:
     with db.session() as s:
         row = s.get(db.WebhookRow, webhook_id)
         if row is None:
             return None, "Webhook não encontrado."
         url, secret = row.url, row.secret
-    status, error = _post(url, secret, event, data)
+    delivery = uuid.uuid4().hex
+    payload = {"event": event, "delivery": delivery,
+               "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(), "data": data}
+    body = json.dumps(payload, ensure_ascii=False, default=str).encode("utf-8")
+    delays = RETRY_DELAYS if retries else ()
+    attempt = 1
+    status, error = _post(url, secret, event, body, delivery, attempt)
+    while _retryable(status, error) and attempt <= len(delays):
+        time.sleep(delays[attempt - 1])
+        attempt += 1
+        status, error = _post(url, secret, event, body, delivery, attempt)
     if error:
+        if attempt > 1:
+            error = f"{error} ({attempt} tentativas)"
         log.warning("Webhook %s (%s): %s", webhook_id, event, error)
     with db.session() as s:
         row = s.get(db.WebhookRow, webhook_id)

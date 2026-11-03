@@ -29,9 +29,9 @@ def secret_key(settings: Settings) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def issue_token(settings: Settings, username: str, role: str) -> tuple[str, datetime]:
+def issue_token(settings: Settings, username: str, role: str, version: int = 0) -> tuple[str, datetime]:
     expires = datetime.now(UTC) + timedelta(hours=settings.token_hours)
-    payload = {"sub": username, "role": role, "exp": expires, "iat": datetime.now(UTC)}
+    payload = {"sub": username, "role": role, "ver": version, "exp": expires, "iat": datetime.now(UTC)}
     return jwt.encode(payload, secret_key(settings), algorithm=ALGORITHM), expires
 
 

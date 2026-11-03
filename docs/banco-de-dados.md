@@ -6,9 +6,9 @@ O Nexo guarda informações em **três lugares**, cada um com um papel:
 |---|---|---|
 | Banco relacional | `data/nexo.db` (SQLite) ou o banco de `NEXO_DATABASE_URL` | Bases de conhecimento, documentos e textos, agentes, conversas, mensagens, fontes citadas, avaliações, chaves de API, webhooks e WhatsApp (conexões, contatos e mensagens) |
 | Banco vetorial | `data/chroma/` (ChromaDB) ou Qdrant | Trechos dos arquivos com os embeddings e os metadados de origem |
-| Arquivos | `data/usuarios.json` e `data/uploads/` | Contas de acesso (com o tutorial visto) e os arquivos originais (`<id>.<extensão>`) |
+| Arquivos | `data/usuarios.json` e `data/uploads/` | Contas de acesso (com o tutorial visto e a versão das sessões) e os arquivos originais (`<id>.<extensão>`) |
 
-As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos para a 2.1 por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
+As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). A 2.2 não muda nenhuma tabela: um banco da 2.1 funciona como está. Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
 
 ## Diagrama de relacionamentos
 
@@ -270,7 +270,7 @@ Avisos enviados por POST a outros sistemas quando algo acontece no Nexo. Só adm
 | last_error | text | Motivo da última falha, quando houver |
 | last_delivery_at | timestamp | Última tentativa de entrega, em UTC |
 
-Cada entrega tem tempo limite de `NEXO_WEBHOOK_TIMEOUT` segundos (padrão 5) e não é repetida em caso de falha. Na 2.1 entram os eventos `whatsapp.message` e `whatsapp.handoff`.
+Cada tentativa tem tempo limite de `NEXO_WEBHOOK_TIMEOUT` segundos (padrão 5). Desde a 2.2, falhas de rede, tempo esgotado, HTTP 429 e 5xx são repetidas até 3 vezes (esperas de 1 e 3 segundos), todas com o mesmo `X-Nexo-Delivery`; `last_status` e `last_error` guardam o resultado da última tentativa, e `last_error` informa quantas foram feitas. Na 2.1 entraram os eventos `whatsapp.message` e `whatsapp.handoff`.
 
 ### nx_whatsapp_channel
 Um número de WhatsApp conectado. Só administradores criam e alteram. Os segredos nunca voltam inteiros pela API.
@@ -351,17 +351,21 @@ O título entra no texto usado para gerar o embedding, o que ajuda perguntas com
       "password_hash": "$2b$12$...",
       "created_at": "2026-01-01T12:00:00+00:00",
       "last_login_at": null,
-      "tutorial_done_at": "2026-10-30T14:02:11+00:00"
+      "tutorial_done_at": "2026-10-30T14:02:11+00:00",
+      "session_version": 0,
+      "password_changed_at": null
     }
   ]
 }
 ```
 
 - Senhas são guardadas só como hash bcrypt.
-- `role` é `admin` (pode excluir qualquer documento, gerencia contas e webhooks) ou `user`.
+- `role` é `admin` (pode excluir qualquer documento, cria contas, redefine senhas e gerencia contas e webhooks) ou `user`.
 - Excluir uma conta apaga também as chaves de API e as conversas dela.
 - O arquivo é regravado de forma atômica a cada alteração.
 - `tutorial_done_at` marca quando a conta concluiu ou pulou o tutorial; nulo (ou ausente, em arquivos antigos) mostra o tutorial na próxima entrada.
+- `session_version` vai dentro de cada token de sessão (`ver`). Trocar ou redefinir a senha e o botão "Sair dos outros dispositivos" somam 1, e todo token com a versão antiga passa a responder `401 SESSION_REVOKED`. Ausente em arquivos antigos, vale 0, por isso as sessões abertas antes da atualização continuam valendo.
+- `password_changed_at` registra a última troca ou redefinição de senha, em UTC.
 - Se o arquivo não existir, o Nexo cria o login pré-definido `admin` / `Nexo@2026`.
 
 ## Usando outro banco relacional

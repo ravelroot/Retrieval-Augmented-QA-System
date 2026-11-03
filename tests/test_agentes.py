@@ -114,7 +114,7 @@ def test_base_with_files_texts_move_and_search(client):
                                                   "dias úteis.".encode(), "text/markdown"))])
     assert same_in_other.status_code == 201
     bad = client.post(f"/api/bases/{base['id']}/documents", headers=headers,
-                      files=[("files", ("planilha.xlsx", b"PK...", "application/octet-stream"))])
+                      files=[("files", ("planilha.rtf", b"{\\rtf1 nada}", "application/octet-stream"))])
     assert bad.status_code == 415 and bad.json()["code"] == "UNSUPPORTED"
 
 

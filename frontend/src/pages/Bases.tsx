@@ -19,7 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const COLORS = ["#000000", "#4d4b4b", "#2b4c5a", "#3e6b2a", "#7a5a12", "#9b2f1e", "#5a3e6b", "#bab7b6"];
-const ALLOWED = [".pdf", ".docx", ".txt", ".md", ".csv", ".json", ".html", ".htm"];
+const ALLOWED = [".pdf", ".docx", ".epub", ".pptx", ".xlsx", ".odt", ".txt", ".md", ".csv", ".json", ".html", ".htm"];
 
 function fold(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -103,7 +103,7 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
   async function send(list: FileList | File[]) {
     const chosen = Array.from(list).filter((f) => ALLOWED.some((ext) => f.name.toLowerCase().endsWith(ext)));
     if (!chosen.length) {
-      onNotice("error", "Escolha arquivos PDF, Word, TXT, Markdown, CSV, JSON ou HTML.");
+      onNotice("error", "Escolha arquivos PDF, Word, EPUB, PowerPoint, Excel, ODT, TXT, Markdown, CSV, JSON ou HTML.");
       return;
     }
     setUploading(true);
@@ -135,7 +135,7 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
     if (e.dataTransfer.files.length) void send(e.dataTransfer.files);
   }
 
-  const exts = formats?.extensions.map((x) => x.replace(/^\./, "").toUpperCase()).join(", ") ?? "PDF, DOCX, TXT, MD, CSV, JSON, HTML";
+  const exts = formats?.extensions.map((x) => x.replace(/^\./, "").toUpperCase()).join(", ") ?? "PDF, DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML";
 
   return (
     <div className="kb-tab">
@@ -686,7 +686,7 @@ export function BasesPage() {
                     <strong>Esta base está vazia</strong>
                     <p>Escolha um jeito de colocar conhecimento nela:</p>
                     <ol>
-                      <li><Icon name="upload" size={16} /><span><b>Arraste arquivos</b> PDF, Word, planilhas CSV, textos e páginas HTML.</span></li>
+                      <li><Icon name="upload" size={16} /><span><b>Arraste arquivos</b> PDF, Word, EPUB, PowerPoint, planilhas Excel e CSV, textos e páginas HTML.</span></li>
                       <li><Icon name="text" size={16} /><span><b>Escreva um texto</b> com preços, horários e regras, na aba <button className="link-button" onClick={() => setTab("textos")}>Textos</button>.</span></li>
                       <li><Icon name="link" size={16} /><span><b>Integre por API</b> para outro sistema alimentar a base, na aba <button className="link-button" onClick={() => setTab("integrar")}>Integrar</button>.</span></li>
                     </ol>

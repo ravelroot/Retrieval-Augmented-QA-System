@@ -263,7 +263,7 @@ export function AgentsPage() {
         <section className="agents-how">
           <h2>Como funciona</h2>
           <ol className="steps">
-            <li><span>1</span><div><strong>Monte a base</strong><p>Envie PDFs, Word, planilhas CSV ou digite textos em <Link to="/bases">Bases de conhecimento</Link>.</p></div></li>
+            <li><span>1</span><div><strong>Monte a base</strong><p>Envie PDFs, Word, EPUB, PowerPoint, planilhas ou digite textos em <Link to="/bases">Bases de conhecimento</Link>.</p></div></li>
             <li><span>2</span><div><strong>Crie o agente</strong><p>Dê um nome, escreva as instruções e escolha a base.</p></div></li>
             <li><span>3</span><div><strong>Converse</strong><p>Abra vários chats em <Link to="/chats">Chats com agentes</Link> ou ligue o agente ao <Link to="/whatsapp">WhatsApp</Link>.</p></div></li>
           </ol>

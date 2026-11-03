@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import re
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -18,6 +20,7 @@ from nexo.config import get_settings
 
 WEB_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 log = logging.getLogger("nexo")
+REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
 
 
 @asynccontextmanager
@@ -50,7 +53,12 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
+        incoming = request.headers.get("x-request-id", "")
+        request_id = incoming if REQUEST_ID_RE.match(incoming) else uuid.uuid4().hex
+        request.state.request_id = request_id
         response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("X-Frame-Options", "DENY")

@@ -368,8 +368,10 @@ def test_webhook_test_delivery_is_signed(client, receiver):
     assert req["headers"]["content-type"] == "application/json"
     assert req["headers"]["user-agent"] == f"Nexo/{__version__}"
     payload = json.loads(req["body"])
-    assert set(payload) == {"event", "created_at", "data"}
+    assert set(payload) == {"event", "delivery", "created_at", "data"}
     assert payload["event"] == "ping" and payload["data"]["webhook_id"] == hook["id"]
+    assert req["headers"]["x-nexo-delivery"] == payload["delivery"]
+    assert req["headers"]["x-nexo-attempt"] == "1"
     [listed] = client.get("/api/webhooks", headers=admin).json()
     assert listed["last_status"] == 200 and listed["last_error"] is None and listed["last_delivery_at"]
 
@@ -383,6 +385,40 @@ def test_webhook_test_delivery_is_signed(client, receiver):
                        json={"url": "http://127.0.0.1:1/x", "events": ["document.ready"]}).json()
     r = client.post(f"/api/webhooks/{dead['id']}/test", headers=admin).json()
     assert r["status"] is None and r["error"]
+
+
+def test_webhook_retries_failed_deliveries(client, receiver):
+    from nexo import webhooks
+    admin = login(client)
+    hook = client.post("/api/webhooks", headers=admin, json={"url": receiver["url"],
+                                                             "events": ["question.unanswered"]}).json()
+    receiver["reply"]["status"] = 503
+    assert webhooks.emit("question.unanswered", {"question": "teste"}) == 1
+    webhooks.wait_idle()
+    assert len(receiver["received"]) == 3
+    ids = {r["headers"]["x-nexo-delivery"] for r in receiver["received"]}
+    assert len(ids) == 1
+    assert [r["headers"]["x-nexo-attempt"] for r in receiver["received"]] == ["1", "2", "3"]
+    [listed] = client.get("/api/webhooks", headers=admin).json()
+    assert listed["last_status"] == 503 and "3 tentativas" in listed["last_error"]
+
+    receiver["received"].clear()
+    receiver["reply"]["status"] = 404
+    webhooks.emit("question.unanswered", {"question": "teste"})
+    webhooks.wait_idle()
+    assert len(receiver["received"]) == 1
+    assert hook["id"]
+
+
+def test_request_id_and_readiness(client):
+    r = client.get("/api/health/ready")
+    assert r.status_code == 200 and r.json()["database"] is True
+    assert len(r.headers["x-request-id"]) == 32
+    assert "camera=()" in r.headers["permissions-policy"]
+    r = client.get("/api/health", headers={"X-Request-ID": "pedido-123456"})
+    assert r.headers["x-request-id"] == "pedido-123456"
+    r = client.get("/api/health", headers={"X-Request-ID": "invalido com espaco"})
+    assert r.headers["x-request-id"] != "invalido com espaco"
 
 
 def test_webhook_events_are_fired(client, receiver):
@@ -436,7 +472,8 @@ def test_account_management(client):
     assert r.status_code == 403 and r.json()["code"] == "FORBIDDEN"
     listed = client.get("/api/users", headers=admin).json()
     assert [u["username"] for u in listed] == ["admin", "maria"]
-    assert set(listed[0]) == {"username", "name", "role", "created_at", "last_login_at", "tutorial_done_at"}
+    assert set(listed[0]) == {"username", "name", "role", "created_at", "last_login_at", "tutorial_done_at",
+                            "password_changed_at"}
     assert client.patch("/api/users/maria", headers=maria, json={"role": "admin"}).status_code == 403
 
     r = client.patch("/api/users/admin", headers=admin, json={"role": "user"})

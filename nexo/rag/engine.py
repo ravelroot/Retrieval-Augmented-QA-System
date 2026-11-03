@@ -6,6 +6,7 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -105,6 +106,18 @@ class Answer:
     model: str = ""
     latency_ms: int = 0
     standalone_question: str = ""
+
+
+@dataclass
+class _Plan:
+    started: float
+    standalone: str
+    nodes: list[NodeWithScore]
+    sources: list[Source]
+    prompt: str | None
+    not_found: str
+    bot: BotProfile | None
+    early: Answer | None = None
 
 
 @dataclass
@@ -301,21 +314,23 @@ class RagEngine:
             return 1.0 + math.log(max(score, 1e-9))
         return float(score)
 
-    def ask(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
-            bot: BotProfile | None = None) -> Answer:
+    def _plan(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
+              bot: BotProfile | None) -> _Plan:
         started = time.perf_counter()
         if bot is not None and bot.greeting and is_salutation(question):
-            return Answer(bot.greeting, True, [], None, self.model_name(), self._ms(started), question)
+            return _Plan(started, question, [], [], None, NOT_FOUND, bot,
+                         Answer(bot.greeting, True, [], None, self.model_name(), self._ms(started), question))
         not_found = (bot.fallback if bot is not None and bot.fallback else None) or NOT_FOUND
         standalone = self._condense(question, history[-2 * self.s.history_turns:] if self.s.history_turns else [])
         nodes = self.retrieve(standalone, document_ids)
         sources = [self._source(n, i) for i, n in enumerate(nodes, start=1)]
         if not nodes:
-            return Answer(not_found, False, [], None, self.model_name(), self._ms(started), standalone)
-        llm = self.llm()
-        if llm is None:
+            return _Plan(started, standalone, nodes, [], None, not_found, bot,
+                         Answer(not_found, False, [], None, self.model_name(), self._ms(started), standalone))
+        if self.llm() is None:
             text = self._extractive(standalone, nodes)
-            return Answer(text, True, sources, True, self.model_name(), self._ms(started), standalone)
+            return _Plan(started, standalone, nodes, sources, None, not_found, bot,
+                         Answer(text, True, sources, True, self.model_name(), self._ms(started), standalone))
         context = "\n\n".join(
             f"[{i}] {n.node.metadata.get('title', '')} — página {n.node.metadata.get('page', '?')}\n{n.node.get_content()}"
             for i, n in enumerate(nodes, start=1)
@@ -326,13 +341,38 @@ class RagEngine:
             extra = f"\nInstruções do agente (tom e estilo):\n{bot.instructions.strip()}\n" if bot.instructions else ""
             prompt = BOT_PROMPT.format(name=bot.name, not_found=NOT_FOUND, instructions=extra, context=context,
                                        question=standalone)
-        text = llm.complete(prompt).text.strip()
-        answered = NOT_FOUND.lower()[:30] not in text.lower()
-        grounded = self._verify(standalone, text, nodes) if answered and self.s.verify_answers else None
+        return _Plan(started, standalone, nodes, sources, prompt, not_found, bot)
+
+    def _finish(self, plan: _Plan, text: str) -> Answer:
+        text = text.strip()
+        answered = bool(text) and NOT_FOUND.lower()[:30] not in text.lower()
+        grounded = self._verify(plan.standalone, text, plan.nodes) if answered and self.s.verify_answers else None
+        sources = plan.sources
         if not answered:
             sources = []
-            text = not_found
-        return Answer(text, answered, sources, grounded, self.model_name(), self._ms(started), standalone)
+            text = plan.not_found
+        return Answer(text, answered, sources, grounded, self.model_name(), self._ms(plan.started), plan.standalone)
+
+    def ask(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
+            bot: BotProfile | None = None) -> Answer:
+        plan = self._plan(question, history, document_ids, bot)
+        if plan.early is not None:
+            return plan.early
+        return self._finish(plan, self.llm().complete(plan.prompt).text)
+
+    def ask_stream(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
+                   bot: BotProfile | None = None) -> Iterator[str | Answer]:
+        plan = self._plan(question, history, document_ids, bot)
+        if plan.early is not None:
+            yield plan.early
+            return
+        parts: list[str] = []
+        for chunk in self.llm().stream_complete(plan.prompt):
+            delta = getattr(chunk, "delta", None) or ""
+            if delta:
+                parts.append(delta)
+                yield delta
+        yield self._finish(plan, "".join(parts))
 
     def _verify(self, question: str, answer: str, nodes: list[NodeWithScore]) -> bool | None:
         try:

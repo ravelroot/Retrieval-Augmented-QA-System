@@ -5,12 +5,12 @@
 <h1 align="center">Nexo<br><sub><sup><sup><sub>Copyright (©) 2026 Erik Pimenta</sub></sup></sup></sub></h1>
 
 <p align="center">
-  Plataforma de agentes de IA em que cada agente responde só com a própria base de conhecimento (PDF, Word, planilhas, textos e mais)<br>
+  Plataforma de agentes de IA em que cada agente responde só com a própria base de conhecimento (PDF, Word, EPUB, PowerPoint, planilhas, textos e mais)<br>
   e pode atender clientes pelo WhatsApp. Cada resposta cita o trecho e a página de onde saiu. Se a informação não estiver na base, o Nexo diz que não encontrou.
 </p>
 
 <p align="center">
-  <b>Versão 2.1.0</b><br>
+  <b>Versão 2.2.0</b><br>
   Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama ou OpenAI · WhatsApp (Evolution API ou Cloud API) · React 19 · TypeScript
 </p>
 
@@ -23,6 +23,24 @@
 <p align="center">
   <img src="docs/images/tela-chats.png" alt="Chats com vários agentes lado a lado">
 </p>
+
+## Novidades da 2.2
+
+A 2.2.0 deixa as respostas mais rápidas de acompanhar, a gestão de contas completa pela tela e o acervo mais fácil de manter. A identidade visual, as cores e as fontes continuam as mesmas, nada no banco relacional muda e quem vem da 2.1 só precisa atualizar e recompilar a interface.
+
+| | O que mudou |
+|---|---|
+| **Respostas em tempo real** | A resposta aparece enquanto o modelo escreve, nas Conversas e nos Chats com agentes (Server-Sent Events). O botão de parar (ou `Esc`) interrompe sem gravar nada e devolve a pergunta para a caixa de texto. |
+| **Refazer resposta** | Cada resposta ganhou o botão **Refazer**: o Nexo busca de novo com o mesmo histórico e troca a resposta no lugar, com fontes novas. |
+| **Contas pela tela** | Administradores criam contas (mesmo com o cadastro fechado) e redefinem senhas em **Sistema e conta**. Cada pessoa edita o próprio nome. |
+| **Sessões mais seguras** | Trocar ou redefinir a senha encerra as outras sessões abertas, e o botão **Sair dos outros dispositivos** faz o mesmo sem trocar a senha. A nova senha precisa ser diferente da atual. |
+| **Novos formatos** | EPUB (livros, capítulo a capítulo na ordem de leitura), PowerPoint (`.pptx`, um trecho por slide), Excel (`.xlsx`, linhas de cada planilha) e OpenDocument (`.odt`). Arquivos compactados grandes demais depois de abertos são recusados. |
+| **Ações em lote** | Em **Documentos**, selecione vários itens para reindexar, mover de base ou excluir de uma vez. |
+| **Busca nas conversas** | O filtro da lista de conversas procura também no conteúdo das perguntas e respostas. |
+| **Exportar o painel** | O **Painel de qualidade** baixa as perguntas do período em CSV, com resposta, avaliação, tempo, modelo e fontes. |
+| **Webhooks confiáveis** | Até 3 tentativas em falhas de rede, tempo esgotado, HTTP 429 e 5xx, com o mesmo `X-Nexo-Delivery` para descartar duplicatas e `X-Nexo-Attempt` com o número da tentativa. |
+| **Operação** | Toda resposta da API traz `X-Request-ID` (reaproveita o enviado pelo cliente) e `GET /api/health/ready` confere o banco para balanceadores e orquestradores. |
+| **Documentação** | Manual e PDF do banco atualizados e gerados por `scripts/docs/gerar_pdfs.py`. |
 
 ## Novidades da 2.1
 
@@ -41,19 +59,20 @@ A 2.1.0 transforma o Nexo numa plataforma de agentes, mantendo a identidade visu
 ## O que o Nexo faz
 
 - **Agentes de IA** com instruções, saudação e resposta própria para quando não souber, cada um preso à sua base de conhecimento.
-- **Bases de conhecimento** com PDF, DOCX, TXT, MD, CSV, JSON, HTML e textos digitados, editáveis a qualquer hora, com aba para testar a busca e aba para integrar.
+- **Bases de conhecimento** com PDF, DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML e textos digitados, editáveis a qualquer hora, com aba para testar a busca e aba para integrar.
 - **Chats com vários agentes** em abas ou lado a lado.
 - **Atendimento pelo WhatsApp** com resposta automática do agente, passagem para atendente, assumir e devolver a conversa, sugestão de resposta e simulador.
 - **Tutorial de primeiro acesso**, guardado por conta.
-- **Envio de arquivos** por arrastar e soltar, com fila de indexação, detecção de duplicados por base, filtro, ordenação, renomear, mover, reindexar e excluir.
+- **Envio de arquivos** por arrastar e soltar, com fila de indexação, detecção de duplicados por base, filtro, ordenação, renomear, mover, reindexar e excluir, um a um ou em lote.
 - **Respostas com base estrita** nos documentos: o modelo recebe só os trechos recuperados e é instruído a citar cada afirmação com `[n]`.
+- **Respostas em tempo real**, com botão para parar e botão para refazer a resposta.
 - **Trechos auditáveis**: ao lado da resposta aparecem o documento, a página, a similaridade, a nota do reranker, os termos da pergunta marcados e o botão para abrir o PDF na página certa.
 - **Escopo por conversa**: escolha quais documentos cada conversa consulta, ou converse com um agente, que consulta só a base dele.
 - **Contexto da conversa**: perguntas como "e o passo seguinte?" são reescritas com o histórico antes da busca.
 - **Busca nos trechos** sem LLM, para conferir o que o acervo diz e calibrar perguntas.
-- **Painel de qualidade** com as perguntas que ficaram sem resposta, para saber qual PDF falta no acervo.
-- **Integrações**: chaves de API, pergunta direta por HTTP, webhooks e exportação de conversas.
-- **Contas de acesso** com login pré-definido, cadastro próprio e gestão por administradores, gravadas em `data/usuarios.json` com senhas em bcrypt.
+- **Painel de qualidade** com as perguntas que ficaram sem resposta, para saber qual PDF falta no acervo, e exportação das perguntas em CSV.
+- **Integrações**: chaves de API, pergunta direta por HTTP, respostas em streaming, webhooks com novas tentativas e exportação de conversas.
+- **Contas de acesso** com login pré-definido, cadastro próprio e gestão por administradores (criar, promover, redefinir senha e excluir), gravadas em `data/usuarios.json` com senhas em bcrypt. Trocar a senha encerra as outras sessões.
 - **Avaliação** de cada resposta (útil / não ajudou) e script de medição de acerto da recuperação.
 - **Identidade "caixa única"**, a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel): fundo, menu e cabeçalhos impressos na mesa em `#F5F4F4`, conversa e trechos dividindo paredes finas dentro de uma só caixa branca, resumos na tampa preta, títulos e números em Bricolage Grotesque fina e condensada, textos em Instrument Sans e status como um ponto de cor. Paleta `#FFFFFF`, `#4D4B4B`, `#000000`, `#333232` e `#BAB7B6`.
 - **Tema claro, escuro ou automático**, layout responsivo para celular e atalhos de teclado. A logo é sempre em preto e branco.
@@ -96,6 +115,8 @@ Pré-requisitos: **Python 3.11 ou mais recente** e **Node.js 20.19 ou mais recen
 
 Os scripts criam o ambiente virtual, instalam as dependências, copiam `.env.example` para `.env`, compilam a interface e sobem o servidor em **http://127.0.0.1:8000**.
 
+> Atualizando da 2.1? Rode o script de novo: ele recompila a interface e nada no banco precisa mudar. As sessões abertas continuam valendo, e o arquivo de contas ganha os campos novos sozinho.
+
 > Atualizando da 2.0? Rode o script de novo: ele percebe que a versão mudou e recompila a interface. O banco existente é migrado sozinho na primeira execução: as tabelas novas são criadas, os documentos antigos vão para a base "Acervo geral" e nenhum vetor precisa ser recalculado.
 
 Manualmente:
@@ -130,7 +151,7 @@ O modo de teste usa um embedding léxico e devolve as frases mais relevantes dos
 |---|---|---|
 | `admin` | `Nexo@2026` | Administrador |
 
-Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Troque a senha em **Sistema e conta** logo no primeiro acesso. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`). Esqueceu a senha? Rode `python scripts/redefinir_senha.py <usuario>` no servidor.
+Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Troque a senha em **Sistema e conta** logo no primeiro acesso. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`); com o cadastro fechado, um administrador cria as contas em **Sistema e conta → Contas**. Esqueceu a senha? Um administrador redefine na mesma tela, ou rode `python scripts/redefinir_senha.py <usuario>` no servidor.
 
 ## Telas
 
@@ -145,11 +166,11 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 | <img src="docs/images/tela-whatsapp.png" alt="WhatsApp"> | <img src="docs/images/tela-whatsapp-conexoes.png" alt="Conexões do WhatsApp"> |
 | **WhatsApp**: caixa de entrada com o agente e a equipe | **Conexões**: provedor, agente, webhook e QR code |
 | <img src="docs/images/tela-login.png" alt="Entrada"> | <img src="docs/images/tela-documentos.png" alt="Documentos"> |
-| **Entrada** | **Documentos**: todo o acervo, com filtro por base e envio para a base escolhida |
+| **Entrada** | **Documentos**: todo o acervo, com filtro por base, envio para a base escolhida e ações em lote |
 | <img src="docs/images/tela-busca.png" alt="Busca nos trechos"> | <img src="docs/images/tela-painel.png" alt="Painel de qualidade"> |
-| **Busca nos trechos** com os termos destacados | **Painel de qualidade** com as lacunas do acervo |
+| **Busca nos trechos** com os termos destacados | **Painel de qualidade** com as lacunas do acervo e exportação em CSV |
 | <img src="docs/images/tela-integracoes.png" alt="Integrações"> | <img src="docs/images/tela-sistema.png" alt="Sistema e conta"> |
-| **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: pipeline de respostas, acervo e conta |
+| **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: pipeline de respostas, acervo, sessões e gestão das contas |
 | <img src="docs/images/tela-nao-encontrado.png" alt="Pergunta sem resposta nos documentos"> | <img src="docs/images/tela-comandos.png" alt="Paleta de comandos"> |
 | **Sem base nos PDFs**: o Nexo diz que não encontrou e sugere o próximo passo | **Paleta de comandos** (`Ctrl + K`) |
 | <img src="docs/images/tela-escuro.png" alt="Tema escuro"> | <img src="docs/images/tela-celular.png" alt="Celular" width="240"> |
@@ -162,6 +183,7 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 | `Ctrl + K` (ou `⌘ + K`) | Abre a paleta de comandos |
 | `Enter` | Envia a pergunta e a mensagem do WhatsApp |
 | `Shift + Enter` | Quebra a linha na pergunta |
+| `Esc` | Interrompe a resposta que está sendo escrita |
 | `↑` `↓` `Enter` `Esc` | Navegam, abrem e fecham a paleta |
 | `←` `→` `Esc` | Voltam, avançam e fecham o tutorial |
 
@@ -192,6 +214,27 @@ curl -X POST http://127.0.0.1:8000/api/ask \
 
 Sem `conversation_id`, a pergunta não fica gravada. Com ele, o Nexo usa o histórico daquela conversa e grava pergunta e resposta. `document_ids` limita o escopo e `bot_id` faz a pergunta a um agente, com a base e as instruções dele.
 
+### Respostas em streaming
+
+`POST /api/conversations/{id}/messages/stream` recebe o mesmo corpo da rota de perguntas e responde em Server-Sent Events: `status` (`searching` e depois `writing`), um `delta` para cada pedaço do texto, e `done` com a pergunta, a resposta gravada e as fontes (o mesmo JSON da rota sem streaming). Se o modelo falhar, chega um `error` com `code` e `message` e nada é gravado.
+
+```bash
+curl -N -X POST http://127.0.0.1:8000/api/conversations/ID_DA_CONVERSA/messages/stream \
+  -H "X-API-Key: nxk_SUA_CHAVE" -H "Content-Type: application/json" \
+  -d '{"content": "Como faço a troca do filtro?"}'
+```
+
+```text
+event: status
+data: {"stage": "searching"}
+
+event: delta
+data: {"text": "Desligue a bomba e "}
+
+event: done
+data: {"question": {...}, "answer": {...}, "conversation": {...}}
+```
+
 ### Bases pela API
 
 ```bash
@@ -218,7 +261,7 @@ Administradores cadastram webhooks em **Integrações → Webhooks** e escolhem 
 | `whatsapp.message` | Chegou uma mensagem de cliente no WhatsApp |
 | `whatsapp.handoff` | Um contato do WhatsApp passou a aguardar atendente |
 
-Cada entrega é um `POST` em JSON `{"event", "created_at", "data"}` com os cabeçalhos `X-Nexo-Event` e `X-Nexo-Signature: sha256=<hmac>`. Para conferir a assinatura no destino:
+Cada entrega é um `POST` em JSON `{"event", "delivery", "created_at", "data"}` com os cabeçalhos `X-Nexo-Event`, `X-Nexo-Delivery`, `X-Nexo-Attempt` e `X-Nexo-Signature: sha256=<hmac>`. Falhas de rede, tempo esgotado, HTTP 429 e 5xx são repetidas até 3 vezes (esperas de 1 e 3 segundos) com o mesmo `delivery`, que serve para descartar duplicatas no destino. Para conferir a assinatura:
 
 ```python
 import hashlib, hmac
@@ -228,11 +271,13 @@ def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
     return hmac.compare_digest(esperado, cabecalho)
 ```
 
-O botão **Testar** envia o evento `ping` e mostra a resposta HTTP do destino. A última entrega (código e erro) fica registrada em cada webhook.
+O botão **Testar** envia o evento `ping` uma única vez e mostra a resposta HTTP do destino. A última entrega (código, erro e número de tentativas) fica registrada em cada webhook.
 
 ### Exportação
 
 O botão de download no topo de cada conversa gera Markdown (para ler ou colar em documentos) ou JSON (com trechos e notas, para sistemas). Pela API: `GET /api/conversations/{id}/export?format=markdown` ou `format=json`.
+
+O **Painel de qualidade** exporta as perguntas do período em CSV (separado por ponto e vírgula, abre direto no Excel): data, conta, conversa, agente, pergunta, se foi respondida, avaliação, tempo, modelo e fontes. Pela API: `GET /api/metrics/export?days=30`. Administradores recebem as perguntas de todas as contas.
 
 ## WhatsApp
 
@@ -312,7 +357,7 @@ nexo/
   config.py          configuração lida do .env
   db.py              tabelas SQLAlchemy
   migrations.py      migração automática de bancos da 2.0
-  knowledge.py       leitura de DOCX, TXT, MD, CSV, JSON, HTML e textos
+  knowledge.py       leitura de DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML e textos
   whatsapp.py        provedores, webhook, contatos e respostas do agente no WhatsApp
   users.py           contas em data/usuarios.json
   security.py        tokens JWT e chaves de API
@@ -327,6 +372,7 @@ frontend/            interface React + TypeScript (Vite)
   src/pages/         Entrada, Conversas, Chats, Agents, Bases, WhatsApp, Busca, Documentos, Painel, Integrações, Sistema
   src/components/    menu, Tutorial, paleta de comandos, trechos com termos destacados
 scripts/             avaliação da recuperação, PDF de exemplo, redefinição de senha
+  docs/              gerador do Manual e do PDF do banco de dados
 exemplos/            PDF fictício e perguntas de avaliação
 docs/                manuais em PDF, banco de dados, DDL e imagens
 tests/               testes automatizados
@@ -339,7 +385,9 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | Método | Rota | Função |
 |---|---|---|
 | POST | `/api/auth/login` · `/api/auth/register` | Entrar e criar conta |
-| PUT | `/api/auth/password` | Trocar senha |
+| GET / PATCH | `/api/auth/me` | Dados da conta e troca do próprio nome |
+| PUT | `/api/auth/password` | Trocar senha (devolve uma sessão nova e encerra as outras) |
+| POST | `/api/auth/sessions/revoke` | Sair dos outros dispositivos |
 | PUT | `/api/auth/tutorial` | Marcar o tutorial como visto ou para rever |
 | GET / POST | `/api/bases` | Listar e criar bases de conhecimento |
 | GET / PATCH / DELETE | `/api/bases/{id}` | Abrir, renomear e excluir base |
@@ -350,19 +398,24 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | GET / PATCH / DELETE | `/api/bots/{id}` | Abrir, editar e excluir agente |
 | GET / POST | `/api/documents` | Listar e enviar PDFs |
 | PATCH / DELETE | `/api/documents/{id}` | Renomear, mover de base (`base_id`) e excluir |
+| POST | `/api/documents/bulk` | Reindexar, mover ou excluir vários itens (`action`, `ids`, `base_id`) |
 | POST | `/api/documents/{id}/reindex` | Reindexar |
 | GET | `/api/documents/{id}/file` | Baixar o PDF |
-| GET / POST | `/api/conversations` | Listar (filtros `only` e `bot_id`) e criar conversas (`bot_id` opcional) |
+| GET / POST | `/api/conversations` | Listar (filtros `only`, `bot_id` e `q`) e criar conversas (`bot_id` opcional) |
 | POST | `/api/conversations/{id}/messages` | Perguntar |
+| POST | `/api/conversations/{id}/messages/stream` | Perguntar com a resposta em streaming (SSE) |
 | GET | `/api/conversations/{id}/export` | Exportar em Markdown ou JSON |
 | POST | `/api/messages/{id}/feedback` | Avaliar resposta |
+| POST | `/api/messages/{id}/regenerate` | Refazer a resposta |
 | POST | `/api/ask` | Pergunta direta, para integrações (`bot_id` opcional) |
 | POST | `/api/search` | Busca nos trechos, sem LLM (`base_id` opcional) |
 | GET | `/api/metrics?days=30` | Painel de qualidade |
+| GET | `/api/metrics/export?days=30` | Perguntas do período em CSV |
 | GET / POST / DELETE | `/api/keys` · `/api/keys/{id}` | Chaves de API |
 | GET / POST / PATCH / DELETE | `/api/webhooks` · `/api/webhooks/{id}` | Webhooks (administrador) |
 | POST | `/api/webhooks/{id}/test` | Entrega de teste |
-| GET / PATCH / DELETE | `/api/users` · `/api/users/{usuario}` | Contas (administrador) |
+| GET / POST / PATCH / DELETE | `/api/users` · `/api/users/{usuario}` | Contas: listar, criar, mudar perfil e excluir (administrador) |
+| PUT | `/api/users/{usuario}/password` | Redefinir a senha de outra conta (administrador) |
 | GET / POST / PATCH / DELETE | `/api/whatsapp/channels` · `/api/whatsapp/channels/{id}` | Conexões do WhatsApp (administrador para alterar) |
 | GET | `/api/whatsapp/channels/{id}/status` · `/qrcode` | Situação da conexão e QR code da Evolution |
 | POST | `/api/whatsapp/channels/{id}/webhook` · `/simulate` | Registrar webhook e simular mensagem de cliente |
@@ -371,6 +424,7 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | GET / PATCH | `/api/whatsapp/contacts/{id}` | Conversa com o cliente; ligar ou pausar o agente |
 | POST | `/api/whatsapp/contacts/{id}/messages` · `/suggest` | Responder como a equipe e pedir sugestão ao agente |
 | GET | `/api/system/status` | Configuração e números do acervo |
+| GET | `/api/health` · `/api/health/ready` | Versão e prontidão (confere o banco; 503 se indisponível) |
 
 ## Avaliar a recuperação
 
@@ -389,7 +443,19 @@ pip install -r requirements-ci.txt
 python -m pytest
 ```
 
-Os testes usam o modo sem modelos e cobrem bases de conhecimento e formatos novos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+Os testes usam o modo sem modelos e cobrem respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+
+## Documentação em PDF
+
+O [`Manual-Nexo.pdf`](Manual-Nexo.pdf) e o [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) são gerados a partir do texto em [`scripts/docs/`](scripts/docs/README.md), com as mesmas fontes e cores da interface e as capturas de `docs/images/`:
+
+```bash
+pip install playwright pypdf pillow
+npm i -g @mermaid-js/mermaid-cli
+python scripts/docs/gerar_pdfs.py
+```
+
+Os dois PDFs saem na raiz e em `docs/`, com sumário, diagramas em vetor e metadados.
 
 ## Licença
 

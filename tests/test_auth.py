@@ -53,8 +53,64 @@ def test_change_password(client):
     headers = login(client)
     r = client.put("/api/auth/password", headers=headers,
                    json={"current_password": "Nexo@2026", "new_password": "NovaSenha2026"})
-    assert r.status_code == 204
+    assert r.status_code == 200
+    fresh = {"Authorization": f"Bearer {r.json()['token']}"}
+    assert client.get("/api/auth/me", headers=headers).json()["code"] == "SESSION_REVOKED"
+    assert client.get("/api/auth/me", headers=fresh).status_code == 200
     login(client, "admin", "NovaSenha2026")
+
+
+def test_new_password_must_differ(client):
+    headers = login(client)
+    r = client.put("/api/auth/password", headers=headers,
+                   json={"current_password": "Nexo@2026", "new_password": "Nexo@2026"})
+    assert r.status_code == 400
+    assert r.json()["code"] == "SAME_PASSWORD"
+
+
+def test_revoke_other_sessions(client):
+    first = login(client)
+    second = login(client)
+    r = client.post("/api/auth/sessions/revoke", headers=second)
+    assert r.status_code == 200
+    current = {"Authorization": f"Bearer {r.json()['token']}"}
+    assert client.get("/api/auth/me", headers=first).status_code == 401
+    assert client.get("/api/auth/me", headers=second).status_code == 401
+    assert client.get("/api/auth/me", headers=current).status_code == 200
+
+
+def test_rename_profile(client):
+    headers = login(client)
+    r = client.patch("/api/auth/me", headers=headers, json={"name": "  Erik   Pimenta "})
+    assert r.status_code == 200
+    assert r.json()["name"] == "Erik Pimenta"
+    r = client.patch("/api/auth/me", headers=headers, json={"name": "E"})
+    assert r.status_code == 400
+    assert "name" in r.json()["fields"]
+
+
+def test_admin_creates_users_and_resets_passwords(client, monkeypatch):
+    admin = login(client)
+    r = client.post("/api/users", headers=admin, json={"name": "Ana Souza", "username": "ana",
+                                                       "password": "Inicial2026", "role": "user"})
+    assert r.status_code == 201, r.text
+    assert r.json()["last_login_at"] is None
+    r = client.post("/api/users", headers=admin, json={"name": "Ana 2", "username": "ana", "password": "Inicial2026"})
+    assert r.status_code == 409
+    ana = login(client, "ana", "Inicial2026")
+    r = client.post("/api/users", headers=ana, json={"name": "Bia", "username": "bia", "password": "Inicial2026"})
+    assert r.status_code == 403
+    for _ in range(5):
+        client.post("/api/auth/login", json={"username": "ana", "password": "errada123"})
+    assert client.post("/api/auth/login", json={"username": "ana", "password": "Inicial2026"}).status_code == 429
+    r = client.put("/api/users/ana/password", headers=admin, json={"password": "Trocada2026"})
+    assert r.status_code == 200, r.text
+    assert r.json()["password_changed_at"]
+    assert client.get("/api/auth/me", headers=ana).status_code == 401
+    login(client, "ana", "Trocada2026")
+    assert client.put("/api/users/ana/password", headers=admin, json={"password": "curta"}).status_code == 400
+    assert client.put("/api/users/ninguem/password", headers=admin, json={"password": "Trocada2026"}).status_code == 404
+    assert client.put("/api/users/admin/password", headers=admin, json={"password": "Trocada2026"}).status_code == 400
 
 
 def test_options_reports_default_admin_until_password_changes(client):

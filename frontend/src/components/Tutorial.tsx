@@ -114,7 +114,7 @@ const STEPS: Step[] = [
   {
     over: "Passo 1",
     title: "Bases de conhecimento",
-    text: "Uma base reúne o que um agente pode consultar. Envie PDF, Word, planilhas CSV, Markdown, JSON e HTML, ou digite um texto na hora.",
+    text: "Uma base reúne o que um agente pode consultar. Envie PDF, Word, EPUB, PowerPoint, planilhas Excel e CSV, Markdown, JSON e HTML, ou digite um texto na hora.",
     points: ["Adicione e retire informações quando quiser", "Teste a busca antes de colocar no ar", "Aba Integrar com exemplos prontos de API"],
     art: <ArtBases />,
   },

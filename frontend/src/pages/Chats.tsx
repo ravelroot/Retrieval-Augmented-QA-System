@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ApiError, api, type Bot, type Conversation, type ConversationSummary, type Message } from "../api";
+import { ApiError, api, askStream, type Bot, type Conversation, type ConversationSummary, type Message } from "../api";
 import { AnswerText } from "../components/AnswerText";
 import { BotAvatar } from "../components/BotAvatar";
 import { Icon } from "../components/Icon";
@@ -70,6 +70,9 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<Record<string, number | null>>({});
+  const [streamText, setStreamText] = useState("");
+  const [redoing, setRedoing] = useState<string | null>(null);
+  const aborter = useRef<AbortController | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -88,7 +91,9 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [conversation?.items.length, pending]);
+  }, [conversation?.items.length, pending, Math.floor(streamText.length / 160)]);
+
+  useEffect(() => () => aborter.current?.abort(), []);
 
   useEffect(() => {
     if (focused) textarea.current?.focus();
@@ -101,6 +106,9 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
     setError("");
     setPending(text);
     setQuestion("");
+    setStreamText("");
+    const controller = new AbortController();
+    aborter.current = controller;
     try {
       let current = conversation;
       if (!current) {
@@ -108,17 +116,43 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
         setConversation(current);
         onUpdate({ conversationId: current.id });
       }
-      const exchange = await api.ask(current.id, text);
+      const exchange = await askStream(current.id, text, {
+        signal: controller.signal,
+        onDelta: (piece) => setStreamText((value) => value + piece),
+      });
       const next = { ...current, ...exchange.conversation, items: [...current.items, exchange.question, exchange.answer] };
       setConversation(next);
       onUpdate({ conversationId: next.id, title: next.title });
       onActivity();
     } catch (err) {
-      setError((err as ApiError).message);
+      const apiError = err as ApiError;
+      setError(apiError.code === "ABORTED" ? "Resposta interrompida. A pergunta voltou para a caixa de texto." : apiError.message);
       setQuestion(text);
     } finally {
+      if (aborter.current === controller) aborter.current = null;
       setPending(null);
+      setStreamText("");
       textarea.current?.focus();
+    }
+  }
+
+  async function redo(message: Message) {
+    if (!conversation || pending || redoing) return;
+    setError("");
+    setRedoing(message.id);
+    try {
+      const updated = await api.regenerate(message.id);
+      setConversation((current) => current && ({ ...current, items: current.items.map((m) => (m.id === updated.id ? updated : m)) }));
+      setOpen((current) => {
+        const next = { ...current };
+        delete next[updated.id];
+        return next;
+      });
+      onActivity();
+    } catch (e) {
+      setError((e as ApiError).message);
+    } finally {
+      setRedoing(null);
     }
   }
 
@@ -197,7 +231,14 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
                 {m.latency_ms !== null && (
                   <span className="msg__model">{(m.latency_ms / 1000).toFixed(1).replace(".", ",")} s</span>
                 )}
+                <span className="rate">
+                  <button className="icon-button" aria-label="Refazer a resposta" title="Refazer a resposta"
+                    onClick={() => redo(m)} disabled={!!pending || !!redoing || !bot}>
+                    <Icon name="refresh" size={16} />
+                  </button>
+                </span>
               </footer>
+              {redoing === m.id && <div className="busline" aria-hidden="true"><span /></div>}
               {shown && (
                 <ol className="pane__sources">
                   {m.sources
@@ -215,10 +256,17 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
         {pending && (
           <>
             <div className="msg msg--user"><p>{pending}</p></div>
-            <div className="msg msg--bot msg--pending" role="status">
-              <div className="busline" aria-hidden="true"><span /></div>
-              <p>{bot?.name ?? "O agente"} está consultando a base…</p>
-            </div>
+            {streamText ? (
+              <div className="msg msg--bot" aria-live="polite">
+                <AnswerText text={streamText} sources={0} active={null} onCite={() => undefined} />
+                <div className="busline" aria-hidden="true"><span /></div>
+              </div>
+            ) : (
+              <div className="msg msg--bot msg--pending" role="status">
+                <div className="busline" aria-hidden="true"><span /></div>
+                <p>{bot?.name ?? "O agente"} está consultando a base…</p>
+              </div>
+            )}
           </>
         )}
         <div ref={bottom} />
@@ -230,9 +278,15 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
         <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
           placeholder={bot ? `Pergunte a ${bot.name}` : "Agente indisponível"} aria-label={`Mensagem para ${bot?.name ?? "o agente"}`}
           rows={1} maxLength={4000} disabled={!!pending || !bot} />
-        <button className="send" type="submit" disabled={!question.trim() || !!pending || !bot} aria-label="Enviar mensagem">
-          <Icon name="send" />
-        </button>
+        {pending ? (
+          <button className="send" type="button" onClick={() => aborter.current?.abort()} aria-label="Parar a resposta" title="Parar a resposta">
+            <Icon name="pause" />
+          </button>
+        ) : (
+          <button className="send" type="submit" disabled={!question.trim() || !bot} aria-label="Enviar mensagem">
+            <Icon name="send" />
+          </button>
+        )}
       </form>
     </section>
   );

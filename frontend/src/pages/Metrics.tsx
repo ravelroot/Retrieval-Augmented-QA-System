@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ApiError, api, type Metrics } from "../api";
+import { ApiError, api, downloadMetrics, type Metrics } from "../api";
 import { Icon } from "../components/Icon";
 import { formatRelative, plural } from "../format";
 
@@ -57,11 +57,24 @@ export function MetricsPage() {
   const [days, setDays] = useState(30);
   const [m, setM] = useState<Metrics | null>(null);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setError("");
     api.metrics(days).then(setM).catch((e: ApiError) => setError(e.message));
   }, [days]);
+
+  async function exportCsv() {
+    setExporting(true);
+    setError("");
+    try {
+      await downloadMetrics(days);
+    } catch (e) {
+      setError((e as ApiError).message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const maxCite = Math.max(1, ...(m?.top_documents.map((d) => d.citations) ?? [1]));
   const rated = m ? m.feedback.up + m.feedback.down : 0;
@@ -77,11 +90,17 @@ export function MetricsPage() {
             {m && (m.scope === "all" ? " Dados de todas as contas." : " Dados das suas conversas.")}
           </p>
         </div>
-        <div className="segmented" role="tablist" aria-label="Período">
-          {periods.map((p) => (
-            <button key={p} role="tab" aria-selected={days === p} onClick={() => setDays(p)}>{p} dias</button>
-          ))}
-        </div>
+        <span className="page__tools">
+          <button className="ghost-button small" onClick={exportCsv} disabled={exporting || !m || m.questions === 0}
+            title="Baixa as perguntas do período em CSV, com resposta, avaliação, tempo e fontes">
+            <Icon name="download" size={15} />{exporting ? "Exportando…" : "Exportar CSV"}
+          </button>
+          <div className="segmented" role="tablist" aria-label="Período">
+            {periods.map((p) => (
+              <button key={p} role="tab" aria-selected={days === p} onClick={() => setDays(p)}>{p} dias</button>
+            ))}
+          </div>
+        </span>
       </header>
 
       {error && <p className="alert" role="alert">{error}</p>}

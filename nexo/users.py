@@ -38,14 +38,24 @@ class User:
     created_at: str
     last_login_at: str | None = None
     tutorial_done_at: str | None = None
+    session_version: int = 0
+    password_changed_at: str | None = None
 
     def public(self) -> dict:
         return {"username": self.username, "name": self.name, "role": self.role, "created_at": self.created_at,
-                "last_login_at": self.last_login_at, "tutorial_done_at": self.tutorial_done_at}
+                "last_login_at": self.last_login_at, "tutorial_done_at": self.tutorial_done_at,
+                "password_changed_at": self.password_changed_at}
 
 
 def _now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
+
+
+def _clean_name(name: str) -> str:
+    name = " ".join((name or "").split())
+    if len(name) < 2 or len(name) > 80:
+        raise UserError("INVALID_NAME", "Informe o nome (2 a 80 caracteres).", "name")
+    return name
 
 
 def hash_password(password: str) -> str:
@@ -127,10 +137,13 @@ class UserStore:
             return user
 
     def register(self, name: str, username: str, password: str) -> User:
+        return self.create(name, username, password, "user", login=True)
+
+    def create(self, name: str, username: str, password: str, role: str = "user", login: bool = False) -> User:
         key = username.strip().lower()
-        name = " ".join(name.split())
-        if len(name) < 2 or len(name) > 80:
-            raise UserError("INVALID_NAME", "Informe seu nome (2 a 80 caracteres).", "name")
+        name = _clean_name(name)
+        if role not in ("admin", "user"):
+            raise UserError("INVALID_ROLE", "Escolha admin ou user.", "role")
         if not USERNAME_RE.match(key):
             raise UserError("INVALID_USERNAME", "Use de 3 a 32 letras minúsculas, números, ponto, hífen ou sublinhado.",
                             "username")
@@ -139,24 +152,29 @@ class UserStore:
             users = self._read()
             if key in users:
                 raise UserError("USERNAME_TAKEN", "Esse nome de usuário já existe.", "username")
-            user = User(key, name, "user", hash_password(password), _now(), _now())
+            user = User(key, name, role, hash_password(password), _now(), _now() if login else None)
             users[key] = user
             self._write(users)
             return user
 
-    def change_password(self, username: str, current: str, new: str) -> None:
+    def change_password(self, username: str, current: str, new: str) -> User:
         with self._lock:
             users = self._read()
             user = users.get(username)
             if user is None or not check_password(current, user.password_hash):
                 raise UserError("WRONG_PASSWORD", "Senha atual incorreta.", "current_password")
             validate_password(new, username)
+            if check_password(new, user.password_hash):
+                raise UserError("SAME_PASSWORD", "A nova senha precisa ser diferente da atual.", "new_password")
             user.password_hash = hash_password(new)
+            user.password_changed_at = _now()
+            user.session_version += 1
             users[username] = user
             self._write(users)
             self._default_admin = None
+            return user
 
-    def reset_password(self, username: str, new: str) -> None:
+    def reset_password(self, username: str, new: str) -> User:
         key = username.strip().lower()
         with self._lock:
             users = self._read()
@@ -165,10 +183,13 @@ class UserStore:
                 raise UserError("NOT_FOUND", "Usuário não encontrado.", "username")
             validate_password(new, key)
             user.password_hash = hash_password(new)
+            user.password_changed_at = _now()
+            user.session_version += 1
             users[key] = user
             self._write(users)
             self._failures.pop(key, None)
             self._default_admin = None
+            return user
 
     def set_role(self, username: str, role: str) -> User:
         key = username.strip().lower()
@@ -211,6 +232,34 @@ class UserStore:
             users[key] = user
             self._write(users)
             return user
+
+    def rename(self, username: str, name: str) -> User:
+        key = username.strip().lower()
+        name = _clean_name(name)
+        with self._lock:
+            users = self._read()
+            user = users.get(key)
+            if user is None:
+                raise UserError("NOT_FOUND", "Usuário não encontrado.")
+            user.name = name
+            users[key] = user
+            self._write(users)
+            return user
+
+    def revoke_sessions(self, username: str) -> User:
+        key = username.strip().lower()
+        with self._lock:
+            users = self._read()
+            user = users.get(key)
+            if user is None:
+                raise UserError("NOT_FOUND", "Usuário não encontrado.")
+            user.session_version += 1
+            users[key] = user
+            self._write(users)
+            return user
+
+    def unlock(self, username: str) -> None:
+        self._failures.pop(username.strip().lower(), None)
 
     def admins(self) -> int:
         with self._lock:

@@ -7,6 +7,7 @@ export interface User {
   created_at: string;
   last_login_at: string | null;
   tutorial_done_at: string | null;
+  password_changed_at?: string | null;
 }
 
 export interface Session {
@@ -340,6 +341,74 @@ export function setUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
 }
 
+function failure(status: number, data: { code?: string; message?: string; fields?: Record<string, string> } | null,
+  fallback: string): ApiError {
+  return new ApiError(status, data?.code ?? "ERROR", data?.message ?? fallback, data?.fields ?? {});
+}
+
+export type StreamStage = "searching" | "writing";
+
+export interface StreamHandlers {
+  onStage?: (stage: StreamStage) => void;
+  onDelta?: (text: string) => void;
+  signal?: AbortSignal;
+}
+
+export async function askStream(id: string, content: string, handlers: StreamHandlers = {}): Promise<Exchange> {
+  const session = loadSession();
+  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "text/event-stream" };
+  if (session) headers.Authorization = `Bearer ${session.token}`;
+  let response: Response;
+  try {
+    response = await fetch(`/api/conversations/${id}/messages/stream`, {
+      method: "POST", headers, body: JSON.stringify({ content }), signal: handlers.signal,
+    });
+  } catch (e) {
+    if ((e as Error).name === "AbortError") throw new ApiError(0, "ABORTED", "Resposta interrompida.");
+    throw new ApiError(0, "NETWORK", "Não foi possível falar com o servidor do Nexo. Ele está rodando?");
+  }
+  if (!response.ok || !response.body) {
+    const data = await response.json().catch(() => null);
+    if (response.status === 401 && session) onUnauthorized();
+    throw failure(response.status, data, `Erro ${response.status} no servidor.`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+      let cut = buffer.indexOf("\n\n");
+      while (cut >= 0) {
+        const block = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        cut = buffer.indexOf("\n\n");
+        let event = "message";
+        let data = "";
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event:")) event = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+        const payload = JSON.parse(data);
+        if (event === "status") handlers.onStage?.(payload.stage as StreamStage);
+        else if (event === "delta") handlers.onDelta?.(payload.text as string);
+        else if (event === "done") return payload as Exchange;
+        else if (event === "error") throw failure(502, payload, "O modelo não respondeu.");
+      }
+      if (done) break;
+    }
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    if ((e as Error).name === "AbortError") throw new ApiError(0, "ABORTED", "Resposta interrompida.");
+    throw new ApiError(0, "NETWORK", "A conexão caiu antes do fim da resposta. Tente de novo.");
+  } finally {
+    reader.releaseLock();
+  }
+  throw new ApiError(0, "NETWORK", "A conexão caiu antes do fim da resposta. Tente de novo.");
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const session = loadSession();
   const headers: Record<string, string> = {};
@@ -376,7 +445,9 @@ export const api = {
   register: (name: string, username: string, password: string) =>
     request<Session>("POST", "/auth/register", { name, username, password }),
   changePassword: (current_password: string, new_password: string) =>
-    request<void>("PUT", "/auth/password", { current_password, new_password }),
+    request<Session>("PUT", "/auth/password", { current_password, new_password }),
+  revokeSessions: () => request<Session>("POST", "/auth/sessions/revoke"),
+  updateMe: (name: string) => request<User>("PATCH", "/auth/me", { name }),
   status: () => request<SystemStatus>("GET", "/system/status"),
   documents: () => request<DocumentItem[]>("GET", "/documents"),
   upload: (files: File[]) => {
@@ -394,6 +465,11 @@ export const api = {
     request<ConversationSummary>("PATCH", `/conversations/${id}`, patch),
   deleteConversation: (id: string) => request<void>("DELETE", `/conversations/${id}`),
   ask: (id: string, content: string) => request<Exchange>("POST", `/conversations/${id}/messages`, { content }),
+  regenerate: (id: string) => request<Message>("POST", `/messages/${id}/regenerate`),
+  searchConversations: (q: string, only: "general" | "bots" = "general") =>
+    request<ConversationSummary[]>("GET", `/conversations?only=${only}&q=${encodeURIComponent(q)}`),
+  bulkDocuments: (action: "reindex" | "delete" | "move", ids: string[], base_id?: string) =>
+    request<{ done: string[]; skipped: Record<string, string> }>("POST", "/documents/bulk", { action, ids, base_id }),
   feedback: (id: string, rating: number) => request<Message>("POST", `/messages/${id}/feedback`, { rating }),
   search: (query: string, document_ids: string[], rerank: boolean, limit = 8) =>
     request<SearchResult>("POST", "/search", { query, document_ids, rerank, limit }),
@@ -410,6 +486,10 @@ export const api = {
   users: () => request<User[]>("GET", "/users"),
   setRole: (username: string, role: Role) => request<User>("PATCH", `/users/${username}`, { role }),
   deleteUser: (username: string) => request<void>("DELETE", `/users/${username}`),
+  createUser: (input: { name: string; username: string; password: string; role: Role }) =>
+    request<User>("POST", "/users", input),
+  resetPassword: (username: string, password: string) =>
+    request<User>("PUT", `/users/${username}/password`, { password }),
   tutorial: (done: boolean) => request<User>("PUT", "/auth/tutorial", { done }),
   formats: () => request<{ extensions: string[]; max_upload_mb: number }>("GET", "/formats"),
   bases: () => request<KnowledgeBase[]>("GET", "/bases"),
@@ -461,18 +541,19 @@ export const api = {
   suggest: (id: string) => request<{ text: string; answered: boolean; sources: Source[] }>("POST", `/whatsapp/contacts/${id}/suggest`),
 };
 
-export async function downloadExport(id: string, format: "markdown" | "json"): Promise<void> {
+async function download(path: string, fallbackName: string, fallbackError: string): Promise<void> {
   const session = loadSession();
-  const response = await fetch(`/api/conversations/${id}/export?format=${format}`, {
+  const response = await fetch(`/api${path}`, {
     headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   });
   if (!response.ok) {
     const data = await response.json().catch(() => null);
-    throw new ApiError(response.status, data?.code ?? "ERROR", data?.message ?? "Não foi possível exportar a conversa.");
+    if (response.status === 401 && session) onUnauthorized();
+    throw failure(response.status, data, fallbackError);
   }
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const match = /filename="?([^";]+)"?/.exec(disposition);
-  const name = match?.[1] ?? `nexo-conversa.${format === "json" ? "json" : "md"}`;
+  const name = match?.[1] ?? fallbackName;
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");
   link.href = url;
@@ -481,6 +562,15 @@ export async function downloadExport(id: string, format: "markdown" | "json"): P
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function downloadExport(id: string, format: "markdown" | "json"): Promise<void> {
+  return download(`/conversations/${id}/export?format=${format}`, `nexo-conversa.${format === "json" ? "json" : "md"}`,
+    "Não foi possível exportar a conversa.");
+}
+
+export function downloadMetrics(days: number): Promise<void> {
+  return download(`/metrics/export?days=${days}`, `nexo-perguntas-${days}d.csv`, "Não foi possível exportar as perguntas.");
 }
 
 export async function openDocument(id: string, page?: number): Promise<void> {

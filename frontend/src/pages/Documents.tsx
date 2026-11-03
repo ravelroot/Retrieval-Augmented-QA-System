@@ -9,7 +9,7 @@ import { useStore } from "../store";
 
 type Sort = "recent" | "title" | "pages";
 
-const ACCEPT = ".pdf,.docx,.txt,.md,.csv,.json,.html,.htm,application/pdf";
+const ACCEPT = ".pdf,.docx,.epub,.pptx,.xlsx,.odt,.txt,.md,.csv,.json,.html,.htm,application/pdf";
 
 export function kindLabel(doc: DocumentItem): string {
   if (doc.kind === "note") return "texto";
@@ -41,6 +41,10 @@ export function DocumentsPage() {
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [target, setTarget] = useState("");
   const [baseFilter, setBaseFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [moveTo, setMoveTo] = useState("");
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); setLoaded(true); }, [load]);
@@ -60,10 +64,10 @@ export function DocumentsPage() {
   }, [working, load]);
 
   async function send(list: FileList | File[]) {
-    const allowed = [".pdf", ".docx", ".txt", ".md", ".csv", ".json", ".html", ".htm"];
+    const allowed = [".pdf", ".docx", ".epub", ".pptx", ".xlsx", ".odt", ".txt", ".md", ".csv", ".json", ".html", ".htm"];
     const files = Array.from(list).filter((f) => allowed.some((ext) => f.name.toLowerCase().endsWith(ext)));
     if (!files.length) {
-      setNotice({ kind: "error", text: "Escolha arquivos PDF, Word, TXT, Markdown, CSV, JSON ou HTML." });
+      setNotice({ kind: "error", text: "Escolha arquivos PDF, Word, EPUB, PowerPoint, Excel, ODT, TXT, Markdown, CSV, JSON ou HTML." });
       return;
     }
     setUploading(true);
@@ -97,6 +101,40 @@ export function DocumentsPage() {
     }
   }
 
+  function toggle(id: string, on: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  async function bulk(action: "reindex" | "delete" | "move") {
+    const ids = [...selected];
+    if (!ids.length) return;
+    setBulkBusy(true);
+    setNotice(null);
+    try {
+      const out = await api.bulkDocuments(action, ids, action === "move" ? moveTo : undefined);
+      const verb = action === "delete" ? "excluído" : action === "move" ? "movido" : "enviado para reindexação";
+      const verbs = action === "delete" ? "excluídos" : action === "move" ? "movidos" : "enviados para reindexação";
+      const skipped = Object.values(out.skipped);
+      const head = `${plural(out.done.length, `documento ${verb}`, `documentos ${verbs}`)}.`;
+      setNotice({
+        kind: skipped.length && !out.done.length ? "error" : "ok",
+        text: skipped.length ? `${head} ${plural(skipped.length, "ficou de fora", "ficaram de fora")}: ${[...new Set(skipped)].join(" ")}` : head,
+      });
+      setSelected(new Set());
+      setConfirmBulk(false);
+      load();
+    } catch (e) {
+      setNotice({ kind: "error", text: (e as ApiError).message });
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   async function rename(e: FormEvent, doc: DocumentItem) {
     e.preventDefault();
     if (!title.trim() || title.trim() === doc.title) {
@@ -122,6 +160,18 @@ export function DocumentsPage() {
     if (sort === "pages") return [...list].sort((a, b) => b.pages - a.pages);
     return list;
   }, [docs, filter, status, sort, baseFilter]);
+
+  const selectable = visible.filter((d) => d.can_delete);
+  const allSelected = selectable.length > 0 && selectable.every((d) => selected.has(d.id));
+
+  useEffect(() => {
+    if (!docs) return;
+    const present = new Set(docs.map((d) => d.id));
+    setSelected((current) => {
+      const next = new Set([...current].filter((id) => present.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [docs]);
 
   return (
     <div className="page">
@@ -158,7 +208,7 @@ export function DocumentsPage() {
           <span className="dropzone__icon"><Icon name="upload" size={22} /></span>
           <div>
             <strong>{uploading ? "Enviando…" : "Arraste arquivos para cá"}</strong>
-            <p>PDF, Word, TXT, Markdown, CSV, JSON ou HTML com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
+            <p>PDF, Word, EPUB, PowerPoint, Excel, ODT, TXT, Markdown, CSV, JSON ou HTML com texto selecionável. PDFs digitalizados precisam de OCR antes.</p>
           </div>
           <div className="upload-target">
             {bases.length > 0 && (
@@ -212,6 +262,48 @@ export function DocumentsPage() {
               <option value="pages">Mais páginas</option>
             </select>
           </label>
+        </div>
+      )}
+
+      {selectable.length > 0 && (
+        <div className="toolbar toolbar--bulk" role="region" aria-label="Ações em lote">
+          <label className="check">
+            <input type="checkbox" checked={allSelected}
+              onChange={(e) => setSelected(e.target.checked ? new Set(selectable.map((d) => d.id)) : new Set())} />
+            {selected.size ? plural(selected.size, "selecionado", "selecionados") : "Selecionar todos"}
+          </label>
+          {selected.size > 0 && (
+            confirmBulk ? (
+              <span className="panel__actions">
+                <span className="doc__confirm">Excluir {plural(selected.size, "documento", "documentos")} e os trechos?</span>
+                <button className="danger-button small" disabled={bulkBusy} onClick={() => bulk("delete")}>Excluir</button>
+                <button className="ghost-button small" onClick={() => setConfirmBulk(false)}>Manter</button>
+              </span>
+            ) : (
+              <span className="panel__actions">
+                <button className="ghost-button small" disabled={bulkBusy} onClick={() => bulk("reindex")}>
+                  <Icon name="refresh" size={15} />Reindexar
+                </button>
+                {bases.length > 1 && (
+                  <>
+                    <label className="select">
+                      <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} aria-label="Base de destino">
+                        <option value="">Mover para a base…</option>
+                        {bases.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </label>
+                    <button className="ghost-button small" disabled={bulkBusy || !moveTo} onClick={() => bulk("move")}>
+                      <Icon name="move" size={15} />Mover
+                    </button>
+                  </>
+                )}
+                <button className="ghost-button small" disabled={bulkBusy} onClick={() => setConfirmBulk(true)}>
+                  <Icon name="trash" size={15} />Excluir
+                </button>
+                <button className="link-button" onClick={() => setSelected(new Set())}>Limpar seleção</button>
+              </span>
+            )
+          )}
         </div>
       )}
 
@@ -270,6 +362,10 @@ export function DocumentsPage() {
                     )}
                     {doc.can_delete && (
                       <>
+                        <label className="icon-button" title="Selecionar para ações em lote">
+                          <input type="checkbox" checked={selected.has(doc.id)} aria-label={`Selecionar ${doc.title}`}
+                            onChange={(e) => toggle(doc.id, e.target.checked)} />
+                        </label>
                         <button className="icon-button" title="Renomear" aria-label={`Renomear ${doc.title}`}
                           onClick={() => { setEditing(doc.id); setTitle(doc.title); }}>
                           <Icon name="edit" />
