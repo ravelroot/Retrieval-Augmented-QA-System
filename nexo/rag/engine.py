@@ -22,6 +22,13 @@ from nexo.rag.hash_embedding import tokens
 
 log = logging.getLogger("nexo.rag")
 
+SENTENCE = re.compile(r".+?(?:[.!?…]+[\"'”’»)\]]*(?:\s+|$)|$)", re.S)
+
+
+def split_sentences(text: str) -> list[str]:
+    return SENTENCE.findall(text)
+
+
 NOT_FOUND = "Não encontrei essa informação nos documentos selecionados."
 
 ANSWER_PROMPT = """Você é o Nexo, um assistente que responde dúvidas sobre manuais técnicos e livros.
@@ -186,7 +193,8 @@ class RagEngine:
         self._llm_loaded = False
         self._reranker = None
         self._reranker_loaded = False
-        self.splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap)
+        self.splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap,
+                                         chunking_tokenizer_fn=split_sentences)
 
     def _ensure_index(self) -> VectorStoreIndex:
         with self._lock:
