@@ -17,6 +17,7 @@ interface Draft {
   fallback: string;
   color: string;
   cite_sources: boolean;
+  suggestions: string;
 }
 
 function emptyDraft(bases: KnowledgeBase[]): Draft {
@@ -30,6 +31,7 @@ function emptyDraft(bases: KnowledgeBase[]): Draft {
     fallback: "",
     color: BOT_COLORS[0],
     cite_sources: true,
+    suggestions: "",
   };
 }
 
@@ -43,6 +45,7 @@ function fromBot(bot: Bot): Draft {
     fallback: bot.fallback ?? "",
     color: bot.color,
     cite_sources: bot.cite_sources,
+    suggestions: bot.suggestions.join("\n"),
   };
 }
 
@@ -94,6 +97,7 @@ function Drawer({ bot, bases, onClose, onSaved, onBaseCreated }: {
         fallback: draft.fallback.trim() || null,
         color: draft.color,
         cite_sources: draft.cite_sources,
+        suggestions: draft.suggestions.split("\n").map((x) => x.trim()).filter(Boolean),
       };
       const saved = bot ? await api.updateBot(bot.id, input) : await api.createBot(input);
       onSaved(saved);
@@ -164,6 +168,13 @@ function Drawer({ bot, bases, onClose, onSaved, onBaseCreated }: {
               placeholder="Ex.: Não encontrei isso nos meus documentos. Vou chamar uma pessoa da equipe."
               onChange={(e) => set("fallback", e.target.value)} />
           </div>
+          <div className="field">
+            <label htmlFor="bot-sugestoes">Perguntas sugeridas</label>
+            <textarea id="bot-sugestoes" value={draft.suggestions} rows={3} maxLength={1300}
+              placeholder={"Uma por linha, até seis. Ex.:\nQual o horário de atendimento?\nComo faço a troca de um produto?"}
+              onChange={(e) => set("suggestions", e.target.value)} />
+            <p className="field__hint">Aparecem como atalhos no começo de cada chat com o agente.</p>
+          </div>
           <fieldset className="swatches">
             <legend>Cor</legend>
             {BOT_COLORS.map((c) => (
@@ -212,6 +223,17 @@ export function AgentsPage() {
       ready: list.filter((b) => b.ready).length,
     };
   }, [bots]);
+
+  async function duplicate(bot: Bot) {
+    try {
+      const copy = await api.duplicateBot(bot.id);
+      toast(`Agente ${copy.name} criado. Ajuste o que for diferente.`);
+      load();
+      setEditing(copy);
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    }
+  }
 
   async function remove(bot: Bot) {
     try {
@@ -312,6 +334,9 @@ export function AgentsPage() {
                 <div className="agent-card__actions">
                   <button className="primary-button small" onClick={() => navigate(`/chats?agente=${bot.id}`)}>
                     <Icon name="chat" size={15} />Conversar
+                  </button>
+                  <button className="icon-button" title="Duplicar" aria-label={`Duplicar ${bot.name}`} onClick={() => duplicate(bot)}>
+                    <Icon name="duplicate" size={16} />
                   </button>
                   {bot.can_edit && (
                     <>

@@ -79,7 +79,8 @@ def _upgrade_other_documents(engine: Engine, base_id: str) -> None:
         conn.execute(text("ALTER TABLE nx_document ADD COLUMN kind VARCHAR(10) DEFAULT 'pdf'"))
         conn.execute(text("ALTER TABLE nx_document ADD COLUMN extension VARCHAR(10) DEFAULT 'pdf'"))
         conn.execute(text("ALTER TABLE nx_document ADD COLUMN content TEXT"))
-        conn.execute(text(f"ALTER TABLE nx_document ADD COLUMN updated_at {'DATETIME' if engine.dialect.name == 'mysql' else 'TIMESTAMP'}"))
+        moment = "DATETIME" if engine.dialect.name == "mysql" else "TIMESTAMP"
+        conn.execute(text(f"ALTER TABLE nx_document ADD COLUMN updated_at {moment}"))
         conn.execute(text("UPDATE nx_document SET base_id = :b, kind = 'pdf', extension = 'pdf'"), {"b": base_id})
         for uc in insp.get_unique_constraints("nx_document"):
             if uc.get("column_names") == ["sha256"] and uc.get("name"):
@@ -101,6 +102,44 @@ def _upgrade_conversations(engine: Engine) -> None:
         conn.execute(text("CREATE INDEX ix_nx_conversation_bot_id ON nx_conversation (bot_id)"))
 
 
+def _literal(engine: Engine, value) -> str | None:
+    if isinstance(value, bool):
+        if engine.dialect.name in ("sqlite", "mssql"):
+            return "1" if value else "0"
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return "'" + value.replace("'", "''") + "'"
+    return None
+
+
+def add_missing_columns(engine: Engine) -> list[str]:
+    from nexo.db import Base
+    insp = inspect(engine)
+    added: list[str] = []
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        present = {c["name"] for c in insp.get_columns(table.name)}
+        for column in table.columns:
+            if column.name in present or column.primary_key:
+                continue
+            ddl = f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column.type.compile(dialect=engine.dialect)}"
+            default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+            literal = _literal(engine, default) if default is not None else None
+            if literal is not None:
+                ddl += f" DEFAULT {literal}"
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+                if literal is not None:
+                    conn.execute(text(f"UPDATE {table.name} SET {column.name} = {literal} WHERE {column.name} IS NULL"))
+            added.append(f"{table.name}.{column.name}")
+    if added:
+        log.info("Colunas novas criadas: %s", ", ".join(added))
+    return added
+
+
 def migrate(engine: Engine) -> None:
     from nexo.db import Base
     document_cols = _columns(engine, "nx_document")
@@ -116,3 +155,4 @@ def migrate(engine: Engine) -> None:
     if conversation_cols and "bot_id" not in conversation_cols:
         log.info("Migrando nx_conversation para agentes.")
         _upgrade_conversations(engine)
+    add_missing_columns(engine)

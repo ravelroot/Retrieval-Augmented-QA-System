@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 from typing import Any
 
 from nexo.config import Settings
@@ -95,9 +97,10 @@ def build_reranker(s: Settings) -> Any:
     if s.reranker == "huggingface":
         try:
             from llama_index.core.postprocessor import SentenceTransformerRerank
-            import sentence_transformers
         except ImportError as e:
             raise _need("sentence-transformers", "o reranking do HuggingFace") from e
+        if importlib.util.find_spec("sentence_transformers") is None:
+            raise _need("sentence-transformers", "o reranking do HuggingFace")
         return SentenceTransformerRerank(model=s.rerank_model, top_n=s.top_n)
     if s.reranker == "cohere":
         try:
@@ -108,6 +111,12 @@ def build_reranker(s: Settings) -> Any:
             raise ProviderError("Defina COHERE_API_KEY para usar o reranking da Cohere.")
         return CohereRerank(api_key=s.cohere_api_key, model=s.cohere_model, top_n=s.top_n)
     raise ProviderError(f"Reranker desconhecido: {s.reranker}")
+
+
+def index_signature(s: Settings) -> str:
+    parts = [s.embed_provider, s.embed_model, s.embed_query_prefix, s.embed_text_prefix, str(s.chunk_size),
+             str(s.chunk_overlap), s.vector_store, s.collection]
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
 def describe(s: Settings) -> dict:
@@ -126,4 +135,5 @@ def describe(s: Settings) -> dict:
     return {"llm": llm, "embedding": embed, "reranker": rerank, "vector_store": store, "collection": s.collection,
             "chunk_size": s.chunk_size, "chunk_overlap": s.chunk_overlap, "top_k": s.top_k, "top_n": s.top_n,
             "min_similarity": s.min_similarity, "min_rerank_score": s.min_rerank_score,
-            "verify_answers": s.verify_answers}
+            "verify_answers": s.verify_answers, "temperature": s.llm_temperature, "history_turns": s.history_turns,
+            "signature": index_signature(s)}

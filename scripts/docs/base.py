@@ -11,7 +11,7 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 RAIZ = AQUI.parents[1]
 IMAGENS = RAIZ / "docs" / "images"
-VERSAO = "2.2.0"
+VERSAO = "2.3.0"
 DATA = "Novembro de 2026"
 AUTOR = "Erik Pimenta"
 PRODUTO = "Nexo"

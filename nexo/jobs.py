@@ -23,6 +23,10 @@ def file_path(document_id: str, extension: str) -> Path:
     return get_settings().uploads_dir / f"{document_id}.{extension or 'pdf'}"
 
 
+def stored_file(row: db.DocumentRow) -> Path:
+    return file_path(row.id, row.extension) if row.kind == "file" else pdf_path(row.id)
+
+
 def enqueue(document_id: str) -> None:
     _executor.submit(process, document_id)
 
@@ -65,6 +69,7 @@ def process(document_id: str) -> None:
         row.pages = pages
         row.chunks = chunks
         row.indexed_at = db.utcnow()
+        row.index_signature = engine.signature()
         s.commit()
         data = {"id": row.id, "title": row.title, "pages": row.pages, "chunks": row.chunks, "base_id": row.base_id,
                 "kind": row.kind}
@@ -89,6 +94,34 @@ def resume_pending() -> int:
     for i in ids:
         enqueue(i)
     return len(ids)
+
+
+def requeue(ids: list[str]) -> int:
+    if not ids:
+        return 0
+    with db.session() as s:
+        rows = s.scalars(select(db.DocumentRow).where(db.DocumentRow.id.in_(ids))).all()
+        queued = []
+        for row in rows:
+            if row.kind != "note" and not stored_file(row).exists():
+                continue
+            row.status = "PENDING"
+            row.error = None
+            queued.append(row.id)
+        s.commit()
+    for document_id in queued:
+        enqueue(document_id)
+    return len(queued)
+
+
+def stamp_unsigned(signature: str) -> int:
+    with db.session() as s:
+        rows = s.scalars(select(db.DocumentRow).where(db.DocumentRow.status == "READY",
+                                                      db.DocumentRow.index_signature.is_(None))).all()
+        for row in rows:
+            row.index_signature = signature
+        s.commit()
+        return len(rows)
 
 
 def wait_idle(timeout: float = 60.0) -> None:

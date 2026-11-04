@@ -7,7 +7,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="NEXO_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="NEXO_", env_file=".env", env_file_encoding="utf-8", extra="ignore",
+                                      validate_assignment=True)
 
     host: str = "127.0.0.1"
     port: int = 8000
@@ -21,6 +22,13 @@ class Settings(BaseSettings):
     public_url: str | None = None
     whatsapp_history: int = Field(6, ge=0, le=30)
     whatsapp_timeout: float = Field(15.0, gt=0, le=120)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_format: Literal["texto", "json"] = "texto"
+    cors_origins: str | None = None
+    rate_limit: int = Field(60, ge=0, le=10000)
+    retention_days: int = Field(0, ge=0, le=3650)
+    allow_private_urls: bool = False
+    link_timeout: float = Field(20.0, gt=0, le=120)
 
     llm_provider: Literal["ollama", "openai", "extrativo"] = "ollama"
     llm_model: str = "llama3.1"
@@ -57,10 +65,25 @@ class Settings(BaseSettings):
     verify_answers: bool = False
 
     @field_validator("database_url", "secret", "public_url", "openai_base_url", "openai_api_key", "cohere_api_key", "chroma_host",
-                     "qdrant_url", "qdrant_api_key", mode="before")
+                     "qdrant_url", "qdrant_api_key", "cors_origins", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _upper_level(cls, value):
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @property
+    def cors_list(self) -> list[str]:
+        if not self.cors_origins:
+            return []
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def overrides_file(self) -> Path:
+        return self.data_dir / "ajustes.json"
 
     @property
     def uploads_dir(self) -> Path:
@@ -88,4 +111,6 @@ def get_settings() -> Settings:
     s = Settings()
     s.data_dir.mkdir(parents=True, exist_ok=True)
     s.uploads_dir.mkdir(parents=True, exist_ok=True)
+    from nexo import runtime
+    runtime.apply(s)
     return s

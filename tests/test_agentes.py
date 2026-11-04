@@ -3,7 +3,7 @@ import json
 import sqlite3
 import zipfile
 
-from tests.conftest import FIXTURES, login, upload
+from tests.conftest import login, upload
 
 FAQ = """Política de trocas da Loja Aurora
 

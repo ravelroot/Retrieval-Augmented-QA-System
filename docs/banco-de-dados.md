@@ -4,11 +4,11 @@ O Nexo guarda informações em **três lugares**, cada um com um papel:
 
 | Camada | Onde fica (padrão) | O que guarda |
 |---|---|---|
-| Banco relacional | `data/nexo.db` (SQLite) ou o banco de `NEXO_DATABASE_URL` | Bases de conhecimento, documentos e textos, agentes, conversas, mensagens, fontes citadas, avaliações, chaves de API, webhooks e WhatsApp (conexões, contatos e mensagens) |
+| Banco relacional | `data/nexo.db` (SQLite) ou o banco de `NEXO_DATABASE_URL` | Bases de conhecimento, documentos e textos, agentes, conversas, mensagens, fontes citadas, avaliações, chaves de API, webhooks, WhatsApp (conexões, contatos, mensagens e respostas prontas) e o registro de atividades |
 | Banco vetorial | `data/chroma/` (ChromaDB) ou Qdrant | Trechos dos arquivos com os embeddings e os metadados de origem |
-| Arquivos | `data/usuarios.json` e `data/uploads/` | Contas de acesso (com o tutorial visto e a versão das sessões) e os arquivos originais (`<id>.<extensão>`) |
+| Arquivos | `data/usuarios.json`, `data/ajustes.json` e `data/uploads/` | Contas de acesso (com o tutorial visto e a versão das sessões), os ajustes feitos pela tela e os arquivos originais (`<id>.<extensão>`) |
 
-As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). A 2.2 não muda nenhuma tabela: um banco da 2.1 funciona como está. Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
+As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). Na 2.3, a migração acrescenta sozinha as colunas novas e cria `nx_quick_reply` e `nx_audit`. Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
 
 ## Diagrama de relacionamentos
 
@@ -47,6 +47,7 @@ erDiagram
         varchar500 fallback
         varchar16 color
         boolean cite_sources
+        text suggestions
         varchar32 created_by
     }
     nx_whatsapp_channel {
@@ -95,6 +96,8 @@ erDiagram
         varchar20 status
         text error
         varchar32 uploaded_by
+        varchar64 index_signature
+        varchar1000 source_url
         timestamp created_at
         timestamp indexed_at
     }
@@ -103,6 +106,7 @@ erDiagram
         varchar32 owner
         varchar32 bot_id FK
         varchar160 title
+        boolean pinned
         timestamp created_at
         timestamp updated_at
     }
@@ -147,8 +151,10 @@ erDiagram
         varchar80 name
         varchar16 prefix
         varchar64 key_hash UK
+        varchar16 scope
         timestamp created_at
         timestamp last_used_at
+        timestamp expires_at
     }
     nx_webhook {
         varchar32 id PK
@@ -162,9 +168,27 @@ erDiagram
         text last_error
         timestamp last_delivery_at
     }
+    nx_quick_reply {
+        varchar32 id PK
+        varchar80 title
+        text body
+        varchar32 created_by
+        timestamp created_at
+        timestamp updated_at
+    }
+    nx_audit {
+        int id PK
+        timestamp created_at
+        varchar32 actor
+        varchar40 action
+        varchar20 target_type
+        varchar64 target_id
+        text detail
+        varchar64 ip
+    }
 ```
 
-`nx_api_key` e `nx_webhook` não têm chaves estrangeiras: `owner` e `created_by` apontam para contas do `usuarios.json`.
+`nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` não têm chaves estrangeiras: `owner`, `created_by` e `actor` apontam para contas do `usuarios.json`.
 
 ## Tabelas
 
@@ -202,6 +226,8 @@ Um registro por arquivo enviado ou texto criado numa base.
 | status | varchar(20) | `PENDING`, `PROCESSING`, `READY` ou `FAILED` |
 | error | text | Motivo da falha, quando houver |
 | uploaded_by | varchar(32) | Usuário que enviou (ver `usuarios.json`) |
+| index_signature | varchar(64) | SHA-256 da configuração usada na indexação (modelo de embeddings, tamanho e sobreposição do trecho, banco vetorial). Diferente da atual, o item aparece como desatualizado |
+| source_url | varchar(1000) | Endereço de origem dos itens importados de um link; usado por "Atualizar do link" |
 | created_at / indexed_at | timestamp | Envio e fim da indexação, em UTC |
 | updated_at | timestamp | Última edição de um texto |
 
@@ -218,12 +244,13 @@ Um agente: nome, instruções e a base de conhecimento de onde tira as respostas
 | fallback | varchar(500) | Frase usada quando a base não tem a resposta |
 | color | varchar(16) | Cor do selo do agente |
 | cite_sources | boolean | Acrescenta "Fontes:" nas respostas enviadas pelo WhatsApp |
+| suggestions | text | Até 6 perguntas sugeridas, uma por linha |
 | created_by / created_at / updated_at | varchar(32) / timestamp | Quem criou, criação e última alteração |
 
 O agente não tem coleção vetorial própria: a busca filtra pelos documentos prontos da base dele.
 
 ### nx_conversation
-Uma conversa pertence a um único usuário (`owner`). Ninguém mais consegue abri-la. `bot_id` (FK para `nx_bot`, `ON DELETE CASCADE`) liga a conversa a um agente; nas conversas gerais fica nulo.
+Uma conversa pertence a um único usuário (`owner`). Ninguém mais consegue abri-la. `bot_id` (FK para `nx_bot`, `ON DELETE CASCADE`) liga a conversa a um agente; nas conversas gerais fica nulo. `pinned` fixa a conversa no topo da lista e a protege da retenção automática.
 
 ### nx_conversation_document
 Escopo da conversa. Sem linhas, a conversa consulta todos os documentos prontos. Com linhas, a busca vetorial é filtrada pelos documentos listados. Excluir um documento remove-o do escopo (`ON DELETE CASCADE`).
@@ -238,7 +265,7 @@ Perguntas (`role = user`) e respostas (`role = assistant`). Nas respostas:
 Os trechos efetivamente enviados ao modelo, na ordem das citações `[1]`, `[2]`... `similarity` é a similaridade de cosseno da busca vetorial e `rerank_score` é a nota do reranker. `document_id` vira nulo se o documento for excluído, mas o título e o trecho continuam guardados para manter o histórico legível.
 
 ### nx_feedback
-Avaliação de cada resposta: `rating` 1 (útil) ou -1 (não ajudou). Um usuário tem no máximo uma avaliação por resposta (`uk_feedback_message_owner`).
+Avaliação de cada resposta: `rating` 1 (útil) ou -1 (não ajudou), com `comment` opcional dizendo o que faltou. Um usuário tem no máximo uma avaliação por resposta (`uk_feedback_message_owner`).
 
 ### nx_api_key
 Chaves de API para integrações (planilhas, scripts, outros sistemas). Cada chave age com as permissões do dono.
@@ -250,7 +277,9 @@ Chaves de API para integrações (planilhas, scripts, outros sistemas). Cada cha
 | name | varchar(80) | Nome dado pelo usuário, como "Planilha de leads" |
 | prefix | varchar(16) | Primeiros 12 caracteres da chave (`nxk_...`), para reconhecê-la na lista |
 | key_hash | varchar(64) | Único. SHA-256 da chave. A chave completa aparece uma única vez, na criação, e não é guardada |
+| scope | varchar(16) | `full` (completa), `ask` (só consulta) ou `feed` (só alimentar bases). Padrão `full` |
 | created_at / last_used_at | timestamp | Criação e último uso, em UTC |
+| expires_at | timestamp | Validade; nulo quando a chave não vence. Vencida, recebe 401 `API_KEY_EXPIRED` |
 
 A chave vai no cabeçalho `X-API-Key` ou em `Authorization: Bearer nxk_...`. Excluir a linha revoga o acesso na hora.
 
@@ -318,6 +347,12 @@ Cada mensagem recebida ou enviada.
 | error | text | Erro devolvido pelo provedor |
 | answered | boolean | Nas respostas do agente, falso quando a base não tinha a resposta |
 | sources_json | text | Fontes da resposta do agente, em JSON |
+
+### nx_quick_reply
+Respostas prontas do WhatsApp. `body` aceita `{nome}` e `{telefone}`, trocados pelos dados do contato. A API recusa títulos repetidos (409 `NAME_TAKEN`); só quem criou ou um administrador altera.
+
+### nx_audit
+Registro de atividades. `id` é inteiro autoincremental; `actor` é a conta (ou `sistema`), `action` o código da ação (como `auth.login`, `bot.update`, `settings.update`), `target_type`/`target_id` o alvo, `detail` um JSON com o que mudou, sem senhas nem chaves, e `ip` o endereço de origem. Índices em `created_at`, `actor` e `action` atendem os filtros da tela Atividades.
 
 ## Banco vetorial
 
@@ -389,4 +424,8 @@ Ao subir a 2.1 sobre um banco da 2.0, `nexo/migrations.py`:
 3. acrescenta `base_id`, `kind`, `extension`, `content` e `updated_at` em `nx_document` e troca o único de `sha256` pelo único por base;
 4. acrescenta `bot_id` em `nx_conversation` e cria os índices que faltarem.
 
-No SQLite, `nx_document` é reconstruída seguindo os 12 passos oficiais (o SQLite não remove uma restrição única com `ALTER TABLE`); nos outros bancos, a migração usa `ALTER TABLE`. Nenhum vetor precisa ser recalculado. Faça um backup da pasta `data` antes de atualizar.
+No SQLite, `nx_document` é reconstruída seguindo os 12 passos oficiais (o SQLite não remove uma restrição única com `ALTER TABLE`); nos outros bancos, a migração usa `ALTER TABLE`. Nenhum vetor precisa ser recalculado.
+
+Desde a 2.3, a migração também compara cada tabela com o modelo e acrescenta as colunas que faltam com `ALTER TABLE ... ADD COLUMN` e o valor padrão. Assim, um banco da 2.1 ou da 2.2 ganha `index_signature`, `source_url`, `suggestions`, `pinned`, `scope` e `expires_at`, e as tabelas `nx_quick_reply` e `nx_audit` são criadas. Os documentos prontos recebem a assinatura da configuração atual, sem reindexar.
+
+Faça um backup antes de atualizar (Sistema e conta › Manutenção ou `python -m nexo backup`).

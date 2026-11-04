@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -85,6 +85,8 @@ class DocumentOut(BaseModel):
     kind: str = "pdf"
     extension: str = "pdf"
     updated_at: datetime | None = None
+    source_url: str | None = None
+    outdated: bool = False
 
 
 class DocumentPatch(BaseModel):
@@ -100,6 +102,32 @@ class TextIn(BaseModel):
 class TextOut(BaseModel):
     title: str
     content: str
+
+
+class LinkIn(BaseModel):
+    url: str = Field(min_length=8, max_length=1000)
+    title: str | None = Field(None, max_length=200)
+
+
+class RefetchOut(BaseModel):
+    document: DocumentOut
+    changed: bool
+
+
+class ChunkOut(BaseModel):
+    chunk_id: str
+    index: int
+    page: int
+    text: str
+
+
+class ChunksOut(BaseModel):
+    document_id: str
+    title: str
+    kind: str
+    total: int
+    offset: int
+    items: list[ChunkOut]
 
 
 class BaseIn(BaseModel):
@@ -144,6 +172,7 @@ class BotIn(BaseModel):
     fallback: str | None = Field(None, max_length=500)
     color: str | None = Field(None, max_length=16)
     cite_sources: bool = True
+    suggestions: list[str] = Field(default_factory=list, max_length=6)
 
 
 class BotPatch(BaseModel):
@@ -155,6 +184,7 @@ class BotPatch(BaseModel):
     fallback: str | None = Field(None, max_length=500)
     color: str | None = Field(None, max_length=16)
     cite_sources: bool | None = None
+    suggestions: list[str] | None = Field(None, max_length=6)
 
 
 class BotOut(BaseModel):
@@ -174,6 +204,14 @@ class BotOut(BaseModel):
     conversations: int = 0
     ready: bool = False
     can_edit: bool = False
+    suggestions: list[str] = []
+
+
+class SampleOut(BaseModel):
+    base: BaseOut
+    bot: BotOut
+    added: int
+    existed: bool
 
 
 class SourceOut(BaseModel):
@@ -198,6 +236,7 @@ class MessageOut(BaseModel):
     created_at: datetime
     sources: list[SourceOut] = []
     my_rating: int | None = None
+    my_comment: str | None = None
 
 
 class ConversationSummary(BaseModel):
@@ -208,6 +247,7 @@ class ConversationSummary(BaseModel):
     document_ids: list[str]
     messages: int
     bot_id: str | None = None
+    pinned: bool = False
 
 
 class ConversationOut(ConversationSummary):
@@ -223,6 +263,7 @@ class ConversationIn(BaseModel):
 class ConversationPatch(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=160)
     document_ids: list[str] | None = Field(None, max_length=200)
+    pinned: bool | None = None
 
 
 class QuestionIn(BaseModel):
@@ -287,6 +328,19 @@ class NegativeItem(BaseModel):
     asked_at: datetime
     conversation_id: str
     message_id: str
+    comment: str | None = None
+    owner: str | None = None
+
+
+class BotStat(BaseModel):
+    bot_id: str | None
+    name: str
+    color: str | None = None
+    questions: int
+    answered: int
+    answer_rate: float | None
+    negative: int
+    avg_latency_ms: int | None
 
 
 class MetricsOut(BaseModel):
@@ -304,10 +358,14 @@ class MetricsOut(BaseModel):
     top_documents: list[DocumentCitations]
     unanswered_recent: list[UnansweredItem]
     negative_recent: list[NegativeItem]
+    by_bot: list[BotStat] = []
+    bot_id: str | None = None
 
 
 class ApiKeyIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
+    scope: Literal["full", "ask", "feed"] = "full"
+    expires_days: int | None = Field(None, ge=1, le=3650)
 
 
 class ApiKeyOut(BaseModel):
@@ -316,6 +374,9 @@ class ApiKeyOut(BaseModel):
     prefix: str
     created_at: datetime
     last_used_at: datetime | None
+    scope: str = "full"
+    expires_at: datetime | None = None
+    expired: bool = False
 
 
 class ApiKeyCreated(ApiKeyOut):
@@ -517,3 +578,105 @@ class WaSummaryOut(BaseModel):
     unread: int
     waiting: int
     bot_answers_today: int
+
+
+class QuickReplyIn(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class QuickReplyPatch(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=80)
+    body: str | None = Field(None, min_length=1, max_length=4000)
+
+
+class QuickReplyOut(BaseModel):
+    id: str
+    title: str
+    body: str
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+    can_edit: bool = False
+
+
+class SettingItem(BaseModel):
+    name: str
+    group: str
+    label: str
+    hint: str
+    kind: str
+    value: Any
+    default: Any
+    overridden: bool
+    reindex: bool
+    min: float | None = None
+    max: float | None = None
+
+
+class SettingsOut(BaseModel):
+    items: list[SettingItem]
+    fixed: dict[str, str]
+    outdated: int = 0
+
+
+class SettingsPatch(BaseModel):
+    values: dict[str, Any] = Field(min_length=1, max_length=40)
+
+
+class SettingsResetIn(BaseModel):
+    names: list[str] | None = Field(None, max_length=40)
+
+
+class SettingsChanged(SettingsOut):
+    changed: list[str]
+    reindex_needed: bool = False
+
+
+class CheckOut(BaseModel):
+    id: str
+    group: str
+    label: str
+    status: Literal["ok", "warn", "fail", "info"]
+    detail: str
+    hint: str | None = None
+
+
+class DiagnosticsOut(BaseModel):
+    checked_at: datetime
+    deep: bool
+    ok: int
+    warn: int
+    fail: int
+    info: int
+    checks: list[CheckOut]
+
+
+class MaintenanceIn(BaseModel):
+    action: Literal["reindex_failed", "reindex_outdated", "reindex_all", "clean_orphans", "purge_conversations", "vacuum"]
+    days: int | None = Field(None, ge=1, le=3650)
+
+
+class MaintenanceOut(BaseModel):
+    action: str
+    message: str
+    count: int
+    skipped: int
+
+
+class AuditItem(BaseModel):
+    id: int
+    created_at: datetime
+    actor: str
+    action: str
+    label: str
+    target_type: str | None
+    target_id: str | None
+    detail: str | None
+    ip: str | None
+
+
+class AuditPage(BaseModel):
+    total: int
+    items: list[AuditItem]
+    actions: dict[str, str]

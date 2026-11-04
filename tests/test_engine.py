@@ -30,7 +30,9 @@ def test_hash_embedding_is_normalized_and_lexical():
     b = emb.get_query_embedding("Como usar o botão reset?")
     c = emb.get_query_embedding("temperatura de operação")
     assert math.isclose(sum(x * x for x in a), 1.0, rel_tol=1e-6)
-    dot = lambda x, y: sum(i * j for i, j in zip(x, y))
+    def dot(x, y):
+        return sum(i * j for i, j in zip(x, y))
+
     assert dot(a, b) > dot(a, c)
 
 

@@ -22,9 +22,9 @@ from pypdf import PdfReader
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from nexo import __version__, db, jobs, knowledge, webhooks
+from nexo import __version__, audit, db, jobs, knowledge, runtime, webhooks
 from nexo.api import schemas as sc
-from nexo.api.deps import ApiError, Principal, current_user, get_users
+from nexo.api.deps import ApiError, Principal, current_user, get_users, question_quota
 from nexo.config import Settings, get_settings
 from nexo.rag import providers
 from nexo.migrations import ensure_default_base
@@ -83,10 +83,14 @@ def auth_options(settings: Settings = Depends(get_settings), users: UserStore = 
 
 @router.post("/auth/login", response_model=sc.SessionOut)
 def login(body: sc.LoginIn, settings: Settings = Depends(get_settings), users: UserStore = Depends(get_users)):
+    username = body.username.strip().lower()[:32]
     try:
-        return _session(settings, users.authenticate(body.username, body.password))
+        user = users.authenticate(body.username, body.password)
     except UserError as e:
+        audit.record("auth.login_failed", "user", username, e.code, actor=username or "anônimo")
         raise _user_error(e)
+    audit.record("auth.login", "user", user.username, actor=user.username)
+    return _session(settings, user)
 
 
 @router.post("/auth/register", response_model=sc.SessionOut, status_code=201)
@@ -94,9 +98,11 @@ def register(body: sc.RegisterIn, settings: Settings = Depends(get_settings), us
     if not settings.allow_registration:
         raise ApiError(403, "REGISTRATION_DISABLED", "O cadastro de novas contas está desativado.")
     try:
-        return _session(settings, users.register(body.name, body.username, body.password))
+        user = users.register(body.name, body.username, body.password)
     except UserError as e:
         raise _user_error(e)
+    audit.record("auth.register", "user", user.username, actor=user.username)
+    return _session(settings, user)
 
 
 @router.get("/auth/me", response_model=sc.UserOut)
@@ -116,18 +122,22 @@ def update_me(body: sc.ProfilePatch, p: Principal = Depends(current_user), users
 def change_password(body: sc.PasswordIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
                     users: UserStore = Depends(get_users)):
     try:
-        return _session(settings, users.change_password(p.username, body.current_password, body.new_password))
+        user = users.change_password(p.username, body.current_password, body.new_password)
     except UserError as e:
         raise _user_error(e)
+    audit.record("auth.password", "user", p.username, actor=p.username)
+    return _session(settings, user)
 
 
 @router.post("/auth/sessions/revoke", response_model=sc.SessionOut)
 def revoke_sessions(p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
                     users: UserStore = Depends(get_users)):
     try:
-        return _session(settings, users.revoke_sessions(p.username))
+        user = users.revoke_sessions(p.username)
     except UserError as e:
         raise _user_error(e)
+    audit.record("auth.revoke", "user", p.username, actor=p.username)
+    return _session(settings, user)
 
 
 @router.put("/auth/tutorial", response_model=sc.UserOut)
@@ -150,10 +160,14 @@ def status(p: Principal = Depends(current_user), settings: Settings = Depends(ge
     chunks = database.scalar(select(func.coalesce(func.sum(db.DocumentRow.chunks), 0))) or 0
     keys = database.scalar(select(func.count()).select_from(db.ApiKeyRow).where(db.ApiKeyRow.owner == p.username))
     hooks = database.scalar(select(func.count()).select_from(db.WebhookRow)) if p.is_admin else None
+    signature = providers.index_signature(settings)
+    outdated = database.scalar(select(func.count()).select_from(db.DocumentRow)
+                               .where(db.DocumentRow.status == "READY", db.DocumentRow.index_signature.is_not(None),
+                                      db.DocumentRow.index_signature != signature)) or 0
     return {
         "version": __version__,
         "providers": providers.describe(settings),
-        "documents": {"total": sum(counts.values()), "by_status": counts, "chunks": int(chunks)},
+        "documents": {"total": sum(counts.values()), "by_status": counts, "chunks": int(chunks), "outdated": int(outdated)},
         "users": len(users.all()) if p.is_admin else None,
         "registration": settings.allow_registration,
         "database": "SQLite" if settings.sqlalchemy_url.startswith("sqlite") else settings.sqlalchemy_url.split(":")[0],
@@ -163,12 +177,18 @@ def status(p: Principal = Depends(current_user), settings: Settings = Depends(ge
             "bots": int(database.scalar(select(func.count()).select_from(db.BotRow)) or 0),
             "channels": int(database.scalar(select(func.count()).select_from(db.WhatsAppChannelRow)) or 0),
         },
+        "operation": {"rate_limit": settings.rate_limit, "retention_days": settings.retention_days,
+                      "overrides": sorted(runtime.overrides(settings)), "cors": settings.cors_list,
+                      "log_format": settings.log_format, "token_hours": settings.token_hours,
+                      "max_upload_mb": settings.max_upload_mb},
     }
 
 
 def _doc_out(row: db.DocumentRow, p: Principal) -> sc.DocumentOut:
     out = sc.DocumentOut.model_validate(row, from_attributes=True)
     out.can_delete = p.is_admin or row.uploaded_by == p.username
+    signature = providers.index_signature(get_settings())
+    out.outdated = bool(row.status == "READY" and row.index_signature and row.index_signature != signature)
     return out
 
 
@@ -266,6 +286,7 @@ async def upload(files: list[UploadFile] = File(...), base_id: str | None = Form
                  database: Session = Depends(db.get_db)):
     target = get_base(database, base_id).id if base_id else default_base_id(database)
     created = await store_files(database, files, target, p, settings)
+    audit.record("document.upload", "base", target, {"files": [r.filename for r in created]}, actor=p.username)
     return [_doc_out(r, p) for r in created]
 
 
@@ -296,12 +317,14 @@ def rename_document(document_id: str, body: sc.DocumentPatch, p: Principal = Dep
         row.base_id = target.id
         row.updated_at = db.utcnow()
         database.commit()
+        audit.record("document.update", "document", row.id, {"base_id": target.id}, actor=p.username)
     if body.title is not None:
         title = " ".join(body.title.split())[:200]
         if title and title != row.title:
             row.title = title
             row.updated_at = db.utcnow()
             database.commit()
+            audit.record("document.update", "document", row.id, {"title": title}, actor=p.username)
             if row.status == "READY":
                 row.status = "PENDING"
                 database.commit()
@@ -354,10 +377,12 @@ def delete_document(document_id: str, p: Principal = Depends(current_user), sett
     except ProviderError as e:
         raise ApiError(503, "PROVIDER", str(e))
     path = file_on_disk(row) if row.kind != "note" else None
+    info = {"title": row.title, "base_id": row.base_id}
     database.delete(row)
     database.commit()
     if path is not None:
         path.unlink(missing_ok=True)
+    audit.record("document.delete", "document", document_id, info, actor=p.username)
     return Response(status_code=204)
 
 
@@ -417,6 +442,9 @@ def bulk_documents(body: sc.BulkIn, p: Principal = Depends(current_user), settin
         path.unlink(missing_ok=True)
     for document_id in queue:
         jobs.enqueue(document_id)
+    if done:
+        audit.record("document.bulk", "document", None, {"action": body.action, "ids": done, "base_id": body.base_id},
+                     actor=p.username)
     return sc.BulkOut(done=done, skipped=skipped)
 
 
@@ -441,16 +469,18 @@ def source_out(s, kinds: dict[str, str] | None = None) -> sc.SourceOut:
 
 
 def _message_out(m: db.MessageRow, username: str) -> sc.MessageOut:
-    rating = next((f.rating for f in m.feedback if f.owner == username), None)
+    mine = next((f for f in m.feedback if f.owner == username), None)
     return sc.MessageOut(
         id=m.id, role=m.role, content=m.content, answered=m.answered, grounded=m.grounded, model=m.model,
-        latency_ms=m.latency_ms, created_at=m.created_at, my_rating=rating,
+        latency_ms=m.latency_ms, created_at=m.created_at, my_rating=mine.rating if mine else None,
+        my_comment=mine.comment if mine else None,
         sources=[_source_out(s) for s in m.sources])
 
 
 def _summary(c: db.ConversationRow) -> sc.ConversationSummary:
     return sc.ConversationSummary(id=c.id, title=c.title, created_at=c.created_at, updated_at=c.updated_at,
-                                  document_ids=[d.id for d in c.documents], messages=len(c.messages), bot_id=c.bot_id)
+                                  document_ids=[d.id for d in c.documents], messages=len(c.messages), bot_id=c.bot_id,
+                                  pinned=bool(c.pinned))
 
 
 def _conversation(database: Session, conversation_id: str, p: Principal) -> db.ConversationRow:
@@ -488,7 +518,7 @@ def list_conversations(only: Literal["general", "bots"] | None = Query(None), bo
         query = query.where(db.ConversationRow.bot_id.is_(None))
     elif only == "bots":
         query = query.where(db.ConversationRow.bot_id.is_not(None))
-    rows = database.scalars(query.order_by(db.ConversationRow.updated_at.desc())).all()
+    rows = database.scalars(query.order_by(db.ConversationRow.pinned.desc(), db.ConversationRow.updated_at.desc())).all()
     return [_summary(c) for c in rows]
 
 
@@ -521,7 +551,10 @@ def update_conversation(conversation_id: str, body: sc.ConversationPatch, p: Pri
         c.title = " ".join(body.title.split())[:160]
     if body.document_ids is not None:
         c.documents = _documents(database, body.document_ids)
-    c.updated_at = db.utcnow()
+    if body.pinned is not None:
+        c.pinned = body.pinned
+    if body.title is not None or body.document_ids is not None:
+        c.updated_at = db.utcnow()
     database.commit()
     return _summary(c)
 
@@ -639,7 +672,7 @@ def _notify_unanswered(result: Answer, question: str, conversation_id: str | Non
 
 
 @router.post("/conversations/{conversation_id}/messages", response_model=sc.ExchangeOut)
-def ask(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(current_user),
+def ask(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(question_quota),
         settings: Settings = Depends(get_settings), database: Session = Depends(db.get_db)):
     c = _conversation(database, conversation_id, p)
     question = body.content.strip()
@@ -699,7 +732,7 @@ def _stream_answer(settings: Settings, conversation_id: str, p: Principal, quest
 
 
 @router.post("/conversations/{conversation_id}/messages/stream")
-def ask_stream(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(current_user),
+def ask_stream(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends(question_quota),
                settings: Settings = Depends(get_settings), database: Session = Depends(db.get_db)):
     c = _conversation(database, conversation_id, p)
     question = body.content.strip()
@@ -718,7 +751,7 @@ def ask_stream(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends
 
 
 @router.post("/messages/{message_id}/regenerate", response_model=sc.MessageOut)
-def regenerate(message_id: str, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+def regenerate(message_id: str, p: Principal = Depends(question_quota), settings: Settings = Depends(get_settings),
                database: Session = Depends(db.get_db)):
     m = database.get(db.MessageRow, message_id)
     if m is None or m.role != "assistant" or m.conversation.owner != p.username:
@@ -752,7 +785,7 @@ def regenerate(message_id: str, p: Principal = Depends(current_user), settings: 
 
 
 @router.post("/ask", response_model=sc.AskOut)
-def ask_direct(body: sc.AskIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+def ask_direct(body: sc.AskIn, p: Principal = Depends(question_quota), settings: Settings = Depends(get_settings),
                database: Session = Depends(db.get_db)):
     c = _conversation(database, body.conversation_id, p) if body.conversation_id else None
     question = body.question.strip()
@@ -784,7 +817,7 @@ def ask_direct(body: sc.AskIn, p: Principal = Depends(current_user), settings: S
 
 
 @router.post("/search", response_model=sc.SearchOut)
-def search(body: sc.SearchIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+def search(body: sc.SearchIn, p: Principal = Depends(question_quota), settings: Settings = Depends(get_settings),
            database: Session = Depends(db.get_db)):
     query = body.query.strip()
     if not query:
@@ -838,7 +871,7 @@ def feedback(message_id: str, body: sc.FeedbackIn, p: Principal = Depends(curren
     database.refresh(m)
     if body.rating == -1 and previous != -1:
         webhooks.emit("feedback.negative", {"message_id": m.id, "question": _question_for(m), "answer": m.content,
-                                            "username": p.username})
+                                            "comment": body.comment, "username": p.username})
     return _message_out(m, p.username)
 
 
@@ -863,15 +896,53 @@ def _pairs(rows: list[db.MessageRow]) -> list[tuple[db.MessageRow, db.MessageRow
     return pairs
 
 
-@router.get("/metrics", response_model=sc.MetricsOut)
-def metrics(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_user),
-            database: Session = Depends(db.get_db)):
+def _metric_pairs(database: Session, days: int, p: Principal, bot_id: str | None):
     first = db.utcnow().date() - timedelta(days=days - 1)
     query = (select(db.MessageRow).join(db.ConversationRow, db.MessageRow.conversation_id == db.ConversationRow.id)
              .where(db.MessageRow.created_at >= datetime.combine(first, datetime.min.time())))
     if not p.is_admin:
         query = query.where(db.ConversationRow.owner == p.username)
     pairs = _pairs(list(database.scalars(query).all()))
+    ids = {q.conversation_id for q, _ in pairs}
+    owners: dict[str, tuple[str | None, str]] = {}
+    if ids:
+        owners = {cid: (bid, owner) for cid, bid, owner in database.execute(
+            select(db.ConversationRow.id, db.ConversationRow.bot_id, db.ConversationRow.owner)
+            .where(db.ConversationRow.id.in_(ids))).all()}
+    if bot_id == "geral":
+        chosen = [qa for qa in pairs if owners.get(qa[0].conversation_id, (None, ""))[0] is None]
+    elif bot_id:
+        chosen = [qa for qa in pairs if owners.get(qa[0].conversation_id, (None, ""))[0] == bot_id]
+    else:
+        chosen = pairs
+    return first, pairs, chosen, owners
+
+
+def _bot_stats(database: Session, pairs, owners) -> list[sc.BotStat]:
+    groups: dict[str | None, list] = defaultdict(list)
+    for q, a in pairs:
+        groups[owners.get(q.conversation_id, (None, ""))[0]].append((q, a))
+    bots = {b.id: b for b in database.scalars(select(db.BotRow).where(db.BotRow.id.in_([k for k in groups if k]))).all()} \
+        if any(groups) else {}
+    out: list[sc.BotStat] = []
+    for key, items in groups.items():
+        answers = [a for _, a in items if a is not None]
+        answered = sum(1 for a in answers if a.answered)
+        latencies = [a.latency_ms for a in answers if a.latency_ms is not None]
+        negative = sum(1 for a in answers if any(f.rating < 0 for f in a.feedback))
+        bot = bots.get(key) if key else None
+        out.append(sc.BotStat(bot_id=key, name=bot.name if bot else ("Conversas gerais" if key is None else "Agente excluído"),
+                              color=bot.color if bot else None, questions=len(items), answered=answered,
+                              answer_rate=round(answered / len(items), 4) if items else None, negative=negative,
+                              avg_latency_ms=round(sum(latencies) / len(latencies)) if latencies else None))
+    out.sort(key=lambda b: (-b.questions, b.name.lower()))
+    return out
+
+
+@router.get("/metrics", response_model=sc.MetricsOut)
+def metrics(days: int = Query(30, ge=1, le=365), bot_id: str | None = Query(None, max_length=32),
+            p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    first, everything, pairs, owners = _metric_pairs(database, days, p, bot_id)
     answers = [a for _, a in pairs if a is not None]
     answered = sum(1 for a in answers if a.answered)
     missed = [(q, a) for q, a in pairs if a is not None and a.answered is False]
@@ -900,6 +971,11 @@ def metrics(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_
     missed.sort(key=lambda qa: qa[0].created_at, reverse=True)
     negative = [(q, a) for q, a in pairs if a is not None and any(f.rating < 0 for f in a.feedback)]
     negative.sort(key=lambda qa: qa[0].created_at, reverse=True)
+
+    def _comment(a: db.MessageRow) -> str | None:
+        notes = [f.comment.strip() for f in a.feedback if f.rating < 0 and f.comment and f.comment.strip()]
+        return " · ".join(notes) or None
+
     return sc.MetricsOut(
         scope="all" if p.is_admin else "mine",
         period_days=days,
@@ -916,43 +992,47 @@ def metrics(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_
         unanswered_recent=[sc.UnansweredItem(question=q.content, asked_at=q.created_at,
                                              conversation_id=q.conversation_id) for q, _ in missed[:10]],
         negative_recent=[sc.NegativeItem(question=q.content, answer=a.content, asked_at=q.created_at,
-                                         conversation_id=q.conversation_id, message_id=a.id)
+                                         conversation_id=q.conversation_id, message_id=a.id, comment=_comment(a),
+                                         owner=owners.get(q.conversation_id, (None, None))[1])
                          for q, a in negative[:10]],
+        by_bot=_bot_stats(database, everything, owners),
+        bot_id=bot_id,
     )
 
 
 @router.get("/metrics/export")
-def metrics_export(days: int = Query(30, ge=1, le=365), p: Principal = Depends(current_user),
-                   database: Session = Depends(db.get_db)):
-    first = db.utcnow().date() - timedelta(days=days - 1)
-    query = (select(db.MessageRow).join(db.ConversationRow, db.MessageRow.conversation_id == db.ConversationRow.id)
-             .where(db.MessageRow.created_at >= datetime.combine(first, datetime.min.time())))
-    if not p.is_admin:
-        query = query.where(db.ConversationRow.owner == p.username)
-    pairs = sorted(_pairs(list(database.scalars(query).all())), key=lambda qa: qa[0].created_at)
+def metrics_export(days: int = Query(30, ge=1, le=365), bot_id: str | None = Query(None, max_length=32),
+                   p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    _, _, chosen, _ = _metric_pairs(database, days, p, bot_id)
+    pairs = sorted(chosen, key=lambda qa: qa[0].created_at)
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", lineterminator="\r\n")
     writer.writerow(["data_utc", "usuario", "conversa", "agente", "pergunta", "respondida", "avaliacao", "latencia_ms",
-                     "modelo", "fontes"])
+                     "modelo", "fontes", "comentario"])
     bots = dict(database.execute(select(db.BotRow.id, db.BotRow.name)).all())
     for question, answer in pairs:
         conversation = question.conversation
         ratings = [f.rating for f in answer.feedback] if answer is not None else []
         rating = "" if not ratings else ("positiva" if sum(ratings) > 0 else "negativa" if sum(ratings) < 0 else "mista")
+        comments = " · ".join(f.comment.strip() for f in answer.feedback if f.comment and f.comment.strip()) \
+            if answer is not None else ""
         sources = "; ".join(f"{s.document_title} (p. {s.page})" for s in answer.sources) if answer is not None else ""
         answered = "" if answer is None or answer.answered is None else ("sim" if answer.answered else "não")
         writer.writerow([question.created_at.strftime("%Y-%m-%d %H:%M:%S"), conversation.owner, conversation.title,
                          bots.get(conversation.bot_id, "") if conversation.bot_id else "",
                          " ".join(question.content.split()), answered, rating,
                          answer.latency_ms if answer is not None and answer.latency_ms is not None else "",
-                         answer.model if answer is not None and answer.model else "", sources])
+                         answer.model if answer is not None and answer.model else "", sources, comments])
     name = f"nexo-perguntas-{db.utcnow().date().isoformat()}-{days}d.csv"
     return Response("\ufeff" + out.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 def _key_out(row: db.ApiKeyRow) -> sc.ApiKeyOut:
-    return sc.ApiKeyOut.model_validate(row, from_attributes=True)
+    out = sc.ApiKeyOut.model_validate(row, from_attributes=True)
+    out.scope = row.scope or "full"
+    out.expired = bool(row.expires_at and row.expires_at <= db.utcnow())
+    return out
 
 
 @router.get("/keys", response_model=list[sc.ApiKeyOut])
@@ -967,10 +1047,15 @@ def create_key(body: sc.ApiKeyIn, p: Principal = Depends(current_user), database
     name = " ".join(body.name.split())
     if not name:
         raise ApiError(400, "EMPTY", "Dê um nome à chave.", {"name": "Dê um nome à chave."})
+    if p.key_scope not in (None, "full"):
+        raise ApiError(403, "KEY_SCOPE", "Uma chave restrita não pode criar outras chaves.")
     key = new_api_key()
-    row = db.ApiKeyRow(owner=p.username, name=name, prefix=key[:12], key_hash=hash_api_key(key))
+    expires = db.utcnow() + timedelta(days=body.expires_days) if body.expires_days else None
+    row = db.ApiKeyRow(owner=p.username, name=name, prefix=key[:12], key_hash=hash_api_key(key), scope=body.scope,
+                       expires_at=expires)
     database.add(row)
     database.commit()
+    audit.record("key.create", "key", row.id, {"name": name, "scope": body.scope, "expires_at": expires}, actor=p.username)
     return sc.ApiKeyCreated(**_key_out(row).model_dump(), key=key)
 
 
@@ -979,8 +1064,10 @@ def delete_key(key_id: str, p: Principal = Depends(current_user), database: Sess
     row = database.get(db.ApiKeyRow, key_id)
     if row is None or row.owner != p.username:
         raise ApiError(404, "NOT_FOUND", "Chave não encontrada.")
+    name = row.name
     database.delete(row)
     database.commit()
+    audit.record("key.delete", "key", key_id, {"name": name}, actor=p.username)
     return Response(status_code=204)
 
 
@@ -1032,6 +1119,7 @@ def create_webhook(body: sc.WebhookIn, p: Principal = Depends(current_user), dat
                         active=True, created_by=p.username)
     database.add(row)
     database.commit()
+    audit.record("webhook.create", "webhook", row.id, {"url": url, "events": row.event_list}, actor=p.username)
     return sc.WebhookCreated(**_webhook_out(row).model_dump(), secret=secret)
 
 
@@ -1041,13 +1129,17 @@ def update_webhook(webhook_id: str, body: sc.WebhookPatch, p: Principal = Depend
     row = _webhook(database, webhook_id, p)
     row.active = body.active
     database.commit()
+    audit.record("webhook.update", "webhook", row.id, {"active": body.active}, actor=p.username)
     return _webhook_out(row)
 
 
 @router.delete("/webhooks/{webhook_id}", status_code=204)
 def delete_webhook(webhook_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
-    database.delete(_webhook(database, webhook_id, p))
+    row = _webhook(database, webhook_id, p)
+    url = row.url
+    database.delete(row)
     database.commit()
+    audit.record("webhook.delete", "webhook", webhook_id, {"url": url}, actor=p.username)
     return Response(status_code=204)
 
 
@@ -1073,9 +1165,11 @@ def list_users(p: Principal = Depends(current_user), users: UserStore = Depends(
 def create_user(body: sc.UserCreateIn, p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
     _require_admin(p, USERS_ADMIN)
     try:
-        return sc.UserOut(**users.create(body.name, body.username, body.password, body.role).public())
+        user = users.create(body.name, body.username, body.password, body.role)
     except UserError as e:
         raise _user_error(e)
+    audit.record("user.create", "user", user.username, {"role": user.role}, actor=p.username)
+    return sc.UserOut(**user.public())
 
 
 @router.put("/users/{username}/password", response_model=sc.UserOut)
@@ -1093,6 +1187,7 @@ def reset_user_password(username: str, body: sc.PasswordResetIn, p: Principal = 
             raise ApiError(404, "NOT_FOUND", e.message)
         raise ApiError(400, e.code, e.message, {"password": e.message})
     users.unlock(key)
+    audit.record("user.password", "user", key, actor=p.username)
     return sc.UserOut(**user.public())
 
 
@@ -1108,9 +1203,11 @@ def set_role(username: str, body: sc.RolePatch, p: Principal = Depends(current_u
         message = "Você não pode rebaixar a própria conta."
         raise ApiError(400, "SELF", message, {"role": message})
     try:
-        return sc.UserOut(**users.set_role(key, body.role).public())
+        user = users.set_role(key, body.role)
     except UserError as e:
         raise _user_error(e)
+    audit.record("user.role", "user", key, {"role": body.role}, actor=p.username)
+    return sc.UserOut(**user.public())
 
 
 @router.delete("/users/{username}", status_code=204)
@@ -1128,4 +1225,5 @@ def delete_user(username: str, p: Principal = Depends(current_user), users: User
     for c in database.scalars(select(db.ConversationRow).where(db.ConversationRow.owner == key)).all():
         database.delete(c)
     database.commit()
+    audit.record("user.delete", "user", key, actor=p.username)
     return Response(status_code=204)

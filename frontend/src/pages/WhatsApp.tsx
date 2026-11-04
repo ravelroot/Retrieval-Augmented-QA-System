@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ApiError, api, type Bot, type Channel, type ChannelInput, type ChannelStatus, type Contact, type ContactDetail,
-  type ContactFilter, type Provider, type WaMessage, type WaSummary,
+  type ContactFilter, type Provider, type QuickReply, type WaMessage, type WaSummary,
 } from "../api";
 import { useAuth } from "../auth";
 import { Icon } from "../components/Icon";
@@ -142,6 +142,119 @@ function Simulator({ channel, onSent }: { channel: Channel; onSent: (contactId: 
   );
 }
 
+function fillReply(body: string, contact: { name: string | null; phone: string }): string {
+  const first = (contact.name ?? "").trim().split(/\s+/)[0] ?? "";
+  return body.replace(/\{nome\}/gi, first).replace(/\{telefone\}/gi, phoneLabel(contact.phone)).replace(/ ,/g, ",").replace(/\s{2,}/g, " ");
+}
+
+function QuickReplies({ onClose, onChanged }: { onClose: () => void; onChanged: (list: QuickReply[]) => void }) {
+  const toast = useToast();
+  const [list, setList] = useState<QuickReply[]>([]);
+  const [editing, setEditing] = useState<QuickReply | "new" | null>(null);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const load = () => api.quickReplies().then((l) => { setList(l); onChanged(l); }).catch((e: ApiError) => toast(e.message, "error"));
+  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function start(target: QuickReply | "new") {
+    setEditing(target);
+    setTitle(target === "new" ? "" : target.title);
+    setBody(target === "new" ? "" : target.body);
+    setErrors({});
+  }
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    try {
+      if (editing === "new") await api.createQuickReply(title.trim(), body.trim());
+      else if (editing) await api.updateQuickReply(editing.id, { title: title.trim(), body: body.trim() });
+      toast(editing === "new" ? "Resposta pronta criada." : "Resposta pronta salva.");
+      setEditing(null);
+      void load();
+    } catch (err) {
+      const apiError = err as ApiError;
+      setErrors(Object.keys(apiError.fields).length ? apiError.fields : { form: apiError.message });
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await api.deleteQuickReply(id);
+      setConfirm(null);
+      toast("Resposta pronta excluída.");
+      void load();
+    } catch (err) {
+      toast((err as ApiError).message, "error");
+    }
+  }
+
+  return (
+    <div className="palette-backdrop" onMouseDown={onClose}>
+      <div className="palette replies" role="dialog" aria-modal="true" aria-label="Respostas prontas" onMouseDown={(e) => e.stopPropagation()}>
+        <header className="shortcuts__head">
+          <div>
+            <h2 className="fina">Respostas prontas</h2>
+            <p className="panel__lead">Textos que a equipe usa sempre. Use <code>{"{nome}"}</code> e <code>{"{telefone}"}</code> para preencher com os dados do contato.</p>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Fechar"><Icon name="close" /></button>
+        </header>
+        <div className="replies__body">
+          {editing ? (
+            <form className="replies__form" onSubmit={save} noValidate>
+              <label className="kb-field"><span>Título</span>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} autoFocus placeholder="Ex.: Horário de atendimento" />
+              </label>
+              {errors.title && <p className="field__message">{errors.title}</p>}
+              <label className="kb-field"><span>Texto</span>
+                <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={4000}
+                  placeholder="Ex.: Oi, {nome}! Atendemos de segunda a sexta, das 8h às 18h." />
+              </label>
+              {(errors.body || errors.form) && <p className="field__message">{errors.body ?? errors.form}</p>}
+              <div className="kb-form__actions">
+                <button className="primary-button small" type="submit" disabled={!title.trim() || !body.trim()}>Salvar</button>
+                <button className="ghost-button small" type="button" onClick={() => setEditing(null)}>Cancelar</button>
+              </div>
+            </form>
+          ) : (
+            <button className="ghost-button small" onClick={() => start("new")}><Icon name="plus" size={15} />Nova resposta pronta</button>
+          )}
+          {list.length === 0 && !editing && <p className="panel__lead">Nenhuma resposta pronta ainda.</p>}
+          <ul className="replies__list">
+            {list.map((r) => (
+              <li key={r.id}>
+                <div>
+                  <strong>{r.title}</strong>
+                  <p>{r.body}</p>
+                  <small>por {r.created_by}</small>
+                </div>
+                {r.can_edit && (confirm === r.id ? (
+                  <span className="panel__actions">
+                    <button className="danger-button small" onClick={() => remove(r.id)}>Excluir</button>
+                    <button className="ghost-button small" onClick={() => setConfirm(null)}>Manter</button>
+                  </span>
+                ) : (
+                  <span className="panel__actions">
+                    <button className="icon-button" title="Editar" aria-label={`Editar ${r.title}`} onClick={() => start(r)}><Icon name="edit" size={15} /></button>
+                    <button className="icon-button" title="Excluir" aria-label={`Excluir ${r.title}`} onClick={() => setConfirm(r.id)}><Icon name="trash" size={15} /></button>
+                  </span>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; onSetup: () => void }) {
   const toast = useToast();
   const [channelId, setChannelId] = useState(channels[0]?.id ?? "");
@@ -155,7 +268,12 @@ function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; 
   const [suggesting, setSuggesting] = useState(false);
   const [summary, setSummary] = useState<WaSummary | null>(null);
   const [pane, setPane] = useState<"list" | "chat">("list");
+  const [replies, setReplies] = useState<QuickReply[]>([]);
+  const [replyMenu, setReplyMenu] = useState(false);
+  const [replyFilter, setReplyFilter] = useState("");
+  const [managing, setManaging] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const channel = channels.find((c) => c.id === channelId) ?? channels[0];
   const bot = bots.find((b) => b.id === channel?.bot_id) ?? null;
 
@@ -179,6 +297,7 @@ function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; 
   }, [openId]);
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
+  useEffect(() => { api.quickReplies().then(setReplies).catch(() => undefined); }, []);
   useEffect(() => { setDetail(null); loadDetail(); }, [openId]);
   useEffect(() => {
     const timer = window.setInterval(() => { loadContacts(); loadDetail(); }, 3000);
@@ -210,11 +329,46 @@ function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; 
   }
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (replyMenu && e.key === "Escape") {
+      e.preventDefault();
+      setReplyMenu(false);
+      return;
+    }
+    if (replyMenu && e.key === "Enter" && shownReplies[0]) {
+      e.preventDefault();
+      insertReply(shownReplies[0]);
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void send();
     }
   }
+
+  function onText(value: string) {
+    setText(value);
+    if (value.startsWith("/") && !value.includes("\n")) {
+      setReplyMenu(true);
+      setReplyFilter(value.slice(1));
+    } else if (replyMenu && replyFilter) {
+      setReplyMenu(false);
+      setReplyFilter("");
+    }
+  }
+
+  function insertReply(r: QuickReply) {
+    if (!detail) return;
+    const filled = fillReply(r.body, detail);
+    setText((current) => (current.startsWith("/") || !current.trim() ? filled : `${current.trimEnd()}\n${filled}`));
+    setReplyMenu(false);
+    setReplyFilter("");
+    window.setTimeout(() => composer.current?.focus(), 0);
+  }
+
+  const shownReplies = useMemo(() => {
+    const q = replyFilter.trim().toLowerCase();
+    return replies.filter((r) => !q || r.title.toLowerCase().includes(q) || r.body.toLowerCase().includes(q)).slice(0, 8);
+  }, [replies, replyFilter]);
 
   async function suggest() {
     if (!detail) return;
@@ -363,9 +517,28 @@ function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; 
                 <div ref={bottom} />
               </div>
               <form className="wa-composer" onSubmit={send}>
-                <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} rows={2} maxLength={4000}
+                <textarea ref={composer} value={text} onChange={(e) => onText(e.target.value)} onKeyDown={onKey} rows={2} maxLength={4000}
                   placeholder="Responder como pessoa (Enter envia, Shift + Enter quebra a linha)" aria-label="Resposta" />
                 <div className="wa-composer__actions">
+                  <span className="menu-anchor">
+                    <button type="button" className={`icon-button${replyMenu ? " is-on" : ""}`} aria-expanded={replyMenu} aria-label="Respostas prontas"
+                      onClick={() => { setReplyFilter(""); setReplyMenu(!replyMenu); }} title="Respostas prontas (ou digite / na caixa)">
+                      <Icon name="quick" size={17} />
+                    </button>
+                    {replyMenu && (
+                      <span className="menu quick-menu" role="menu">
+                        {shownReplies.length === 0 && <span className="quick-menu__empty">{replies.length ? "Nenhuma resposta com esse termo." : "Nenhuma resposta pronta ainda."}</span>}
+                        {shownReplies.map((r) => (
+                          <button key={r.id} role="menuitem" type="button" onClick={() => insertReply(r)}>
+                            {r.title}<small>{fillReply(r.body, detail).slice(0, 90)}</small>
+                          </button>
+                        ))}
+                        <button type="button" role="menuitem" className="quick-menu__manage" onClick={() => { setReplyMenu(false); setManaging(true); }}>
+                          <span><Icon name="edit" size={14} /> Gerenciar respostas prontas</span>
+                        </button>
+                      </span>
+                    )}
+                  </span>
                   <button type="button" className="ghost-button small" onClick={suggest} disabled={suggesting || !bot}
                     title={bot ? "O agente redige; você revisa e envia" : "Escolha um agente para esta conexão"}>
                     <Icon name="sparkle" size={15} />{suggesting ? "Pensando…" : "Sugerir resposta"}
@@ -377,6 +550,7 @@ function Inbox({ channels, bots, onSetup }: { channels: Channel[]; bots: Bot[]; 
           )}
         </section>
 
+        {managing && <QuickReplies onClose={() => setManaging(false)} onChanged={setReplies} />}
         <aside className="wa-side" aria-label="Detalhes do contato">
           {detail ? (
             <>

@@ -4,13 +4,33 @@ CREATE TABLE nx_api_key (
 	name VARCHAR(80) NOT NULL,
 	prefix VARCHAR(16) NOT NULL,
 	key_hash VARCHAR(64) NOT NULL,
+	scope VARCHAR(16) NOT NULL,
 	created_at DATETIME NOT NULL,
 	last_used_at DATETIME,
+	expires_at DATETIME,
 	PRIMARY KEY (id),
 	UNIQUE (key_hash)
 );
 
 CREATE INDEX ix_nx_api_key_owner ON nx_api_key (owner);
+
+CREATE TABLE nx_audit (
+	id INTEGER NOT NULL,
+	created_at DATETIME NOT NULL,
+	actor VARCHAR(32) NOT NULL,
+	action VARCHAR(40) NOT NULL,
+	target_type VARCHAR(20),
+	target_id VARCHAR(64),
+	detail TEXT,
+	ip VARCHAR(64),
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ix_nx_audit_action ON nx_audit (action);
+
+CREATE INDEX ix_nx_audit_actor ON nx_audit (actor);
+
+CREATE INDEX ix_nx_audit_created_at ON nx_audit (created_at);
 
 CREATE TABLE nx_knowledge_base (
 	id VARCHAR(32) NOT NULL,
@@ -18,6 +38,16 @@ CREATE TABLE nx_knowledge_base (
 	description TEXT,
 	color VARCHAR(16) NOT NULL,
 	is_default BOOLEAN NOT NULL,
+	created_by VARCHAR(32) NOT NULL,
+	created_at DATETIME NOT NULL,
+	updated_at DATETIME NOT NULL,
+	PRIMARY KEY (id)
+);
+
+CREATE TABLE nx_quick_reply (
+	id VARCHAR(32) NOT NULL,
+	title VARCHAR(80) NOT NULL,
+	body TEXT NOT NULL,
 	created_by VARCHAR(32) NOT NULL,
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL,
@@ -48,6 +78,7 @@ CREATE TABLE nx_bot (
 	fallback VARCHAR(500),
 	color VARCHAR(16) NOT NULL,
 	cite_sources BOOLEAN NOT NULL,
+	suggestions TEXT,
 	created_by VARCHAR(32) NOT NULL,
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL,
@@ -75,6 +106,8 @@ CREATE TABLE nx_document (
 	created_at DATETIME NOT NULL,
 	indexed_at DATETIME,
 	updated_at DATETIME,
+	index_signature VARCHAR(64),
+	source_url VARCHAR(1000),
 	PRIMARY KEY (id),
 	CONSTRAINT uk_document_base_sha256 UNIQUE (base_id, sha256),
 	FOREIGN KEY(base_id) REFERENCES nx_knowledge_base (id) ON DELETE CASCADE
@@ -91,6 +124,7 @@ CREATE TABLE nx_conversation (
 	owner VARCHAR(32) NOT NULL,
 	bot_id VARCHAR(32),
 	title VARCHAR(160) NOT NULL,
+	pinned BOOLEAN NOT NULL,
 	created_at DATETIME NOT NULL,
 	updated_at DATETIME NOT NULL,
 	PRIMARY KEY (id),

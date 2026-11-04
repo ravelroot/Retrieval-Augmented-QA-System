@@ -45,6 +45,12 @@ const paths: Record<string, string> = {
   move: "M5 12h14M15 8l4 4-4 4M9 8 5 12l4 4",
   arrowLeft: "M19 12H5M11 6l-6 6 6 6",
   user2: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20a6 6 0 0 1 12 0M16 4a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3 6",
+  pin: "M9 4h6l-1 6 3 3H7l3-3zM12 13v7",
+  print: "M7 9V4h10v5M7 17H5v-6h14v6h-2M7 14h10v6H7z",
+  layers: "M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4",
+  globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z",
+  quick: "M5 5h14v10H9l-4 4zM9 9h6M9 12h4",
+  duplicate: "M8 8h11v11H8zM5 16V5h11",
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof paths | string; size?: number }) {

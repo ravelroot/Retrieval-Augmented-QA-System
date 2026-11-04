@@ -99,7 +99,7 @@ def test_simulator_auto_reply_handoff_and_human_takeover(client):
     client.post(f"/api/whatsapp/channels/{channel['id']}/simulate", headers=headers,
                 json={"phone": "21999991234", "text": "Quero falar com um atendente"})
     settle()
-    contact = client.get(f"/api/whatsapp/contacts?filter=waiting", headers=headers).json()
+    contact = client.get("/api/whatsapp/contacts?filter=waiting", headers=headers).json()
     assert len(contact) == 1 and contact[0]["needs_human"] is True and contact[0]["bot_enabled"] is False
     client.post(f"/api/whatsapp/channels/{channel['id']}/simulate", headers=headers,
                 json={"phone": "21999991234", "text": "Alguém aí?"})
@@ -112,7 +112,7 @@ def test_simulator_auto_reply_handoff_and_human_takeover(client):
     r = client.post(f"/api/whatsapp/contacts/{contact_id}/messages", headers=headers,
                     json={"text": "Oi, Ana! Sou o Erik, posso ajudar."})
     assert r.status_code == 201 and r.json()["author"] == "admin" and r.json()["status"] == "sent"
-    contact = client.get(f"/api/whatsapp/contacts?filter=human", headers=headers).json()[0]
+    contact = client.get("/api/whatsapp/contacts?filter=human", headers=headers).json()[0]
     assert contact["needs_human"] is False and contact["bot_enabled"] is False
 
     r = client.patch(f"/api/whatsapp/contacts/{contact_id}", headers=headers, json={"bot_enabled": True})

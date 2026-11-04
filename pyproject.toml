@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexo"
-version = "2.2.0"
+version = "2.3.0"
 description = "Chatbot RAG que responde dúvidas com base estrita em manuais técnicos e livros em PDF."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,3 +17,15 @@ include = ["nexo*"]
 testpaths = ["tests"]
 addopts = "-q"
 filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
+
+[tool.ruff]
+line-length = 135
+target-version = "py311"
+extend-exclude = ["frontend", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/docs/*.py" = ["E501"]
+"scripts/gerar_pdf_exemplo.py" = ["E501"]

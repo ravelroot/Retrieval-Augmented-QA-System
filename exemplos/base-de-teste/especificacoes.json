@@ -1,0 +1,18 @@
+{
+  "modelo": "RX-200",
+  "fabricante": "Fictícia Redes",
+  "wifi": {
+    "padrao": "Wi-Fi 6 (802.11ax)",
+    "bandas": ["2,4 GHz", "5 GHz"],
+    "velocidade maxima": "1.800 Mbps somando as duas bandas",
+    "antenas": "4 externas de 5 dBi"
+  },
+  "portas": {
+    "lan": "4 Gigabit",
+    "wan": "1 de 2,5 Gigabit",
+    "usb": "1 USB 3.0 para compartilhar arquivos"
+  },
+  "alimentacao": "fonte externa de 12 V e 1,5 A",
+  "dimensoes": "22 x 14 x 4 cm",
+  "peso": "380 g"
+}

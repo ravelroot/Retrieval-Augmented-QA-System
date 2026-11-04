@@ -26,6 +26,8 @@ erDiagram
     varchar(10) kind
     varchar(64) sha256 UK
     varchar(20) status
+    varchar(64) index_signature
+    varchar(1000) source_url
   }
   nx_bot {
     varchar(32) id PK
@@ -33,12 +35,14 @@ erDiagram
     varchar(32) base_id FK
     text instructions
     varchar(500) greeting
+    text suggestions
   }
   nx_conversation {
     varchar(32) id PK
     varchar(32) owner
     varchar(32) bot_id FK
     varchar(160) title
+    boolean pinned
     timestamp updated_at
   }
   nx_conversation_document {
@@ -64,6 +68,7 @@ erDiagram
     varchar(32) message_id FK
     varchar(32) owner
     integer rating
+    text comment
   }
   nx_whatsapp_channel {
     varchar(32) id PK
@@ -90,12 +95,27 @@ erDiagram
     varchar(32) id PK
     varchar(32) owner
     varchar(64) key_hash UK
+    varchar(16) scope
+    timestamp expires_at
   }
   nx_webhook {
     varchar(32) id PK
     varchar(300) events
     boolean active
     integer last_status
+  }
+  nx_quick_reply {
+    varchar(32) id PK
+    varchar(80) title
+    text body
+    varchar(32) created_by
+  }
+  nx_audit {
+    integer id PK
+    timestamp created_at
+    varchar(32) actor
+    varchar(40) action
+    text detail
   }
 """
 
@@ -131,16 +151,17 @@ def visao_geral(d):
         "padrão \"Acervo geral\" e a troca do único de sha256 pelo único por base (capítulo 12). No SQLite, cada conexão "
         "liga `PRAGMA foreign_keys=ON`, para que as regras ON DELETE funcionem, e `PRAGMA journal_mode=WAL`, para que "
         "leituras não esperem as gravações da fila. Os arquivos `docs/schema-postgresql.sql` e `docs/schema-sqlite.sql` "
-        f"trazem o DDL equivalente. A {VERSAO} não acrescenta nenhum passo à migração.")
+        "trazem o DDL equivalente. Desde a 2.3, a migração também acrescenta qualquer coluna nova que falte, com o valor "
+        "padrão.")
 
     d.secao("Convenções")
     d.tabela(["Convenção", "Regra"], [
         ("Prefixo", "Todas as tabelas começam com nx_, para conviver com outras aplicações no mesmo banco"),
         ("Chaves de texto", "id de bases, documentos, agentes, conversas, mensagens, chaves, webhooks, conexões, contatos e "
          "mensagens do WhatsApp é um UUID4 em hexadecimal, varchar(32), gerado pela aplicação"),
-        ("Chaves numéricas", "Fontes e avaliações usam integer autoincremento (SERIAL no PostgreSQL)"),
+        ("Chaves numéricas", "Fontes, avaliações e o registro de atividades usam integer autoincremento (SERIAL no PostgreSQL)"),
         ("Datas", "timestamp sem fuso, sempre em UTC; a interface converte para o horário local"),
-        ("Usuários", "Colunas owner, uploaded_by e created_by guardam o username do arquivo de contas (não há tabela de usuários)"),
+        ("Usuários", "Colunas owner, uploaded_by, created_by e actor guardam o username do arquivo de contas (não há tabela de usuários)"),
         ("Estados", "Documentos em maiúsculas (PENDING, PROCESSING, READY, FAILED); tipos e situações do WhatsApp em "
          "minúsculas (pdf, file, note; in, out; sent, delivered, read, failed)"),
         ("Listas curtas", "Os eventos de um webhook ficam numa coluna de texto, separados por vírgula; as fontes de uma "
@@ -155,20 +176,26 @@ def visao_geral(d):
         ("Mensagens", "nx_message, nx_message_source"),
         ("Qualidade", "nx_feedback"),
         ("Integrações", "nx_api_key, nx_webhook"),
-        ("WhatsApp", "nx_whatsapp_channel, nx_whatsapp_contact, nx_whatsapp_message"),
+        ("WhatsApp", "nx_whatsapp_channel, nx_whatsapp_contact, nx_whatsapp_message, nx_quick_reply"),
+        ("Operação", "nx_audit"),
     ], larguras=["24%", "76%"])
 
     d.secao(f"O que mudou na {VERSAO[:3]}", novo=True)
     d.lista([
-        f"Nenhuma tabela, coluna ou índice mudou. Um banco da 2.1 sobe na {VERSAO} sem migração.",
-        "O arquivo de contas ganhou `session_version` e `password_changed_at`, preenchidos sozinhos (capítulo 9).",
-        "Refazer uma resposta atualiza a linha de `nx_message` no lugar, troca as linhas de `nx_message_source` e apaga as "
-        "avaliações dela em `nx_feedback` (seção 13.6).",
-        "Respostas em streaming só gravam a troca no fim; uma resposta cancelada não deixa nenhuma linha.",
-        "`nx_webhook.last_status` passa a guardar o resultado da última tentativa de cada entrega (seção 7.4).",
-        "`nx_document.kind = 'file'` e `extension` passam a aceitar também `odt`, `epub`, `pptx` e `xlsx`, sem mudar o "
-        "tipo das colunas.",
+        "Duas tabelas novas: `nx_quick_reply`, as respostas prontas do WhatsApp (seção 6.5), e `nx_audit`, o registro de "
+        "atividades (seção 7.5).",
+        "`nx_document` ganhou `index_signature`, a assinatura da configuração usada na indexação, e `source_url`, o link "
+        "de origem dos itens importados da internet.",
+        "`nx_bot.suggestions` guarda até seis perguntas sugeridas; `nx_conversation.pinned` fixa a conversa no topo.",
+        "`nx_api_key` ganhou `scope` (full, ask ou feed) e `expires_at` (validade opcional).",
+        "`nx_feedback.comment`, que já existia, passa a ser preenchido pela tela quando a resposta não ajudou.",
+        "A migração acrescenta sozinha as colunas que faltam (capítulo 12). Os ajustes feitos pela tela ficam em "
+        "`data/ajustes.json` (seção 9.4).",
     ])
+    d.p("**Na 2.2** nenhuma tabela mudou: o arquivo de contas ganhou `session_version` e `password_changed_at`, Refazer "
+        "passou a atualizar a resposta no lugar (seção 13.6), as respostas em streaming só gravam no fim, "
+        "`nx_webhook.last_status` passou a guardar a última tentativa (seção 7.4) e `extension` passou a aceitar `odt`, "
+        "`epub`, `pptx` e `xlsx`.")
     d.p("**Na 2.1** chegaram cinco tabelas (`nx_knowledge_base`, `nx_bot`, `nx_whatsapp_channel`, `nx_whatsapp_contact` e "
         "`nx_whatsapp_message`); `nx_document` ganhou `base_id`, `kind`, `extension`, `content` e `updated_at`, com o "
         "único de sha256 valendo por base (`uk_document_base_sha256`); `nx_conversation` ganhou `bot_id`; e o arquivo "
@@ -197,8 +224,8 @@ def diagrama(d):
          "apaga chaves e conversas junto com a conta"),
     ], larguras=["22%", "27%", "13%", "38%"])
     d.secao("Diagrama", quebra=True)
-    d.diagrama(ER_DIAGRAMA, "As treze tabelas do Nexo, iguais às da 2.1. \"||\" indica exatamente um, \"|o\" zero ou um "
-               "e \"o{\" muitos. nx_api_key e nx_webhook se ligam às contas pelo nome de usuário.", altura_max_mm=215)
+    d.diagrama(ER_DIAGRAMA, "As quinze tabelas do Nexo, com nx_quick_reply e nx_audit da 2.3. \"||\" indica exatamente um, \"|o\" zero ou um "
+               "e \"o{\" muitos. nx_api_key, nx_webhook, nx_quick_reply e nx_audit se ligam às contas pelo nome de usuário.", altura_max_mm=215)
 
 
 def bases(d):
@@ -223,7 +250,7 @@ def bases(d):
         ("id", "varchar(32)", "não", "UUID4 hex", "PK. O arquivo fica em data/uploads/<id>.<extensão>"),
         ("base_id", "varchar(32)", "não", "base padrão", "FK para nx_knowledge_base, ON DELETE CASCADE (indexado)"),
         ("kind", "varchar(10)", "não", "pdf", "pdf, file (DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON, HTML) ou note (texto digitado)"),
-        ("extension", "varchar(10)", "não", "pdf", "pdf, docx, odt [[novo]], epub [[novo]], pptx [[novo]], xlsx [[novo]], txt, md, "
+        ("extension", "varchar(10)", "não", "pdf", "pdf, docx, odt, epub, pptx, xlsx, txt, md, "
          "csv, json, html ou note"),
         ("content", "text", "sim", "—", "O texto, quando kind = note"),
         ("title", "varchar(200)", "não", "—", "Título; entra no texto do embedding"),
@@ -303,7 +330,7 @@ def conversas(d):
         ("model / latency_ms", "varchar(120) / integer", "sim", "Modelo que respondeu e tempo gasto"),
         ("created_at", "timestamp", "não", "Índice composto com conversation_id"),
     ], larguras=LARG4)
-    d.p("Refazer [[novo]] reescreve `content`, `answered`, `grounded`, `model` e `latency_ms` da mesma linha de resposta; o "
+    d.p("Refazer reescreve `content`, `answered`, `grounded`, `model` e `latency_ms` da mesma linha de resposta; o "
         "`id` e a posição na conversa não mudam.")
     d.secao("nx_message_source")
     d.tabela(COLS4, [
@@ -385,18 +412,29 @@ def whatsapp(d):
         "e não acionam o agente.",
     ])
 
+    d.secao("nx_quick_reply", novo=True)
+    d.tabela(COLS, [
+        ("id", "varchar(32)", "não", "UUID4 hex", "PK"),
+        ("title", "varchar(80)", "não", "—", "Título mostrado no menu; a API recusa repetidos (409 NAME_TAKEN)"),
+        ("body", "text", "não", "—", "Texto, com {nome} e {telefone} trocados pelos dados do contato"),
+        ("created_by", "varchar(32)", "não", "—", "Quem criou; só essa conta ou um administrador altera"),
+        ("created_at / updated_at", "timestamp", "não", "agora (UTC)", "Criação e última alteração"),
+    ], larguras=LARG)
+
 
 def integracoes(d):
     d.capitulo("Integrações",
-               "As chaves de API e os webhooks não mudaram de estrutura. Na 2.2, as entregas dos webhooks ganharam "
-               "novas tentativas, e o resultado gravado é o da última tentativa.")
+               "Chaves de API, webhooks e o registro de atividades. Na 2.3, as chaves ganharam permissão e validade e "
+               "chegou a tabela nx_audit.")
     d.secao("nx_api_key")
     d.tabela(COLS, [
         ("id", "varchar(32)", "não", "UUID4 hex", "PK"),
         ("owner", "varchar(32)", "não", "—", "Username do dono (indexado)"),
         ("name / prefix", "varchar(80) / (16)", "não", "—", "Nome dado pelo usuário; 12 primeiros caracteres da chave"),
         ("key_hash", "varchar(64)", "não", "—", "Único. SHA-256 da chave completa"),
+        ("scope [[novo]]", "varchar(16)", "não", "full", "full (completa), ask (só consulta) ou feed (só alimentar bases)"),
         ("created_at / last_used_at", "timestamp", "não / sim", "agora (UTC)", "Criação e último uso"),
+        ("expires_at [[novo]]", "timestamp", "sim", "—", "Validade; nula quando a chave não vence"),
     ], larguras=LARG)
     d.sub("Restrições e índices")
     d.lista([
@@ -405,7 +443,7 @@ def integracoes(d):
         "`ix_nx_api_key_owner` em `owner`: lista as chaves do usuário e a contagem de `integrations.api_keys` em `/api/system/status`.",
     ])
     d.secao("Por que só o hash da chave é guardado")
-    d.diagrama(f"""
+    d.diagrama("""
 flowchart TB
   subgraph C["Criação"]
     direction LR
@@ -413,7 +451,7 @@ flowchart TB
   end
   subgraph U["Uso"]
     direction LR
-    B1["<b>X-API-Key ou Bearer</b><br/>nxk_…"] --> B2["<b>SHA-256 e busca por key_hash</b><br/>restrição única, um resultado"] --> B3{{"<b>Dono ainda existe?</b><br/>não: 401"}} --> B4["<b>Pedido autorizado</b><br/>last_used_at"]
+    B1["<b>X-API-Key ou Bearer</b><br/>nxk_…"] --> B2["<b>SHA-256 e busca por key_hash</b><br/>restrição única, um resultado"] --> B3{"<b>Dono ainda existe?</b><br/>não: 401"} --> B4["<b>Pedido autorizado</b><br/>last_used_at"]
   end
   C ~~~ U
   classDef escuro fill:#000000,stroke:#000000,color:#FFFFFF
@@ -464,6 +502,21 @@ flowchart TB
         "A falha de uma entrega nunca afeta a operação que a disparou: a pergunta, a avaliação, a indexação ou a mensagem "
         "do WhatsApp seguem normalmente.",
     ])
+
+    d.secao("nx_audit", novo=True)
+    d.p("Uma linha por ação registrada: entradas, cadastros, senhas e alterações em bases, textos, documentos, agentes, "
+        "chaves, webhooks, conexões, respostas prontas, contas, ajustes, manutenções e backups.")
+    d.tabela(COLS, [
+        ("id", "integer", "não", "autoincremento", "PK"),
+        ("created_at", "timestamp", "não", "agora (UTC)", "Quando aconteceu (indexado)"),
+        ("actor", "varchar(32)", "não", "—", "Conta que agiu, ou \"sistema\" (indexado)"),
+        ("action", "varchar(40)", "não", "—", "Código da ação, como auth.login, bot.update, settings.update (indexado)"),
+        ("target_type / target_id", "varchar(20) / (64)", "sim", "—", "Tipo e id do alvo"),
+        ("detail", "text", "sim", "—", "JSON com o que mudou; nunca senhas, chaves ou segredos"),
+        ("ip", "varchar(64)", "sim", "—", "Endereço de origem, respeitando X-Forwarded-For"),
+    ], larguras=LARG)
+    d.p("Os filtros da tela usam `action` como prefixo (`bot.` traz todas as ações de agentes). A tabela só cresce; para "
+        "limpar, apague por data, por exemplo `DELETE FROM nx_audit WHERE created_at < '2026-01-01'`.")
 
 
 def vetorial(d):
@@ -530,9 +583,9 @@ def contas(d):
         ("created_at / last_login_at", "ISO 8601 em UTC"),
         ("tutorial_done_at", "Quando a conta concluiu ou pulou o tutorial; nulo mostra o tutorial na próxima entrada. "
          "Arquivos antigos, sem o campo, valem como nulo"),
-        ("session_version [[novo]]", "Número que todo token da conta carrega. Sobe ao trocar a senha, em Sair dos outros "
+        ("session_version", "Número que todo token da conta carrega. Sobe ao trocar a senha, em Sair dos outros "
          "dispositivos e quando o administrador redefine a senha; tokens com número menor recebem 401 SESSION_REVOKED"),
-        ("password_changed_at [[novo]]", "Última troca ou redefinição de senha, em ISO 8601 UTC; nulo se a senha nunca mudou"),
+        ("password_changed_at", "Última troca ou redefinição de senha, em ISO 8601 UTC; nulo se a senha nunca mudou"),
     ], larguras=["30%", "70%"])
     d.lista([
         "Os dois campos novos entram sozinhos: contas gravadas pela 2.1, sem eles, continuam válidas e as sessões abertas "
@@ -551,12 +604,17 @@ def contas(d):
     d.secao("data/uploads")
     d.p("Cada arquivo é gravado como `<id>.<extensão>` (por exemplo `<id>.pdf`, `<id>.docx` ou `<id>.epub`), com o id de "
         "`nx_document`. O nome original fica só na coluna `filename`, o que evita conflitos e nomes perigosos no disco. "
-        "Os textos criados na aba Textos não geram arquivo: ficam só na coluna `content`.")
+        "Os textos criados na aba Textos não geram arquivo: ficam só na coluna `content`. Itens importados de um link "
+        "guardam aqui o conteúdo baixado.")
     d.secao("data/.segredo")
     d.p("Chave aleatória criada quando `NEXO_SECRET` está vazio. Apagar o arquivo invalida todas as sessões abertas de "
         "todas as contas; para encerrar as sessões de uma conta só, use a troca de senha ou Sair dos outros dispositivos, "
         "que mudam `session_version`. Chaves de API não dependem dele: continuam válidas porque são conferidas pelo hash. "
         "Os tokens das conexões do WhatsApp também não dependem dele.")
+    d.secao("data/ajustes.json")
+    d.p("Guarda só os valores alterados na tela Sistema e conta › Ajustes, como `{\"top_k\": 12, \"rate_limit\": 30}`. "
+        "Na leitura da configuração, esses valores vão por cima do `.env`; **Restaurar padrões** apaga as chaves do "
+        "arquivo. O arquivo é regravado de forma atômica e entra no backup.")
 
 
 def consultas(d):
@@ -602,13 +660,14 @@ def consultas(d):
         ("ix_nx_message_source_message_id / _document_id", "nx_message_source", "message_id; document_id"),
         ("uk_feedback_message_owner", "nx_feedback", "message_id, owner (único)"),
         ("ix_nx_api_key_owner e único de key_hash", "nx_api_key", "owner; key_hash"),
+        ("ix_nx_audit_created_at / _actor / _action", "nx_audit", "created_at; actor; action"),
         ("ix_nx_whatsapp_contact_channel_id", "nx_whatsapp_contact", "channel_id"),
         ("ix_nx_whatsapp_contact_last_message_at", "nx_whatsapp_contact", "last_message_at"),
         ("uk_whatsapp_contact_channel_phone", "nx_whatsapp_contact", "channel_id, phone (único)"),
         ("ix_nx_whatsapp_message_contact_created", "nx_whatsapp_message", "contact_id, created_at"),
         ("ix_nx_whatsapp_message_external_id", "nx_whatsapp_message", "external_id"),
     ], larguras=["46%", "24%", "30%"], cls="compacta")
-    d.p(f"A {VERSAO} não cria nem remove índices.")
+    d.p(f"A {VERSAO} cria os três índices de `nx_audit`; nenhum índice existente muda.")
     d.secao("Consultas úteis da 2.1")
     d.codigo("""
 SELECT b.name AS base,
@@ -774,12 +833,12 @@ def decisoes(d):
     d.p("Na 2.0, o mesmo arquivo não podia ser enviado duas vezes em todo o acervo. Desde a 2.1, a restrição vale por base "
         "(`uk_document_base_sha256`): o mesmo manual pode estar na base do Suporte e na do Comercial, cada cópia com os "
         "próprios vetores, e continua impossível repeti-lo dentro da mesma base.")
-    d.secao("Sessões revogadas por versão, sem tabela", novo=True)
+    d.secao("Sessões revogadas por versão, sem tabela")
     d.p("Em vez de uma tabela de sessões ou de uma lista de tokens revogados, cada conta tem um número, `session_version`, "
         "que vai dentro de cada token. Encerrar sessões é só subir o número no arquivo de contas: todo token antigo deixa "
         "de valer na hora, sem varrer nada. O custo é que não dá para encerrar uma sessão específica, só todas as da conta "
         "(a troca de senha e Sair dos outros dispositivos devolvem logo uma sessão nova para o aparelho atual).")
-    d.secao("Streaming grava só no fim", novo=True)
+    d.secao("Streaming grava só no fim")
     d.p("A resposta em streaming é montada em memória e só vira linhas em `nx_message` e `nx_message_source` no evento "
         "`done`. Uma resposta cancelada ou interrompida não deixa meia resposta no histórico, nem fontes soltas, nem "
         "pergunta sem par. O custo é que uma queda no meio perde o texto já mostrado, que pode ser pedido de novo.")
@@ -788,7 +847,7 @@ def decisoes(d):
 def migracao(d):
     d.capitulo("Migração automática",
                f"Bancos criados pela 2.0 sobem sem nenhum passo manual. A migração roda a cada inicialização e só faz o "
-               f"que falta. Bancos da 2.1 não precisam de nada para subir na {VERSAO}.")
+               f"que falta. Bancos da 2.1 e da 2.2 ganham as colunas e tabelas da {VERSAO} sozinhos.")
     d.secao("O que a migração faz")
     d.passos([
         "Cria as tabelas novas com `create_all`.",
@@ -797,6 +856,10 @@ def migracao(d):
         "base padrão, `kind = 'pdf'` e `extension = 'pdf'`, e troca o único de sha256 por `uk_document_base_sha256`.",
         "Em `nx_conversation`, acrescenta `bot_id`.",
         "Cria os índices novos que faltarem.",
+        "Compara cada tabela com o modelo e acrescenta, com `ALTER TABLE … ADD COLUMN` e o valor padrão, as colunas que "
+        "faltarem. Na 2.3: `index_signature`, `source_url`, `suggestions`, `pinned`, `scope` e `expires_at`.",
+        "Ao subir, carimba os documentos prontos sem `index_signature` com a assinatura atual, para que nada apareça "
+        "como desatualizado só por causa da atualização.",
     ])
     d.secao("SQLite: os 12 passos oficiais")
     d.p("O SQLite não remove uma restrição única com `ALTER TABLE`. Por isso a migração reconstrói `nx_document` seguindo o "
@@ -832,10 +895,10 @@ def fluxos(d):
          "resposta, dispara question.unanswered com conversation_id nulo"),
         ("POST /api/ask com conversation_id", "O mesmo que uma pergunta no chat (seção 13.2)"),
         ("POST /api/ask com bot_id", "O mesmo, usando a base e as instruções do agente"),
-        ("POST /api/conversations/{id}/messages/stream [[novo]]", "O mesmo que uma pergunta no chat, gravado só no evento done"),
+        ("POST /api/conversations/{id}/messages/stream", "O mesmo que uma pergunta no chat, gravado só no evento done"),
         ("POST /api/search", "Nada. A busca só lê o banco vetorial (e nx_document, quando há base_id)"),
         ("GET /api/conversations/{id}/export", "Nada. Lê conversa, mensagens e fontes"),
-        ("GET /api/metrics/export [[novo]]", "Nada. Lê mensagens, avaliações e fontes do período"),
+        ("GET /api/metrics/export", "Nada. Lê mensagens, avaliações e fontes do período"),
         ("POST /api/whatsapp/contacts/{id}/suggest", "Nada. A sugestão do agente não é gravada nem enviada"),
     ], larguras=["42%", "58%"])
     d.secao("Avaliação")
@@ -855,7 +918,7 @@ def fluxos(d):
         ("Conta", "Entrada de usuarios.json, linhas de nx_api_key do dono e as conversas dele, com mensagens, fontes e "
          "avaliações (CASCADE)"),
     ], larguras=["25%", "75%"])
-    d.secao("Refazer uma resposta", novo=True)
+    d.secao("Refazer uma resposta")
     d.passos([
         "Lê a pergunta que originou a resposta e as mensagens anteriores a ela na conversa.",
         "Roda a busca e o modelo de novo, com o mesmo escopo (documentos escolhidos ou base do agente).",
@@ -863,7 +926,7 @@ def fluxos(d):
         "nx_message_source dela e grava as novas.",
         "Apaga as avaliações da resposta em nx_feedback. Sem resposta, dispara question.unanswered como numa pergunta nova.",
     ])
-    d.secao("Senhas e sessões", novo=True)
+    d.secao("Senhas e sessões")
     d.tabela(["Operação", "O que é gravado em usuarios.json"], [
         ("Trocar a própria senha", "password_hash, password_changed_at e session_version + 1; a resposta traz um token novo"),
         ("Sair dos outros dispositivos", "session_version + 1; a resposta traz um token novo para o aparelho atual"),
@@ -928,7 +991,7 @@ CREATE TABLE nx_bot (
 def montar(temp):
     d = Documento("Arquitetura do banco de dados", temp)
     d.capa("Arquitetura do banco de dados",
-           "Diagrama de relacionamentos, as treze tabelas com campos, tipos, chaves e restrições, os índices, as bases de "
+           "Diagrama de relacionamentos, as quinze tabelas com campos, tipos, chaves e restrições, os índices, as bases de "
            "conhecimento, os agentes, o WhatsApp, a migração automática da 2.0, a coleção vetorial, o arquivo de contas "
            "com as sessões, as consultas e os caminhos para trocar de banco e escalar.")
     d.lugar_do_sumario()

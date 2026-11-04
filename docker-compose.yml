@@ -1,4 +1,22 @@
 services:
+  nexo:
+    build: .
+    image: nexo:2.3.0
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NEXO_HOST: 0.0.0.0
+      NEXO_PORT: "8000"
+      NEXO_DATA_DIR: /dados
+      NEXO_OLLAMA_URL: http://ollama:11434
+    volumes:
+      - nexo-dados:/dados
+    restart: unless-stopped
+    profiles: ["app"]
+
   chroma:
     image: chromadb/chroma:latest
     ports:
@@ -36,6 +54,7 @@ services:
     profiles: ["postgres"]
 
 volumes:
+  nexo-dados:
   chroma-dados:
   qdrant-dados:
   ollama-dados:

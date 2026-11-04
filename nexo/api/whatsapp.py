@@ -9,9 +9,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nexo import db, whatsapp
+from nexo import audit, db, whatsapp
 from nexo.api import schemas as sc
-from nexo.api.deps import ApiError, Principal, current_user
+from nexo.api.deps import ApiError, Principal, current_user, question_quota
 from nexo.api.routes import _valid_url
 from nexo.config import Settings, get_settings
 from nexo.rag.providers import ProviderError
@@ -106,6 +106,7 @@ def create_channel(body: sc.ChannelIn, p: Principal = Depends(current_user), dat
     database.add(row)
     database.commit()
     database.refresh(row)
+    audit.record("channel.create", "channel", row.id, {"name": row.name, "provider": row.provider}, actor=p.username)
     return _channel_out(database, row)
 
 
@@ -114,19 +115,24 @@ def update_channel(channel_id: str, body: sc.ChannelPatch, p: Principal = Depend
                    database: Session = Depends(db.get_db)):
     _admin(p)
     row = _channel(database, channel_id)
-    _apply(row, body.model_dump(exclude_unset=True), database)
+    changes = body.model_dump(exclude_unset=True)
+    _apply(row, changes, database)
     if row.provider == "cloud" and not row.api_version:
         row.api_version = whatsapp.DEFAULT_API_VERSION
     database.commit()
     database.refresh(row)
+    audit.record("channel.update", "channel", row.id, sorted(changes), actor=p.username)
     return _channel_out(database, row)
 
 
 @router.delete("/channels/{channel_id}", status_code=204)
 def delete_channel(channel_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
     _admin(p)
-    database.delete(_channel(database, channel_id))
+    row = _channel(database, channel_id)
+    name = row.name
+    database.delete(row)
     database.commit()
+    audit.record("channel.delete", "channel", channel_id, {"name": name}, actor=p.username)
     return Response(status_code=204)
 
 
@@ -331,7 +337,7 @@ def send(contact_id: str, body: sc.SendIn, p: Principal = Depends(current_user),
 
 
 @router.post("/contacts/{contact_id}/suggest", response_model=sc.SuggestOut)
-def suggest(contact_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+def suggest(contact_id: str, p: Principal = Depends(question_quota), database: Session = Depends(db.get_db)):
     row = _get_contact(database, contact_id)
     channel = _channel(database, row.channel_id)
     bot = database.get(db.BotRow, channel.bot_id) if channel.bot_id else None
@@ -351,3 +357,77 @@ def suggest(contact_id: str, p: Principal = Depends(current_user), database: Ses
         raise ApiError(502, "LLM_FAILURE", f"O modelo não respondeu: {e}")
     text, sources = whatsapp.compose(bot, result, kinds)
     return sc.SuggestOut(text=text, answered=result.answered, sources=[sc.SourceOut(**x) for x in sources])
+
+
+def _reply_out(row: db.QuickReplyRow, p: Principal) -> sc.QuickReplyOut:
+    return sc.QuickReplyOut(id=row.id, title=row.title, body=row.body, created_by=row.created_by, created_at=row.created_at,
+                            updated_at=row.updated_at, can_edit=p.is_admin or row.created_by == p.username)
+
+
+def _editable_reply(database: Session, reply_id: str, p: Principal) -> db.QuickReplyRow:
+    row = database.get(db.QuickReplyRow, reply_id)
+    if row is None:
+        raise ApiError(404, "NOT_FOUND", "Resposta pronta não encontrada.")
+    if not (p.is_admin or row.created_by == p.username):
+        raise ApiError(403, "FORBIDDEN", "Só quem criou a resposta pronta ou um administrador pode alterá-la.")
+    return row
+
+
+def _reply_text(title: str | None, body: str | None) -> tuple[str | None, str | None]:
+    clean_title = " ".join(title.split())[:80] if title is not None else None
+    clean_body = body.strip()[:whatsapp.MAX_TEXT] if body is not None else None
+    if clean_title == "" or clean_body == "":
+        message = "Preencha o título e o texto."
+        raise ApiError(400, "EMPTY", message, {"title" if clean_title == "" else "body": message})
+    return clean_title, clean_body
+
+
+@router.get("/quick-replies", response_model=list[sc.QuickReplyOut])
+def list_replies(p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    rows = database.scalars(select(db.QuickReplyRow).order_by(func.lower(db.QuickReplyRow.title))).all()
+    return [_reply_out(r, p) for r in rows]
+
+
+@router.post("/quick-replies", response_model=sc.QuickReplyOut, status_code=201)
+def create_reply(body: sc.QuickReplyIn, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    title, text = _reply_text(body.title, body.body)
+    clash = database.scalar(select(db.QuickReplyRow).where(func.lower(db.QuickReplyRow.title) == title.lower()))
+    if clash is not None:
+        message = "Já existe uma resposta pronta com esse título."
+        raise ApiError(409, "NAME_TAKEN", message, {"title": message})
+    row = db.QuickReplyRow(title=title, body=text, created_by=p.username)
+    database.add(row)
+    database.commit()
+    audit.record("reply.create", "reply", row.id, {"title": title}, actor=p.username)
+    return _reply_out(row, p)
+
+
+@router.patch("/quick-replies/{reply_id}", response_model=sc.QuickReplyOut)
+def update_reply(reply_id: str, body: sc.QuickReplyPatch, p: Principal = Depends(current_user),
+                 database: Session = Depends(db.get_db)):
+    row = _editable_reply(database, reply_id, p)
+    title, text = _reply_text(body.title, body.body)
+    if title is not None and title.lower() != row.title.lower():
+        clash = database.scalar(select(db.QuickReplyRow).where(func.lower(db.QuickReplyRow.title) == title.lower(),
+                                                               db.QuickReplyRow.id != row.id))
+        if clash is not None:
+            message = "Já existe uma resposta pronta com esse título."
+            raise ApiError(409, "NAME_TAKEN", message, {"title": message})
+    if title is not None:
+        row.title = title
+    if text is not None:
+        row.body = text
+    row.updated_at = db.utcnow()
+    database.commit()
+    audit.record("reply.update", "reply", row.id, {"title": row.title}, actor=p.username)
+    return _reply_out(row, p)
+
+
+@router.delete("/quick-replies/{reply_id}", status_code=204)
+def delete_reply(reply_id: str, p: Principal = Depends(current_user), database: Session = Depends(db.get_db)):
+    row = _editable_reply(database, reply_id, p)
+    title = row.title
+    database.delete(row)
+    database.commit()
+    audit.record("reply.delete", "reply", reply_id, {"title": title}, actor=p.username)
+    return Response(status_code=204)

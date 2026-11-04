@@ -12,6 +12,7 @@ import { applyTheme, initialTheme } from "./theme";
 import "./styles.css";
 import "./agentes.css";
 import "./atendimento.css";
+import "./operacao.css";
 
 applyTheme(initialTheme());
 

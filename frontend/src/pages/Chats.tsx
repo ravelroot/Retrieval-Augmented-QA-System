@@ -99,9 +99,9 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
     if (focused) textarea.current?.focus();
   }, [focused]);
 
-  async function submit(e?: FormEvent) {
+  async function submit(e?: FormEvent, preset?: string) {
     e?.preventDefault();
-    const text = question.trim();
+    const text = (preset ?? question).trim();
     if (!text || pending || !bot) return;
     setError("");
     setPending(text);
@@ -203,6 +203,15 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
                 <p>{bot.greeting || `Olá! Eu sou ${bot.name}. Pergunte sobre o que está na base ${bot.base_name}.`}</p>
               </div>
             </div>
+            {bot.ready && bot.suggestions.length > 0 && (
+              <div className="suggestions" role="group" aria-label="Perguntas sugeridas">
+                {bot.suggestions.map((text) => (
+                  <button key={text} type="button" className="suggestion" onClick={() => submit(undefined, text)} disabled={!!pending}>
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
             {!bot.ready && (
               <p className="alert" role="status">
                 <span className="pane__notice">A base {bot.base_name} ainda não tem conteúdo pronto. <Link to={`/bases/${bot.base_id}`}>Adicione arquivos ou textos</Link>.</span>

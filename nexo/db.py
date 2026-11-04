@@ -66,6 +66,8 @@ class DocumentRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    index_signature: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
 
 class BotRow(Base):
@@ -80,6 +82,7 @@ class BotRow(Base):
     fallback: Mapped[str | None] = mapped_column(String(500), nullable=True)
     color: Mapped[str] = mapped_column(String(16), default="#000000")
     cite_sources: Mapped[bool] = mapped_column(Boolean, default=True)
+    suggestions: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
@@ -95,6 +98,7 @@ class ConversationRow(Base):
     bot_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("nx_bot.id", ondelete="CASCADE"), nullable=True,
                                                index=True)
     title: Mapped[str] = mapped_column(String(160), default="Nova conversa")
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
@@ -165,8 +169,10 @@ class ApiKeyRow(Base):
     name: Mapped[str] = mapped_column(String(80))
     prefix: Mapped[str] = mapped_column(String(16))
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    scope: Mapped[str] = mapped_column(String(16), default="full")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class WebhookRow(Base):
@@ -245,6 +251,30 @@ class WhatsAppMessageRow(Base):
     answered: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     sources_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class QuickReplyRow(Base):
+    __tablename__ = "nx_quick_reply"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    title: Mapped[str] = mapped_column(String(80))
+    body: Mapped[str] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class AuditRow(Base):
+    __tablename__ = "nx_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    actor: Mapped[str] = mapped_column(String(32), index=True)
+    action: Mapped[str] = mapped_column(String(40), index=True)
+    target_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    target_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 Index("ix_nx_message_conversation_created", MessageRow.conversation_id, MessageRow.created_at)

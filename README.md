@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <b>Versão 2.2.0</b><br>
+  <b>Versão 2.3.0</b><br>
   Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama ou OpenAI · WhatsApp (Evolution API ou Cloud API) · React 19 · TypeScript
 </p>
 
@@ -23,6 +23,28 @@
 <p align="center">
   <img src="docs/images/tela-chats.png" alt="Chats com vários agentes lado a lado">
 </p>
+
+## Novidades da 2.3
+
+A 2.3.0 cuida de quem opera o Nexo e de quem usa todo dia: ajustes pela tela, diagnóstico, manutenção, backup, registro de atividades, linha de comando e Docker, além de conversas fixadas, respostas prontas no WhatsApp, importação por link e uma base de teste pronta. A identidade visual continua a mesma, e o banco da 2.1 ou da 2.2 é migrado sozinho na primeira execução.
+
+| | O que mudou |
+|---|---|
+| **Ajustes pela tela** | Em **Sistema e conta → Ajustes**, o administrador muda modelo, temperatura, cortes de relevância, trechos, cadastro, duração da sessão, limite de perguntas e retenção sem editar o `.env` nem reiniciar. Os valores ficam em `data/ajustes.json`. |
+| **Diagnóstico** | Confere banco, disco, senha padrão, segredo, modelos, banco vetorial, arquivos ausentes, itens com falha ou desatualizados, webhooks e WhatsApp, com o que fazer em cada aviso. Também por `python -m nexo diagnostico`. |
+| **Manutenção e backup** | Reindexar falhas, desatualizados ou tudo, limpar arquivos e vetores órfãos, apagar conversas antigas, compactar o banco e baixar um backup `.zip`, restaurável por `python -m nexo restaurar`. |
+| **Registro de atividades** | Entradas, tentativas falhas e cada criação, alteração ou exclusão de bases, agentes, documentos, chaves, webhooks, conexões, contas e ajustes, com conta, IP, filtros e CSV. |
+| **Base de teste** | Um clique em **Bases de conhecimento** (ou `python -m nexo base-de-teste`) cria uma base com arquivos de exemplo em PDF, Markdown, HTML, CSV, TXT e JSON e o **Agente de teste**, com perguntas sugeridas. |
+| **Importar de um link** | Traz uma página ou arquivo publicado para a base e atualiza quando ele mudar. Endereços da rede interna são bloqueados, inclusive por redirecionamento. |
+| **Trechos indexados** | Mostra como cada arquivo foi dividido, com busca por palavra e link para a página do PDF. Itens indexados com outra configuração aparecem como **desatualizados**. |
+| **Conversas** | Fixar conversas no topo, rascunho guardado por conversa, impressão limpa e, no **não ajudou**, o campo **O que faltou nesta resposta?**. |
+| **Agentes** | Perguntas sugeridas que aparecem como atalhos no começo de cada chat e **Duplicar** para criar variações. |
+| **WhatsApp** | Respostas prontas da equipe com `{nome}` e `{telefone}`, pelo botão ou digitando `/` na caixa, e o contador de clientes aguardando no menu. |
+| **Painel por agente** | Perguntas, taxa de resposta, tempo e avaliações de cada agente, filtro por agente no painel e no CSV, e os comentários das avaliações. |
+| **Chaves de API** | Permissão **completa**, **só consulta** ou **só alimentar bases** e validade de 30, 90 ou 365 dias. |
+| **Proteção da API** | Limite de perguntas por minuto por conta (HTTP 429 com `Retry-After`) e CORS configurável. |
+| **Operação** | Linha de comando `python -m nexo`, logs em texto ou JSON com o id do pedido, métricas para o Prometheus, `Dockerfile` e serviço no `docker-compose.yml`, e CI com `ruff` e build da imagem. |
+| **Uso diário** | Atalhos `Alt + N`, `B`, `D` e `W`, a tecla `?` com a lista de atalhos e aviso quando o servidor sai do ar. |
 
 ## Novidades da 2.2
 
@@ -44,17 +66,7 @@ A 2.2.0 deixa as respostas mais rápidas de acompanhar, a gestão de contas comp
 
 ## Novidades da 2.1
 
-A 2.1.0 transforma o Nexo numa plataforma de agentes, mantendo a identidade visual "caixa única" (a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel)). Tudo o que funcionava na 2.0 continua igual, e bancos antigos são migrados sozinhos.
-
-| | O que mudou |
-|---|---|
-| **Agentes** | Crie agentes com nome, cor, instruções de tom, saudação e frase para quando não souber. Cada agente usa uma base de conhecimento. |
-| **Bases de conhecimento** | Cada base reúne PDF, DOCX, TXT, MD, CSV, JSON e HTML, mais textos digitados na hora. Acrescente ou retire informação quando quiser e mova itens entre bases sem reindexar. |
-| **Abas da base** | **Arquivos**, **Textos**, **Testar** (busca só na base) e **Integrar** (exemplos prontos para alimentar a base e perguntar ao agente por outros sistemas). |
-| **Vários chats** | Converse com vários agentes ao mesmo tempo, em abas ou até três lado a lado. |
-| **WhatsApp** | Caixa de entrada com os clientes: o agente responde sozinho, passa para a equipe quando não sabe, e a equipe assume, devolve ao agente ou pede uma sugestão de resposta. Conexão pela Evolution API (QR code do seu número), pela API oficial da Meta ou pelo simulador. |
-| **Tutorial** | Um passo a passo aparece no primeiro acesso e pode ser revisto pela paleta de comandos ou em Sistema e conta. |
-| **Integrações** | `/api/ask` e `/api/search` aceitam `bot_id` e `base_id`; webhooks ganharam `whatsapp.message` e `whatsapp.handoff`. |
+A 2.1.0 transformou o Nexo numa plataforma de agentes, com a identidade visual "caixa única" (a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel)): agentes com instruções próprias, bases de conhecimento com arquivos e textos, vários chats lado a lado, caixa de entrada do WhatsApp (Evolution API, API oficial da Meta ou simulador), tutorial de primeiro acesso e `bot_id` / `base_id` nas integrações.
 
 ## O que o Nexo faz
 
@@ -115,7 +127,7 @@ Pré-requisitos: **Python 3.11 ou mais recente** e **Node.js 20.19 ou mais recen
 
 Os scripts criam o ambiente virtual, instalam as dependências, copiam `.env.example` para `.env`, compilam a interface e sobem o servidor em **http://127.0.0.1:8000**.
 
-> Atualizando da 2.1? Rode o script de novo: ele recompila a interface e nada no banco precisa mudar. As sessões abertas continuam valendo, e o arquivo de contas ganha os campos novos sozinho.
+> Atualizando da 2.2 ou da 2.1? Baixe um backup (**Sistema e conta → Manutenção** ou `python -m nexo backup`), traga a versão nova e rode o script de novo. Na primeira execução, o banco ganha sozinho as colunas e tabelas novas, os documentos prontos recebem a assinatura da configuração atual (nada é reindexado) e o `.env` antigo continua valendo. Depois, confira com `python -m nexo diagnostico`.
 
 > Atualizando da 2.0? Rode o script de novo: ele percebe que a versão mudou e recompila a interface. O banco existente é migrado sozinho na primeira execução: as tabelas novas são criadas, os documentos antigos vão para a base "Acervo geral" e nenhum vetor precisa ser recalculado.
 
@@ -130,6 +142,28 @@ copy .env.example .env          # Windows  (cp no Linux / macOS)
 cd frontend && npm install && npm run build && cd ..
 python -m nexo
 ```
+
+Com Docker (o Nexo e o Ollama em contêineres, dados no volume `nexo-dados`):
+
+```bash
+cp .env.example .env
+docker compose --profile app --profile ollama up -d --build
+docker compose exec ollama ollama pull llama3.1
+```
+
+Para experimentar sem os seus arquivos, clique em **Criar base de teste** em **Bases de conhecimento** ou rode `python -m nexo base-de-teste`.
+
+### Linha de comando
+
+| Comando | Função |
+|---|---|
+| `python -m nexo` | Sobe o servidor |
+| `python -m nexo diagnostico [--completo]` | Confere banco, modelos, acervo, segurança e integrações |
+| `python -m nexo backup [--saida arquivo.zip]` | Grava o backup |
+| `python -m nexo restaurar arquivo.zip [--substituir]` | Restaura um backup (servidor parado) |
+| `python -m nexo reindexar [--desatualizados \| --todos]` | Reindexa no terminal (servidor parado) |
+| `python -m nexo base-de-teste` | Cria a Base de teste e o Agente de teste |
+| `python -m nexo contas` · `versao` | Lista as contas e mostra a versão |
 
 ### Escolha um modo
 
@@ -173,14 +207,29 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 | **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: pipeline de respostas, acervo, sessões e gestão das contas |
 | <img src="docs/images/tela-nao-encontrado.png" alt="Pergunta sem resposta nos documentos"> | <img src="docs/images/tela-comandos.png" alt="Paleta de comandos"> |
 | **Sem base nos PDFs**: o Nexo diz que não encontrou e sugere o próximo passo | **Paleta de comandos** (`Ctrl + K`) |
-| <img src="docs/images/tela-escuro.png" alt="Tema escuro"> | <img src="docs/images/tela-celular.png" alt="Celular" width="240"> |
-| **Tema escuro** | **Celular** |
+| <img src="docs/images/tela-ajustes.png" alt="Ajustes"> | <img src="docs/images/tela-diagnostico.png" alt="Diagnóstico"> |
+| **Ajustes pela tela** | **Diagnóstico** |
+| <img src="docs/images/tela-manutencao.png" alt="Manutenção"> | <img src="docs/images/tela-atividades.png" alt="Registro de atividades"> |
+| **Manutenção e backup** | **Registro de atividades** |
+| <img src="docs/images/tela-base-teste.png" alt="Base de teste"> | <img src="docs/images/tela-importar-link.png" alt="Importar de um link"> |
+| **Base de teste** | **Importar de um link** |
+| <img src="docs/images/tela-trechos.png" alt="Trechos indexados"> | <img src="docs/images/tela-avaliacao.png" alt="Comentário no não ajudou"> |
+| **Trechos indexados** | **O que faltou nesta resposta?** |
+| <img src="docs/images/tela-respostas-prontas.png" alt="Respostas prontas"> | <img src="docs/images/tela-painel-agentes.png" alt="Painel por agente"> |
+| **Respostas prontas no WhatsApp** | **Painel por agente** |
+| <img src="docs/images/tela-atalhos.png" alt="Atalhos"> | <img src="docs/images/tela-escuro.png" alt="Tema escuro"> |
+| **Atalhos de teclado** | **Tema escuro** |
+| <img src="docs/images/tela-celular.png" alt="Celular" width="240"> | |
+| **Celular** | |
 
 ### Atalhos
 
 | Tecla | Ação |
 |---|---|
 | `Ctrl + K` (ou `⌘ + K`) | Abre a paleta de comandos |
+| `?` | Mostra a lista de atalhos |
+| `Alt + N` · `Alt + B` · `Alt + D` · `Alt + W` | Nova conversa, Busca nos trechos, Documentos e WhatsApp |
+| `/` | Volta para a caixa de pergunta; no WhatsApp, no começo da caixa, abre as respostas prontas |
 | `Enter` | Envia a pergunta e a mensagem do WhatsApp |
 | `Shift + Enter` | Quebra a linha na pergunta |
 | `Esc` | Interrompe a resposta que está sendo escrita |
@@ -191,7 +240,15 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 
 ### Chaves de API
 
-Crie uma chave em **Integrações → Chaves de API**. Ela aparece uma única vez (o servidor guarda só o SHA-256) e tem as mesmas permissões da sua conta. Envie no cabeçalho `X-API-Key` (ou `Authorization: Bearer nxk_...`) para qualquer rota da API.
+Crie uma chave em **Integrações → Chaves de API**. Ela aparece uma única vez (o servidor guarda só o SHA-256) e age em nome da sua conta, limitada pela permissão escolhida. Envie no cabeçalho `X-API-Key` (ou `Authorization: Bearer nxk_...`).
+
+| Permissão | `scope` | O que libera |
+|---|---|---|
+| Completa | `full` | Tudo o que a conta pode fazer |
+| Só consulta | `ask` | Perguntar, buscar e ler bases e agentes |
+| Só alimentar bases | `feed` | Enviar arquivos, textos e links às bases |
+
+Fora da permissão, a resposta é 403 `KEY_SCOPE`; chave vencida recebe 401 `API_KEY_EXPIRED`. Cada conta pode fazer até `NEXO_RATE_LIMIT` perguntas e buscas por minuto (60 por padrão); acima disso, 429 `RATE_LIMITED` com `Retry-After`. Sites que chamam a API pelo navegador precisam estar em `NEXO_CORS_ORIGINS`.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/ask \
@@ -246,6 +303,16 @@ curl -X POST http://127.0.0.1:8000/api/bases/ID_DA_BASE/texts \
   -d '{"title": "Horário de atendimento", "content": "Segunda a sexta, das 8h às 18h."}'
 ```
 
+Para trazer uma página ou arquivo publicado e atualizar quando mudar:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/bases/ID_DA_BASE/links \
+  -H "X-API-Key: nxk_SUA_CHAVE" -H "Content-Type: application/json" \
+  -d '{"url": "https://empresa.com.br/politica-de-trocas"}'
+
+curl -X POST http://127.0.0.1:8000/api/documents/ID_DO_ITEM/refetch -H "X-API-Key: nxk_SUA_CHAVE"
+```
+
 A aba **Integrar** de cada base traz esses exemplos (e a pergunta ao agente) em curl, Python e JavaScript, com os ids preenchidos.
 
 ### Webhooks
@@ -277,7 +344,11 @@ O botão **Testar** envia o evento `ping` uma única vez e mostra a resposta HTT
 
 O botão de download no topo de cada conversa gera Markdown (para ler ou colar em documentos) ou JSON (com trechos e notas, para sistemas). Pela API: `GET /api/conversations/{id}/export?format=markdown` ou `format=json`.
 
-O **Painel de qualidade** exporta as perguntas do período em CSV (separado por ponto e vírgula, abre direto no Excel): data, conta, conversa, agente, pergunta, se foi respondida, avaliação, tempo, modelo e fontes. Pela API: `GET /api/metrics/export?days=30`. Administradores recebem as perguntas de todas as contas.
+O **Painel de qualidade** exporta as perguntas do período em CSV (separado por ponto e vírgula, abre direto no Excel): data, conta, conversa, agente, pergunta, se foi respondida, avaliação, tempo, modelo, fontes e o comentário de quem marcou "não ajudou". Pela API: `GET /api/metrics/export?days=30&bot_id=`. Administradores recebem as perguntas de todas as contas.
+
+### Monitoramento
+
+`GET /api/health/ready` serve para checagens de saúde e `GET /api/health/metrics` entrega pedidos, erros, tempos, fila e acervo no formato do Prometheus (chave completa de administrador). Com `NEXO_LOG_FORMAT=json`, cada pedido vira uma linha JSON com o `X-Request-ID`, a conta e o tempo.
 
 ## WhatsApp
 
@@ -289,11 +360,11 @@ Em **WhatsApp › Conexões**, um administrador conecta um número e escolhe o a
 | **API oficial (Meta)** | No app da Meta com o produto WhatsApp, copie o Phone Number ID, um token permanente e o app secret para a conexão. Cole a URL do webhook e o verify token mostrados pelo Nexo no app da Meta e assine o campo `messages`. O Nexo confere a assinatura `X-Hub-Signature-256`. |
 | **Simulador** | Nada a configurar: use **Simular mensagem de cliente** na caixa de entrada para testar o agente. |
 
-Na **caixa de entrada**, o agente responde sozinho com a base dele. Quando não encontra a resposta, ou quando o cliente pede "atendente", o contato vai para **Aguardando atendente** e o agente pausa nele. Mensagens digitadas no próprio celular do número (Evolution) aparecem como **Pelo celular**, e as confirmações de entrega da API oficial atualizam cada mensagem. Quem responde pela tela assume a conversa; **Devolver ao agente** religa a resposta automática e **Sugerir resposta** traz um rascunho do agente, com as fontes, para revisar antes de enviar. Pela API oficial, respostas livres só valem até 24 horas depois da última mensagem do cliente.
+Na **caixa de entrada**, o agente responde sozinho com a base dele. Quando não encontra a resposta, ou quando o cliente pede "atendente", o contato vai para **Aguardando atendente** e o agente pausa nele. Mensagens digitadas no próprio celular do número (Evolution) aparecem como **Pelo celular**, e as confirmações de entrega da API oficial atualizam cada mensagem. Quem responde pela tela assume a conversa; **Devolver ao agente** religa a resposta automática e **Sugerir resposta** traz um rascunho do agente, com as fontes, para revisar antes de enviar. Pela API oficial, respostas livres só valem até 24 horas depois da última mensagem do cliente. As **respostas prontas** (ícone de raio ou `/` na caixa) inserem textos da equipe, trocando `{nome}` e `{telefone}` pelos dados do contato.
 
 ## Configuração
 
-Todas as opções ficam no `.env` (modelo em [`.env.example`](.env.example)). As principais:
+A configuração base fica no `.env` (modelo em [`.env.example`](.env.example)); parte dela também muda pela tela **Sistema e conta → Ajustes**, sem reiniciar. As principais:
 
 | Variável | Padrão | Função |
 |---|---|---|
@@ -315,12 +386,18 @@ Todas as opções ficam no `.env` (modelo em [`.env.example`](.env.example)). As
 | `NEXO_MAX_UPLOAD_MB` | `100` | Tamanho máximo de cada arquivo |
 | `NEXO_DATABASE_URL` | SQLite em `data/` | Outro banco relacional |
 | `NEXO_SECRET` | gerado em `data/.segredo` | Chave de assinatura das sessões |
+| `NEXO_RATE_LIMIT` | `60` | Perguntas e buscas por minuto por conta (0 desliga) |
+| `NEXO_RETENTION_DAYS` | `0` | Apaga conversas não fixadas sem atividade há mais dias que isso (0 guarda para sempre) |
+| `NEXO_LOG_LEVEL` / `NEXO_LOG_FORMAT` | `INFO` / `texto` | Detalhe e formato dos registros (`texto` ou `json`) |
+| `NEXO_CORS_ORIGINS` | vazio | Sites liberados a chamar a API pelo navegador, separados por vírgula |
+| `NEXO_ALLOW_PRIVATE_URLS` | `false` | Permite importar links da rede interna |
+| `NEXO_LINK_TIMEOUT` | `20` | Segundos de espera ao baixar um link |
 
-A tela **Sistema e conta** mostra a configuração ativa.
+A tela **Sistema e conta** mostra a configuração ativa, e a aba **Ajustes** indica o que foi alterado em relação ao `.env`.
 
 ## Banco de dados
 
-O Nexo cria tudo sozinho na primeira execução e migra bancos da 2.0 sem passo manual. Quem for popular ou administrar os dados encontra em [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) (e no resumo em [`docs/banco-de-dados.md`](docs/banco-de-dados.md)) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
+O Nexo cria tudo sozinho na primeira execução e migra bancos antigos sem passo manual (na 2.3, acrescenta as colunas que faltam e cria `nx_quick_reply` e `nx_audit`). Quem for popular ou administrar os dados encontra em [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) (e no resumo em [`docs/banco-de-dados.md`](docs/banco-de-dados.md)) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
 
 ```mermaid
 erDiagram
@@ -340,15 +417,26 @@ erDiagram
         string id PK
         string owner
         string key_hash UK
+        string scope
     }
     nx_webhook {
         string id PK
         string url
         string events
     }
+    nx_quick_reply {
+        string id PK
+        string title
+        string body
+    }
+    nx_audit {
+        int id PK
+        string actor
+        string action
+    }
 ```
 
-`nx_api_key` e `nx_webhook` ligam-se às contas pelo nome de usuário (as contas ficam em `data/usuarios.json`, fora do banco). Os agentes não têm coleção vetorial própria: a busca filtra pelos documentos da base de cada um, por isso mover itens entre bases não exige reindexar.
+`nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` ligam-se às contas pelo nome de usuário (as contas ficam em `data/usuarios.json`, fora do banco). Os agentes não têm coleção vetorial própria: a busca filtra pelos documentos da base de cada um, por isso mover itens entre bases não exige reindexar.
 
 ## Estrutura
 
@@ -356,7 +444,14 @@ erDiagram
 nexo/
   config.py          configuração lida do .env
   db.py              tabelas SQLAlchemy
-  migrations.py      migração automática de bancos da 2.0
+  migrations.py      migração automática (bancos da 2.0 e colunas novas)
+  runtime.py         ajustes pela tela, gravados em data/ajustes.json
+  maintenance.py     diagnóstico, manutenção, retenção, backup e restauração
+  audit.py           registro de atividades
+  links.py           importação de links com bloqueio da rede interna
+  sample.py          base de teste
+  cli.py             linha de comando python -m nexo
+  logs.py            registros em texto ou JSON
   knowledge.py       leitura de DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML e textos
   whatsapp.py        provedores, webhook, contatos e respostas do agente no WhatsApp
   users.py           contas em data/usuarios.json
@@ -367,15 +462,16 @@ nexo/
     engine.py        leitura dos PDFs, indexação, busca, reranking, prompt do agente e resposta
     providers.py     LLM, embeddings, banco vetorial e reranker configuráveis
     hash_embedding.py  embedding léxico para testes
-  api/               rotas FastAPI, esquemas e autenticação (agents.py: bases e agentes; whatsapp.py: WhatsApp)
+  api/               rotas FastAPI, esquemas e autenticação (agents.py: bases e agentes; whatsapp.py: WhatsApp; system.py: operação)
 frontend/            interface React + TypeScript (Vite)
   src/pages/         Entrada, Conversas, Chats, Agents, Bases, WhatsApp, Busca, Documentos, Painel, Integrações, Sistema
-  src/components/    menu, Tutorial, paleta de comandos, trechos com termos destacados
+  src/components/    menu, Tutorial, paleta de comandos, atalhos, trechos indexados e termos destacados
 scripts/             avaliação da recuperação, PDF de exemplo, redefinição de senha
   docs/              gerador do Manual e do PDF do banco de dados
-exemplos/            PDF fictício e perguntas de avaliação
+exemplos/            PDF fictício, perguntas de avaliação e base-de-teste/ (arquivos da base de teste)
 docs/                manuais em PDF, banco de dados, DDL e imagens
 tests/               testes automatizados
+Dockerfile           imagem do Nexo (interface compilada, usuário sem privilégios, dados em /dados)
 ```
 
 ## API
@@ -390,28 +486,34 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | POST | `/api/auth/sessions/revoke` | Sair dos outros dispositivos |
 | PUT | `/api/auth/tutorial` | Marcar o tutorial como visto ou para rever |
 | GET / POST | `/api/bases` | Listar e criar bases de conhecimento |
+| POST | `/api/bases/sample` | Criar a Base de teste e o Agente de teste |
+| POST | `/api/bases/{id}/links` | Importar uma página ou arquivo por link |
 | GET / PATCH / DELETE | `/api/bases/{id}` | Abrir, renomear e excluir base |
 | GET / POST | `/api/bases/{id}/documents` | Listar itens e enviar arquivos para a base |
 | POST | `/api/bases/{id}/texts` | Criar um texto na base |
 | GET / PUT | `/api/documents/{id}/text` | Ler e editar um texto |
 | GET / POST | `/api/bots` | Listar e criar agentes |
-| GET / PATCH / DELETE | `/api/bots/{id}` | Abrir, editar e excluir agente |
+| GET / PATCH / DELETE | `/api/bots/{id}` | Abrir, editar (inclusive `suggestions`) e excluir agente |
+| POST | `/api/bots/{id}/duplicate` | Duplicar agente |
 | GET / POST | `/api/documents` | Listar e enviar PDFs |
 | PATCH / DELETE | `/api/documents/{id}` | Renomear, mover de base (`base_id`) e excluir |
 | POST | `/api/documents/bulk` | Reindexar, mover ou excluir vários itens (`action`, `ids`, `base_id`) |
 | POST | `/api/documents/{id}/reindex` | Reindexar |
+| POST | `/api/documents/{id}/refetch` | Baixar de novo do link de origem |
+| GET | `/api/documents/{id}/chunks` | Trechos indexados (`offset`, `limit`, `q`) |
 | GET | `/api/documents/{id}/file` | Baixar o PDF |
 | GET / POST | `/api/conversations` | Listar (filtros `only`, `bot_id` e `q`) e criar conversas (`bot_id` opcional) |
+| PATCH | `/api/conversations/{id}` | Renomear, mudar escopo e fixar (`pinned`) |
 | POST | `/api/conversations/{id}/messages` | Perguntar |
 | POST | `/api/conversations/{id}/messages/stream` | Perguntar com a resposta em streaming (SSE) |
 | GET | `/api/conversations/{id}/export` | Exportar em Markdown ou JSON |
-| POST | `/api/messages/{id}/feedback` | Avaliar resposta |
+| POST | `/api/messages/{id}/feedback` | Avaliar resposta, com `comment` opcional |
 | POST | `/api/messages/{id}/regenerate` | Refazer a resposta |
 | POST | `/api/ask` | Pergunta direta, para integrações (`bot_id` opcional) |
 | POST | `/api/search` | Busca nos trechos, sem LLM (`base_id` opcional) |
-| GET | `/api/metrics?days=30` | Painel de qualidade |
+| GET | `/api/metrics?days=30&bot_id=` | Painel de qualidade, com números por agente |
 | GET | `/api/metrics/export?days=30` | Perguntas do período em CSV |
-| GET / POST / DELETE | `/api/keys` · `/api/keys/{id}` | Chaves de API |
+| GET / POST / DELETE | `/api/keys` · `/api/keys/{id}` | Chaves de API (`scope`, `expires_days`) |
 | GET / POST / PATCH / DELETE | `/api/webhooks` · `/api/webhooks/{id}` | Webhooks (administrador) |
 | POST | `/api/webhooks/{id}/test` | Entrega de teste |
 | GET / POST / PATCH / DELETE | `/api/users` · `/api/users/{usuario}` | Contas: listar, criar, mudar perfil e excluir (administrador) |
@@ -423,6 +525,13 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | GET | `/api/whatsapp/summary` · `/api/whatsapp/contacts` | Números da caixa de entrada e contatos |
 | GET / PATCH | `/api/whatsapp/contacts/{id}` | Conversa com o cliente; ligar ou pausar o agente |
 | POST | `/api/whatsapp/contacts/{id}/messages` · `/suggest` | Responder como a equipe e pedir sugestão ao agente |
+| GET / POST / PATCH / DELETE | `/api/whatsapp/quick-replies` · `/{id}` | Respostas prontas |
+| GET / PUT | `/api/system/settings` · `POST /reset` | Ajustes pela tela (administrador) |
+| GET | `/api/system/diagnostics?deep=` | Diagnóstico rápido ou completo (administrador) |
+| POST | `/api/system/maintenance` | Ações de manutenção (administrador) |
+| GET | `/api/system/backup` | Baixar o backup (administrador) |
+| GET | `/api/audit` · `/api/audit/export` | Registro de atividades e CSV (administrador) |
+| GET | `/api/health/metrics` | Métricas no formato do Prometheus (administrador) |
 | GET | `/api/system/status` | Configuração e números do acervo |
 | GET | `/api/health` · `/api/health/ready` | Versão e prontidão (confere o banco; 503 se indisponível) |
 
@@ -434,6 +543,8 @@ Monte um arquivo JSONL com perguntas e a página que deveria ser encontrada (vej
 python scripts/avaliar.py exemplos/perguntas-exemplo.jsonl --detalhes
 ```
 
+Depois de criar a base de teste, avalie com o conjunto dela: `python scripts/avaliar.py exemplos/base-de-teste/perguntas-de-teste.jsonl`.
+
 O script mostra o acerto e o MRR da busca vetorial pura e com reranking, para calibrar `NEXO_TOP_K`, `NEXO_TOP_N` e os cortes de relevância. A tela **Busca nos trechos** faz a mesma conferência pergunta a pergunta.
 
 ## Testes
@@ -443,7 +554,11 @@ pip install -r requirements-ci.txt
 python -m pytest
 ```
 
-Os testes usam o modo sem modelos e cobrem respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+```bash
+ruff check .
+```
+
+Os testes usam o modo sem modelos e cobrem ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
 
 ## Documentação em PDF
 

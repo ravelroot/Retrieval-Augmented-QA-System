@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import math
 import re
@@ -221,6 +222,85 @@ class RagEngine:
     def model_name(self) -> str:
         return "extrativo" if self.s.llm_provider == "extrativo" else f"{self.s.llm_provider}:{self.s.llm_model}"
 
+    def signature(self) -> str:
+        return providers.index_signature(self.s)
+
+    def refresh(self, changed: list[str]) -> None:
+        with self._lock:
+            if any(name.startswith("llm_") for name in changed):
+                self._llm = None
+                self._llm_loaded = False
+            if {"chunk_size", "chunk_overlap"} & set(changed):
+                self.splitter = SentenceSplitter(chunk_size=self.s.chunk_size, chunk_overlap=self.s.chunk_overlap,
+                                                 chunking_tokenizer_fn=split_sentences)
+
+    @staticmethod
+    def _payload_text(payload: dict) -> str:
+        raw = payload.get("_node_content")
+        if isinstance(raw, str):
+            try:
+                return str(json.loads(raw).get("text") or "")
+            except (json.JSONDecodeError, AttributeError):
+                return ""
+        return str(payload.get("text") or payload.get("document") or "")
+
+    def chunks(self, document_id: str) -> list[dict]:
+        self._ensure_index()
+        rows: list[dict] = []
+        with self._lock:
+            if self.s.vector_store == "chroma":
+                found = self._handles["collection"].get(where={"source_id": document_id},
+                                                       include=["documents", "metadatas"])
+                for chunk_id, text, meta in zip(found.get("ids") or [], found.get("documents") or [],
+                                                found.get("metadatas") or []):
+                    meta = meta or {}
+                    rows.append({"chunk_id": chunk_id, "index": int(meta.get("chunk_index", 0) or 0),
+                                 "page": int(meta.get("page", 0) or 0), "text": text or self._payload_text(meta)})
+            else:
+                client = self._handles["client"]
+                if client.collection_exists(self.s.collection):
+                    from qdrant_client.models import FieldCondition, Filter, MatchValue
+                    condition = Filter(must=[FieldCondition(key="source_id", match=MatchValue(value=document_id))])
+                    offset = None
+                    while True:
+                        points, offset = client.scroll(self.s.collection, scroll_filter=condition, limit=256,
+                                                       offset=offset, with_payload=True, with_vectors=False)
+                        for point in points:
+                            payload = point.payload or {}
+                            rows.append({"chunk_id": str(point.id), "index": int(payload.get("chunk_index", 0) or 0),
+                                         "page": int(payload.get("page", 0) or 0), "text": self._payload_text(payload)})
+                        if offset is None:
+                            break
+        rows.sort(key=lambda r: (r["index"], r["page"]))
+        return rows
+
+    def source_ids(self) -> dict[str, int]:
+        self._ensure_index()
+        counts: dict[str, int] = {}
+        with self._lock:
+            if self.s.vector_store == "chroma":
+                collection = self._handles["collection"]
+                total = collection.count()
+                step = 2000
+                for start in range(0, total, step):
+                    found = collection.get(include=["metadatas"], limit=step, offset=start)
+                    for meta in found.get("metadatas") or []:
+                        key = str((meta or {}).get("source_id") or "")
+                        counts[key] = counts.get(key, 0) + 1
+            else:
+                client = self._handles["client"]
+                if client.collection_exists(self.s.collection):
+                    offset = None
+                    while True:
+                        points, offset = client.scroll(self.s.collection, limit=512, offset=offset, with_payload=["source_id"],
+                                                       with_vectors=False)
+                        for point in points:
+                            key = str((point.payload or {}).get("source_id") or "")
+                            counts[key] = counts.get(key, 0) + 1
+                        if offset is None:
+                            break
+        return counts
+
     def ingest(self, document_id: str, title: str, filename: str, path: Path) -> tuple[int, int, str | None]:
         content = read_pdf(path)
         if not content.pages:
@@ -267,9 +347,16 @@ class RagEngine:
             self._ensure_index()
             if self.s.vector_store == "chroma":
                 return self._handles["collection"].count()
-            return None
+            client = self._handles["client"]
+            if not client.collection_exists(self.s.collection):
+                return 0
+            return int(client.count(self.s.collection, exact=True).count)
         except Exception:
             return None
+
+    @property
+    def loaded(self) -> bool:
+        return self._index is not None
 
     def _condense(self, question: str, history: list[tuple[str, str]]) -> str:
         llm = self.llm()

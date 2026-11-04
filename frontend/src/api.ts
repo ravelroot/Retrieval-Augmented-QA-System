@@ -35,6 +35,24 @@ export interface DocumentItem {
   kind: DocumentKind;
   extension: string;
   updated_at: string | null;
+  source_url?: string | null;
+  outdated?: boolean;
+}
+
+export interface Chunk {
+  chunk_id: string;
+  index: number;
+  page: number;
+  text: string;
+}
+
+export interface ChunkPage {
+  document_id: string;
+  title: string;
+  kind: DocumentKind;
+  total: number;
+  offset: number;
+  items: Chunk[];
 }
 
 export type DocumentKind = "pdf" | "file" | "note";
@@ -61,6 +79,7 @@ export interface Message {
   created_at: string;
   sources: Source[];
   my_rating: number | null;
+  my_comment?: string | null;
 }
 
 export interface ConversationSummary {
@@ -71,6 +90,7 @@ export interface ConversationSummary {
   document_ids: string[];
   messages: number;
   bot_id: string | null;
+  pinned?: boolean;
 }
 
 export interface Conversation extends ConversationSummary {
@@ -104,11 +124,99 @@ export interface SystemStatus {
     min_rerank_score: number;
     verify_answers: boolean;
   };
-  documents: { total: number; by_status: Partial<Record<DocumentStatus, number>>; chunks: number };
+  documents: { total: number; by_status: Partial<Record<DocumentStatus, number>>; chunks: number; outdated?: number };
   users: number | null;
   registration: boolean;
   database: string;
   integrations?: { api_keys: number; webhooks: number | null };
+  operation?: { rate_limit: number; retention_days: number; overrides: string[]; cors: string[]; log_format: string;
+    token_hours: number; max_upload_mb: number };
+}
+
+export type SettingKind = "text" | "int" | "float" | "bool";
+
+export interface SettingItem {
+  name: string;
+  group: string;
+  label: string;
+  hint: string;
+  kind: SettingKind;
+  value: string | number | boolean;
+  default: string | number | boolean;
+  overridden: boolean;
+  reindex: boolean;
+  min: number | null;
+  max: number | null;
+}
+
+export interface SettingsData {
+  items: SettingItem[];
+  fixed: Record<string, string>;
+  outdated: number;
+  changed?: string[];
+  reindex_needed?: boolean;
+}
+
+export type CheckStatus = "ok" | "warn" | "fail" | "info";
+
+export interface Check {
+  id: string;
+  group: string;
+  label: string;
+  status: CheckStatus;
+  detail: string;
+  hint: string | null;
+}
+
+export interface Diagnostics {
+  checked_at: string;
+  deep: boolean;
+  ok: number;
+  warn: number;
+  fail: number;
+  info: number;
+  checks: Check[];
+}
+
+export type MaintenanceAction = "reindex_failed" | "reindex_outdated" | "reindex_all" | "clean_orphans" | "purge_conversations" | "vacuum";
+
+export interface AuditItem {
+  id: number;
+  created_at: string;
+  actor: string;
+  action: string;
+  label: string;
+  target_type: string | null;
+  target_id: string | null;
+  detail: string | null;
+  ip: string | null;
+}
+
+export interface AuditPage {
+  total: number;
+  items: AuditItem[];
+  actions: Record<string, string>;
+}
+
+export interface QuickReply {
+  id: string;
+  title: string;
+  body: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  can_edit: boolean;
+}
+
+export interface BotStat {
+  bot_id: string | null;
+  name: string;
+  color: string | null;
+  questions: number;
+  answered: number;
+  answer_rate: number | null;
+  negative: number;
+  avg_latency_ms: number | null;
 }
 
 export interface SearchResult {
@@ -131,7 +239,10 @@ export interface Metrics {
   daily: { date: string; questions: number; unanswered: number }[];
   top_documents: { document_id: string | null; title: string; citations: number }[];
   unanswered_recent: { question: string; asked_at: string; conversation_id: string }[];
-  negative_recent: { question: string; answer: string; asked_at: string; conversation_id: string; message_id: string }[];
+  negative_recent: { question: string; answer: string; asked_at: string; conversation_id: string; message_id: string;
+    comment: string | null; owner: string | null }[];
+  by_bot: BotStat[];
+  bot_id: string | null;
 }
 
 export interface ApiKey {
@@ -141,7 +252,12 @@ export interface ApiKey {
   created_at: string;
   last_used_at: string | null;
   key?: string;
+  scope: KeyScope;
+  expires_at: string | null;
+  expired: boolean;
 }
+
+export type KeyScope = "full" | "ask" | "feed";
 
 export type WebhookEvent = "document.ready" | "document.failed" | "question.unanswered" | "feedback.negative"
   | "whatsapp.message" | "whatsapp.handoff";
@@ -202,6 +318,7 @@ export interface Bot {
   conversations: number;
   ready: boolean;
   can_edit: boolean;
+  suggestions: string[];
 }
 
 export interface BotInput {
@@ -213,6 +330,7 @@ export interface BotInput {
   fallback?: string | null;
   color?: string;
   cite_sources?: boolean;
+  suggestions?: string[];
 }
 
 export type Provider = "cloud" | "evolution" | "simulador";
@@ -461,7 +579,7 @@ export const api = {
   conversations: () => request<ConversationSummary[]>("GET", "/conversations"),
   conversation: (id: string) => request<Conversation>("GET", `/conversations/${id}`),
   createConversation: (document_ids: string[]) => request<Conversation>("POST", "/conversations", { document_ids }),
-  updateConversation: (id: string, patch: { title?: string; document_ids?: string[] }) =>
+  updateConversation: (id: string, patch: { title?: string; document_ids?: string[]; pinned?: boolean }) =>
     request<ConversationSummary>("PATCH", `/conversations/${id}`, patch),
   deleteConversation: (id: string) => request<void>("DELETE", `/conversations/${id}`),
   ask: (id: string, content: string) => request<Exchange>("POST", `/conversations/${id}/messages`, { content }),
@@ -470,12 +588,15 @@ export const api = {
     request<ConversationSummary[]>("GET", `/conversations?only=${only}&q=${encodeURIComponent(q)}`),
   bulkDocuments: (action: "reindex" | "delete" | "move", ids: string[], base_id?: string) =>
     request<{ done: string[]; skipped: Record<string, string> }>("POST", "/documents/bulk", { action, ids, base_id }),
-  feedback: (id: string, rating: number) => request<Message>("POST", `/messages/${id}/feedback`, { rating }),
+  feedback: (id: string, rating: number, comment?: string | null) =>
+    request<Message>("POST", `/messages/${id}/feedback`, { rating, comment: comment ?? null }),
   search: (query: string, document_ids: string[], rerank: boolean, limit = 8) =>
     request<SearchResult>("POST", "/search", { query, document_ids, rerank, limit }),
-  metrics: (days: number) => request<Metrics>("GET", `/metrics?days=${days}`),
+  metrics: (days: number, bot_id = "") =>
+    request<Metrics>("GET", `/metrics?days=${days}${bot_id ? `&bot_id=${encodeURIComponent(bot_id)}` : ""}`),
   keys: () => request<ApiKey[]>("GET", "/keys"),
-  createKey: (name: string) => request<ApiKey>("POST", "/keys", { name }),
+  createKey: (name: string, scope: KeyScope = "full", expires_days: number | null = null) =>
+    request<ApiKey>("POST", "/keys", { name, scope, expires_days }),
   deleteKey: (id: string) => request<void>("DELETE", `/keys/${id}`),
   webhooks: () => request<Webhook[]>("GET", "/webhooks"),
   createWebhook: (url: string, events: WebhookEvent[], secret: string | null) =>
@@ -539,6 +660,30 @@ export const api = {
   updateContact: (id: string, patch: { bot_enabled?: boolean; needs_human?: boolean; name?: string }) =>
     request<Contact>("PATCH", `/whatsapp/contacts/${id}`, patch),
   suggest: (id: string) => request<{ text: string; answered: boolean; sources: Source[] }>("POST", `/whatsapp/contacts/${id}/suggest`),
+  duplicateBot: (id: string) => request<Bot>("POST", `/bots/${id}/duplicate`),
+  createSample: () => request<{ base: KnowledgeBase; bot: Bot; added: number; existed: boolean }>("POST", "/bases/sample"),
+  importLink: (base_id: string, url: string, title?: string) =>
+    request<DocumentItem>("POST", `/bases/${base_id}/links`, { url, title: title || null }),
+  refetch: (id: string) => request<{ document: DocumentItem; changed: boolean }>("POST", `/documents/${id}/refetch`),
+  chunks: (id: string, offset = 0, limit = 50, q = "") =>
+    request<ChunkPage>("GET", `/documents/${id}/chunks?offset=${offset}&limit=${limit}&q=${encodeURIComponent(q)}`),
+  settings: () => request<SettingsData>("GET", "/system/settings"),
+  saveSettings: (values: Record<string, string | number | boolean>) => request<SettingsData>("PUT", "/system/settings", { values }),
+  resetSettings: (names?: string[]) => request<SettingsData>("POST", "/system/settings/reset", { names: names ?? null }),
+  diagnostics: (deep = false) => request<Diagnostics>("GET", `/system/diagnostics${deep ? "?deep=true" : ""}`),
+  maintenance: (action: MaintenanceAction, days?: number) =>
+    request<{ action: string; message: string; count: number; skipped: number }>("POST", "/system/maintenance", { action, days: days ?? null }),
+  audit: (params: { actor?: string; action?: string; days?: number; offset?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "" && v !== 0) query.set(k, String(v)); });
+    return request<AuditPage>("GET", `/audit?${query.toString()}`);
+  },
+  quickReplies: () => request<QuickReply[]>("GET", "/whatsapp/quick-replies"),
+  createQuickReply: (title: string, body: string) => request<QuickReply>("POST", "/whatsapp/quick-replies", { title, body }),
+  updateQuickReply: (id: string, patch: { title?: string; body?: string }) =>
+    request<QuickReply>("PATCH", `/whatsapp/quick-replies/${id}`, patch),
+  deleteQuickReply: (id: string) => request<void>("DELETE", `/whatsapp/quick-replies/${id}`),
+  health: () => request<{ status: string; version: string }>("GET", "/health"),
 };
 
 async function download(path: string, fallbackName: string, fallbackError: string): Promise<void> {
@@ -569,8 +714,19 @@ export function downloadExport(id: string, format: "markdown" | "json"): Promise
     "Não foi possível exportar a conversa.");
 }
 
-export function downloadMetrics(days: number): Promise<void> {
-  return download(`/metrics/export?days=${days}`, `nexo-perguntas-${days}d.csv`, "Não foi possível exportar as perguntas.");
+export function downloadMetrics(days: number, bot_id = ""): Promise<void> {
+  return download(`/metrics/export?days=${days}${bot_id ? `&bot_id=${encodeURIComponent(bot_id)}` : ""}`,
+    `nexo-perguntas-${days}d.csv`, "Não foi possível exportar as perguntas.");
+}
+
+export function downloadBackup(): Promise<void> {
+  return download("/system/backup", "nexo-backup.zip", "Não foi possível gerar o backup.");
+}
+
+export function downloadAudit(params: { actor?: string; action?: string; days?: number }): Promise<void> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== "" && v !== 0) query.set(k, String(v)); });
+  return download(`/audit/export?${query.toString()}`, "nexo-atividades.csv", "Não foi possível exportar as atividades.");
 }
 
 export async function openDocument(id: string, page?: number): Promise<void> {

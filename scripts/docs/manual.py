@@ -41,36 +41,47 @@ def visao_geral(d):
     ])
 
     d.secao(f"O que há de novo na {VERSAO}")
-    d.p(f"A versão {VERSAO} deixa o uso diário mais rápido e a operação mais segura, sem mudar a estrutura do banco "
-        "relacional. A identidade \"caixa única\", a mesma do painel Bento, continua igual, e tudo o que funcionava na "
-        "2.1.0 continua funcionando: as conversas, os agentes, as bases, o WhatsApp, a API e as integrações antigas, "
-        "inclusive a rota de pergunta sem streaming.")
+    d.p(f"A versão {VERSAO} cuida de quem opera o Nexo: ajustes pela tela, diagnóstico, manutenção, backup, registro de "
+        "atividades e uma linha de comando, além de recursos de uso diário pedidos por quem conversa e atende. A "
+        "identidade \"caixa única\" continua igual, e tudo o que funcionava na 2.2 continua funcionando; o banco é "
+        "migrado sozinho na primeira execução.")
     d.cartoes([
-        ("Respostas ao vivo", "streaming com SSE",
-         "A resposta aparece enquanto é escrita, nas conversas e nos chats com agentes. Parar cancela sem gravar nada."),
-        ("Refazer", "em cada resposta",
-         "Responde de novo a mesma pergunta com o histórico anterior e troca a resposta no lugar, com fontes novas."),
-        ("Sessões", "senha e outros dispositivos",
-         "Trocar a senha encerra as outras sessões. Sair dos outros dispositivos faz o mesmo sem trocar a senha."),
-        ("Contas pelo administrador", "Sistema e conta",
-         "Criar contas mesmo com o cadastro fechado e redefinir senhas, o que encerra as sessões e libera o bloqueio."),
-        ("Novos formatos", "EPUB, PPTX, XLSX e ODT",
-         "Livros capítulo a capítulo, apresentações slide a slide, planilhas aba a aba e documentos do LibreOffice."),
-        ("Ações em lote", "tela Documentos",
-         "Seleção múltipla para reindexar, excluir ou mover vários itens de uma vez, com o aviso do que foi pulado."),
-        ("Webhooks com nova tentativa", "até 3 tentativas",
-         "Falhas de rede, tempo esgotado e respostas 5xx ou 429 são repetidas, com X-Nexo-Delivery e X-Nexo-Attempt."),
-        ("Exportar CSV", "Painel de qualidade",
-         "Baixa as perguntas do período com data, conversa, resposta, avaliação, tempo e fontes."),
-        ("Busca nas conversas", "filtro da lista",
-         "O filtro de conversas procura também no conteúdo das mensagens, não só no título."),
-        ("Perfil", "Sistema e conta",
-         "Cada pessoa troca o próprio nome de exibição, sem depender do administrador."),
-        ("Operação", "X-Request-ID e /api/health/ready",
-         "Cada resposta leva um id de pedido, e a rota de prontidão confere o banco antes de liberar o tráfego."),
-        ("Sem migração", "banco existente",
-         "Nenhuma tabela muda. O arquivo de contas ganha dois campos sozinho na atualização."),
+        ("Ajustes pela tela", "Sistema e conta › Ajustes",
+         "Modelo, temperatura, cortes, trechos, cadastro, limites e retenção mudam na hora, sem editar o .env nem reiniciar."),
+        ("Diagnóstico", "tela e linha de comando",
+         "Confere banco, disco, segurança, modelos, banco vetorial, arquivos, índice e integrações, com o que fazer em cada aviso."),
+        ("Manutenção e backup", "Sistema e conta › Manutenção",
+         "Reindexar falhas, desatualizados ou tudo, limpar órfãos, apagar conversas antigas, compactar o banco e baixar um backup .zip."),
+        ("Registro de atividades", "auditoria",
+         "Quem entrou, criou, alterou ou excluiu bases, agentes, documentos, contas, chaves e conexões, com filtro e CSV."),
+        ("Base de teste", "um clique ou um comando",
+         "Arquivos de exemplo em seis formatos e um agente pronto, para experimentar o Nexo sem os seus documentos."),
+        ("Importar de um link", "páginas e arquivos publicados",
+         "Traz uma página ou arquivo da internet para a base e atualiza quando ele mudar, com bloqueio da rede interna."),
+        ("Trechos indexados", "Documentos e Bases",
+         "Mostra exatamente como cada arquivo foi dividido, com busca por palavra e o link para a página do PDF."),
+        ("Conversas fixadas e rascunhos", "Conversas",
+         "Fixe as conversas mais usadas no topo; o que você digitou fica guardado mesmo trocando de conversa."),
+        ("Comentário no \"não ajudou\"", "avaliação",
+         "Quem avalia diz o que faltou; o comentário vai para o painel, o CSV e o webhook feedback.negative."),
+        ("Perguntas sugeridas e duplicar", "Agentes",
+         "Atalhos de pergunta no começo de cada chat e cópia de um agente para criar variações rápido."),
+        ("Respostas prontas", "WhatsApp",
+         "Textos da equipe com {nome} e {telefone}, inseridos pelo botão ou digitando / na caixa de resposta."),
+        ("Painel por agente", "Painel de qualidade",
+         "Perguntas, taxa de resposta, tempo e avaliações de cada agente, com filtro do painel e do CSV."),
+        ("Chaves com permissão", "consulta, alimentação ou completa",
+         "Cada chave pode só perguntar, só alimentar bases ou tudo, e pode vencer sozinha em 30, 90 ou 365 dias."),
+        ("Limite e CORS", "proteção da API",
+         "Limite de perguntas por minuto por conta (HTTP 429) e liberação de sites que chamam a API pelo navegador."),
+        ("Operação", "logs, métricas e Docker",
+         "Logs em texto ou JSON com o id do pedido, métricas no formato do Prometheus, Dockerfile e serviço no compose."),
+        ("Atalhos e avisos", "uso diário",
+         "Atalhos Alt + N, B, D e W, a tecla ? com a lista de atalhos, aviso de servidor fora do ar e contador do WhatsApp no menu."),
     ])
+    d.p("**Na 2.2.0**, as respostas passaram a aparecer enquanto são escritas, com Parar e Refazer; vieram as contas pela "
+        "tela, as sessões encerradas na troca de senha, os formatos EPUB, PPTX, XLSX e ODT, as ações em lote, a busca no "
+        "conteúdo das conversas, o CSV do painel e os webhooks com nova tentativa.")
     d.p("**Na 2.1.0**, o Nexo virou uma plataforma de agentes: agentes com instruções próprias, bases de conhecimento, "
         "textos digitados direto na base, chats com vários agentes em abas ou lado a lado, atendimento pelo WhatsApp "
         "(Evolution API, API oficial ou simulador), a aba Integrar de cada base, o tutorial de primeiro acesso e a "
@@ -95,8 +106,10 @@ def visao_geral(d):
          "agentes, conversas, mensagens, fontes, avaliações, chaves, webhooks e WhatsApp"),
         ("Contas", "Arquivo JSON com bcrypt, sessões JWT com versão", "Login pré-definido, cadastro próprio, gestão pelo "
          "administrador, encerramento de sessões e tutorial visto"),
-        ("Integrações", "Chaves nxk_, webhooks com HMAC-SHA256", "Perguntas e buscas vindas de outros sistemas e avisos de "
-         "eventos, com nova tentativa automática"),
+        ("Integrações", "Chaves nxk_ com permissão e validade, webhooks com HMAC-SHA256", "Perguntas, buscas e envios "
+         "vindos de outros sistemas e avisos de eventos, com nova tentativa automática"),
+        ("Operação", "Ajustes em data/ajustes.json, auditoria, logs JSON, Prometheus, CLI e Docker", "Configurar sem "
+         "reiniciar, diagnosticar, manter, fazer backup e acompanhar o servidor"),
         ("WhatsApp", "Evolution API v2, WhatsApp Cloud API da Meta ou simulador", "Receber mensagens de clientes e "
          "responder pelo agente ou por uma pessoa"),
     ], larguras=["20%", "33%", "47%"])
@@ -125,11 +138,18 @@ def visao_geral(d):
         "Contas com troca de senha que encerra as outras sessões, Sair dos outros dispositivos, nome editável e, para "
         "administradores, criação de contas e redefinição de senha.",
         "Tutorial no primeiro acesso, paleta de comandos `Ctrl + K`, tema claro, escuro ou automático e layout para celular.",
+        "Ajustes do pipeline pela tela, diagnóstico, manutenção, backup e registro de atividades para administradores, "
+        "também pela linha de comando `python -m nexo`.",
+        "Importação de páginas e arquivos por link, visualização dos trechos indexados e uma base de teste pronta.",
+        "Conversas fixadas, rascunho guardado, impressão da conversa e comentário na avaliação \"não ajudou\".",
+        "Perguntas sugeridas e duplicação de agentes, respostas prontas no WhatsApp e painel de qualidade por agente.",
+        "Chaves de API com permissão e validade, limite de perguntas por minuto, CORS e métricas para o Prometheus.",
     ])
 
     d.secao("Identidade visual")
     d.p(f"A {VERSAO} mantém a identidade \"caixa única\", a mesma do painel Bento (Data-Driven-Admin-Panel), adotada na "
-        "1.5.0. Os botões novos (Parar, Refazer, Exportar CSV e as ações em lote) seguem os mesmos materiais.")
+        "1.5.0. As telas novas (as abas de Sistema e conta, os trechos indexados, as respostas prontas e os atalhos) "
+        "usam os mesmos materiais: tampa preta para os resumos, paredes finas, pontos de cor para a situação.")
     d.tabela(["Elemento", "Como ficou"], [
         ("Mesa", "Fundo, menu lateral e cabeçalhos no mesmo tom #F5F4F4, sem bordas"),
         ("Caixa", "Conversas, listas e painéis dividem paredes finas de 1 px dentro de caixas brancas de cantos arredondados"),
@@ -194,7 +214,9 @@ python -m nexo
 
     d.secao("Primeiro acesso")
     d.p("O login pré-definido é criado quando não há nenhum administrador, como na primeira execução. O aviso some da "
-        "tela de entrada (seção 4.1) assim que a senha do admin é trocada. Troque-a em Sistema e conta no primeiro acesso.")
+        "tela de entrada (seção 4.1) assim que a senha do admin é trocada. Troque-a em Sistema e conta no primeiro acesso. "
+        "Para experimentar antes de enviar os seus arquivos, use **Criar base de teste** em Bases de conhecimento ou "
+        "`python -m nexo base-de-teste` (seção 4.6).")
     d.tabela(["Usuário", "Senha", "Perfil", "Pode"], [
         ("`admin`", "`Nexo@2026`", "Administrador", "Tudo: excluir conteúdo de outras pessoas, ver o painel de todos, "
          "criar e gerenciar contas, redefinir senhas, webhooks e conexões do WhatsApp"),
@@ -224,8 +246,9 @@ python -m nexo
         "documentos antigos na base \"Acervo geral\". Conversas antigas continuam consultando todos os documentos.",
     ])
 
-    d.secao("Atualizando a partir da 2.1", novo=True)
-    d.p(f"A {VERSAO} não muda nenhuma tabela, então não há migração a fazer.")
+    d.secao("Atualizando a partir da 2.1")
+    d.p("A 2.2 não mudou nenhuma tabela. Siga os passos da seção seguinte: a migração da 2.3 acrescenta as colunas e "
+        "tabelas novas nos dois casos.")
     d.passos([
         "Pare o servidor. A cópia da pasta `data` (seção 10.5) continua recomendada antes de qualquer atualização.",
         "Traga os arquivos novos com `git pull` (ou substitua pelos da versão nova), mantendo `data` e o seu `.env`.",
@@ -236,11 +259,38 @@ python -m nexo
     d.p("As sessões abertas antes da atualização continuam válidas. O arquivo `data/usuarios.json` ganha os campos "
         "`session_version` e `password_changed_at` automaticamente; não é preciso editá-lo. O `.env` também não muda.")
 
+    d.secao("Atualizando a partir da 2.2", novo=True)
+    d.passos([
+        "Baixe um backup em Sistema e conta › Manutenção ou rode `python -m nexo backup` (seção 10.5).",
+        "Pare o servidor e traga os arquivos novos com `git pull`, mantendo `data` e o seu `.env`.",
+        "Rode o script de inicialização (ou `pip install -r requirements.txt` e, em `frontend`, `npm ci && npm run build`).",
+        "Suba o servidor. A migração automática cria as tabelas `nx_audit` e `nx_quick_reply` e acrescenta as colunas "
+        "`pinned`, `suggestions`, `index_signature`, `source_url`, `scope` e `expires_at`. Os documentos prontos recebem "
+        "a assinatura da configuração atual, então nada precisa ser reindexado.",
+        "Rode `python -m nexo diagnostico` ou abra Sistema e conta › Diagnóstico para conferir a instalação.",
+    ])
+    d.p("O `.env` antigo continua valendo. As variáveis novas (`NEXO_RATE_LIMIT`, `NEXO_RETENTION_DAYS`, `NEXO_LOG_FORMAT`, "
+        "`NEXO_CORS_ORIGINS` e as de links) têm padrões seguros; o limite de 60 perguntas por minuto por conta passa a "
+        "valer sem configurar nada. Chaves de API antigas ficam com permissão completa e sem validade.")
+
+    d.secao("Com Docker", novo=True)
+    d.p("O `Dockerfile` compila a interface e monta uma imagem só com o Python e o Nexo, rodando como usuário sem "
+        "privilégios, com a pasta de dados em `/dados` e checagem de saúde em `/api/health/ready`. O serviço `nexo` do "
+        "`docker-compose.yml` fica no perfil `app`:")
+    d.codigo("""
+cp .env.example .env
+docker compose --profile app --profile ollama up -d --build
+docker compose exec ollama ollama pull llama3.1
+""")
+    d.p("A interface abre em `http://localhost:8000`. No compose, `NEXO_HOST`, `NEXO_DATA_DIR` e `NEXO_OLLAMA_URL` já "
+        "apontam para o contêiner; o resto vem do `.env`. Os dados ficam no volume `nexo-dados`, e os modelos baixados do "
+        "HuggingFace também, em `/dados/modelos`.")
 
 def configuracao(d):
     d.capitulo("Configuração",
-               "Toda a configuração fica no arquivo .env na raiz do projeto. Altere, salve e reinicie o servidor. A "
-               "tela Sistema e conta mostra o que está valendo. As conexões do WhatsApp são feitas pela tela, não pelo .env.")
+               "A configuração base fica no arquivo .env na raiz do projeto: altere, salve e reinicie o servidor. Os "
+               "parâmetros do dia a dia (modelo, busca, cortes, trechos, cadastro e limites) também mudam pela tela "
+               "Sistema e conta › Ajustes, sem reiniciar (seção 3.6). As conexões do WhatsApp são feitas pela tela.")
     d.secao("Modos prontos")
     d.tabela(["Modo", "Linhas no .env", "Quando usar"], [
         ("Local e gratuito (padrão)", "`NEXO_LLM_PROVIDER=ollama` `NEXO_LLM_MODEL=llama3.1` "
@@ -257,8 +307,8 @@ def configuracao(d):
          "`NEXO_MIN_SIMILARITY=0.1`", "Validar a instalação e rodar os testes automatizados"),
     ], larguras=["20%", "50%", "30%"])
     d.nota("Trocou o modelo de embeddings?", "Vetores de modelos diferentes não são comparáveis. Depois de mudar "
-           "`NEXO_EMBED_PROVIDER` ou `NEXO_EMBED_MODEL`, use uma coleção nova (`NEXO_COLLECTION`) ou reindexe todos os "
-           "documentos (na tela Documentos, selecione todos e use Reindexar).")
+           "`NEXO_EMBED_PROVIDER` ou `NEXO_EMBED_MODEL`, os documentos aparecem como **índice desatualizado**: use "
+           "**Reindexar desatualizados** em Sistema e conta › Manutenção ou `python -m nexo reindexar --desatualizados`.")
 
     d.secao("Todas as variáveis")
     d.tabela(["Variável", "Padrão", "Descrição"], [
@@ -272,6 +322,13 @@ def configuracao(d):
         ("`NEXO_MAX_UPLOAD_MB`", "100", "Tamanho máximo de cada arquivo (1 a 2048)"),
         ("`NEXO_DATABASE_URL`", "vazio", "URL SQLAlchemy de outro banco relacional. Vazio: data/nexo.db"),
         ("`NEXO_WEBHOOK_TIMEOUT`", "5", "Tempo máximo de cada tentativa de entrega de webhook, em segundos (até 120)"),
+        "Operação [[novo]]",
+        ("`NEXO_RATE_LIMIT`", "60", "Perguntas e buscas por minuto por conta. Acima disso, HTTP 429 com Retry-After. 0 desliga"),
+        ("`NEXO_RETENTION_DAYS`", "0", "Apaga conversas não fixadas sem atividade há mais dias que isso. 0 guarda para sempre"),
+        ("`NEXO_LOG_LEVEL` / `_FORMAT`", "INFO / texto", "Nível dos registros e formato: texto ou json (uma linha JSON por evento)"),
+        ("`NEXO_CORS_ORIGINS`", "vazio", "Sites liberados a chamar a API pelo navegador, separados por vírgula"),
+        ("`NEXO_ALLOW_PRIVATE_URLS`", "false", "Permite importar links da rede interna (localhost, 10.x, 192.168.x)"),
+        ("`NEXO_LINK_TIMEOUT`", "20", "Tempo máximo para baixar um link, em segundos"),
         "WhatsApp",
         ("`NEXO_PUBLIC_URL`", "vazio", "Endereço público do Nexo (https://…) usado para montar a URL do webhook do WhatsApp"),
         ("`NEXO_WHATSAPP_HISTORY`", "6", "Mensagens anteriores do contato usadas pelo agente para entender a pergunta"),
@@ -321,6 +378,7 @@ def configuracao(d):
     d.secao("Serviços externos com Docker")
     d.p("O `docker-compose.yml` traz serviços opcionais, cada um em um perfil:")
     d.codigo("""
+docker compose --profile app up -d         # o próprio Nexo em http://localhost:8000 (seção 2.9)
 docker compose --profile chroma up -d      # ChromaDB em http://localhost:8001
 docker compose --profile qdrant up -d      # Qdrant em http://localhost:6333
 docker compose --profile ollama up -d      # Ollama em http://localhost:11434
@@ -340,8 +398,27 @@ docker compose --profile postgres up -d    # PostgreSQL em localhost:5432
         "webhooks de saída, o servidor do Nexo precisa conseguir abrir conexões até as URLs cadastradas.")
     d.p("Respostas em streaming chegam por Server-Sent Events. No Nginx, desligue o buffer da rota de streaming "
         "(`proxy_buffering off`) para que o texto apareça enquanto é escrito. Para checagens de saúde do balanceador, "
-        "use `GET /api/health/ready`, que devolve 503 quando o banco não responde.")
+        "use `GET /api/health/ready`, que devolve 503 quando o banco não responde. Atrás de um proxy, o Nexo registra o "
+        "IP do cabeçalho `X-Forwarded-For` no registro de atividades.")
 
+    d.secao("Ajustes pela tela", novo=True)
+    d.p("Em **Sistema e conta › Ajustes**, o administrador muda parte da configuração com o servidor no ar. O valor vale "
+        "na próxima pergunta e fica guardado em `data/ajustes.json`, que tem prioridade sobre o `.env`. Cada campo mostra "
+        "o padrão do `.env` quando foi alterado e o link **restaurar**; **Restaurar padrões** desfaz todos.")
+    d.tabela(["Grupo", "Itens", "Observação"], [
+        ("Modelo", "modelo de linguagem, temperatura, tempo limite, verificação de fidelidade", "Trocar o modelo recarrega "
+         "o LLM na próxima pergunta, no mesmo provedor"),
+        ("Busca", "candidatos, trechos enviados ao modelo, similaridade mínima, nota mínima do reranker, turnos de histórico",
+         "Trechos enviados não pode passar dos candidatos"),
+        ("Indexação", "tamanho do trecho, sobreposição, tamanho máximo do arquivo", "Mudar o trecho marca os documentos "
+         "como desatualizados; a tela oferece reindexar"),
+        ("Acesso", "cadastro aberto, duração da sessão, limite de perguntas por minuto", "Valem para as próximas entradas"),
+        ("Manutenção e WhatsApp", "dias de retenção das conversas, histórico lido pelo agente no WhatsApp", "A retenção "
+         "roda ao subir e a cada 6 horas"),
+    ], larguras=["18%", "48%", "34%"])
+    d.p("Provedores, modelo de embeddings, banco vetorial, banco relacional, segredos e CORS continuam só no `.env`, porque "
+        "exigem reiniciar ou reindexar tudo; a mesma aba mostra esses valores em **Definidos no .env**. Toda alteração "
+        "entra no registro de atividades com o valor novo.")
 
 def usando(d):
     d.capitulo("Usando o Nexo",
@@ -354,10 +431,13 @@ def usando(d):
          "dos dados de cada um"),
         ("Atendimento", "WhatsApp", "Caixa de entrada com os clientes e as conexões dos números"),
         ("Gestão", "Painel de qualidade, Integrações", "Acompanhar as respostas e ligar outros sistemas"),
-        ("Conta", "Sistema e conta", "Pipeline, acervo, perfil, senha, sessões, tutorial e, para administradores, as contas"),
+        ("Conta", "Sistema e conta", "Pipeline, acervo, perfil, senha, sessões e tutorial; para administradores, também "
+         "ajustes, diagnóstico, manutenção, atividades e contas"),
     ], larguras=["16%", "36%", "48%"])
-    d.p("No topo do menu, o botão **Ir para…** (`Ctrl + K`) abre a paleta de comandos. No rodapé ficam o usuário "
-        "conectado, o botão de tema e **Sair**.")
+    d.p("No topo do menu, o botão **Ir para…** (`Ctrl + K`) abre a paleta de comandos. No rodapé ficam o tutorial, os "
+        "**Atalhos** (ou a tecla `?`), o botão de tema, **Sair** e o usuário conectado. O item WhatsApp mostra quantos "
+        "clientes aguardam atendente, e o título da aba do navegador também. Se o servidor sair do ar, uma faixa no topo "
+        "avisa e some sozinha quando ele volta.")
 
     d.secao("Entrada", quebra=True)
     d.tela("tela-login.png", "Entrada, com as abas Entrar e Criar conta e o aviso do login pré-definido enquanto a senha "
@@ -408,7 +488,19 @@ def usando(d):
         "Cada trecho mostra a página (ou a parte, em arquivos que não são PDF), a similaridade, a nota do reranker e o "
         "link para abrir o arquivo.",
         "Perguntas seguintes podem usar \"isso\" ou \"e depois?\": o Nexo reescreve a pergunta com o histórico antes de buscar.",
+        "**Fixar** [[novo]]: o alfinete no topo da conversa (ou na lista) leva a conversa ao grupo **Fixadas**, no alto da "
+        "lista. Conversas fixadas não são apagadas pela retenção automática.",
+        "**Rascunho** [[novo]]: o que você digitou e não enviou fica guardado por conversa, mesmo trocando de conversa ou "
+        "recarregando a página.",
+        "**Imprimir** [[novo]]: o ícone de impressora gera uma versão limpa da conversa, com as fontes, para imprimir ou salvar em PDF.",
+        "A tecla `/` volta o cursor para a caixa de pergunta de qualquer ponto da conversa.",
     ])
+    d.sub("Avaliando e dizendo o que faltou [[novo]]")
+    d.tela("tela-avaliacao.png", "Depois de \"não ajudou\", o campo O que faltou nesta resposta? envia o comentário ao "
+           "painel de qualidade.", altura_max_mm=105)
+    d.p("Ao marcar **não ajudou**, abre o campo **O que faltou nesta resposta?**. O comentário é opcional e pode ser "
+        "trocado depois; ele aparece no painel de qualidade junto da resposta, entra na coluna `comentario` do CSV e vai no "
+        "campo `comment` do webhook `feedback.negative`.")
     d.sub("Escolhendo os documentos consultados")
     d.p("A linha **Consultando** mostra o escopo atual. Clique em **Escolher documentos** e marque os documentos que a "
         "conversa deve usar. Sem nenhum marcado, todos os documentos prontos são consultados, inclusive os que forem "
@@ -440,6 +532,8 @@ def usando(d):
     ])
     d.p("As abas abertas ficam guardadas no navegador. Conversas antigas de cada agente aparecem abaixo dele na lista e "
         "reabrem numa aba. Um agente cuja base ainda não tem conteúdo pronto avisa isso no lugar da caixa de pergunta.")
+    d.p("**Perguntas sugeridas** [[novo]]: numa conversa nova, as perguntas cadastradas no agente aparecem como botões "
+        "abaixo da saudação. Um clique envia a pergunta.")
 
     d.secao("Agentes", quebra=True)
     d.tela("tela-agentes.png", "Agentes: cada cartão mostra a cor, a base de conhecimento, as conversas e se o agente "
@@ -455,6 +549,7 @@ def usando(d):
         ("Quando não souber", "Frase usada no lugar da resposta padrão, por exemplo \"Vou chamar alguém da equipe\""),
         ("Cor", "Destaque do selo com a inicial do agente"),
         ("Citar fontes no WhatsApp", "Acrescenta \"Fontes:\" com documento e página no fim das respostas enviadas aos clientes"),
+        ("Perguntas sugeridas [[novo]]", "Até 6 perguntas, uma por linha, mostradas como atalhos no começo de cada chat"),
     ], larguras=["27%", "73%"])
     d.tela("tela-agente-editar.png", "Painel de criação do agente: nome, base de conhecimento, instruções, saudação, "
            "frase para quando não souber e cor.", altura_max_mm=110)
@@ -465,6 +560,8 @@ def usando(d):
         "Salve. O cartão mostra **Pronto** quando a base tem conteúdo indexado. Use **Conversar** para testar e "
         "**Editar** para ajustar.",
     ])
+    d.p("**Duplicar** [[novo]] cria uma cópia do agente com o nome \"(cópia)\", a mesma base e as mesmas instruções, "
+        "pronta para editar: útil para testar outro tom sem mexer no agente que está no ar.")
     d.p("Excluir um agente apaga as conversas feitas com ele e desliga a resposta automática dos números de WhatsApp que "
         "ele atendia. Só quem criou o agente ou um administrador pode editá-lo ou excluí-lo.")
 
@@ -475,8 +572,8 @@ def usando(d):
         "respostas. A tela mostra todas as bases à esquerda e, à direita, a base escolhida, com o resumo na tampa preta "
         "(itens, prontos, trechos, páginas e agentes que usam a base) e quatro abas.")
     d.tabela(["Aba", "O que dá para fazer"], [
-        ("Arquivos", "Arrastar ou escolher arquivos PDF, DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON e HTML; filtrar; "
-         "abrir, renomear, reindexar, mover para outra base e excluir"),
+        ("Arquivos", "Arrastar ou escolher arquivos PDF, DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON e HTML; importar "
+         "de um link; filtrar; abrir, ver os trechos, renomear, reindexar, mover para outra base e excluir"),
         ("Textos", "Escrever ou colar uma informação direto na base, com título; editar e excluir a qualquer hora"),
         ("Testar", "Fazer uma busca só nesta base e ver os trechos que um agente receberia, com as notas"),
         ("Integrar", "Exemplos prontos (curl, Python e JavaScript) para enviar arquivos, criar textos e perguntar ao agente "
@@ -486,10 +583,10 @@ def usando(d):
     d.tabela(["Formato", "Como vira texto", "Citação"], [
         ("PDF", "Texto de cada página com pypdf (PDF digitalizado precisa de OCR antes)", "página N"),
         ("DOCX", "Parágrafos e tabelas do documento do Word", "parte N"),
-        ("ODT [[novo]]", "Parágrafos e tabelas do documento do LibreOffice / OpenDocument", "parte N"),
-        ("EPUB [[novo]]", "O livro capítulo a capítulo, na ordem de leitura", "parte N"),
-        ("PPTX [[novo]]", "O texto de cada slide, um slide por parte", "parte N"),
-        ("XLSX [[novo]]", "As linhas de cada aba, como no CSV, com o nome da aba antes", "parte N"),
+        ("ODT", "Parágrafos e tabelas do documento do LibreOffice / OpenDocument", "parte N"),
+        ("EPUB", "O livro capítulo a capítulo, na ordem de leitura", "parte N"),
+        ("PPTX", "O texto de cada slide, um slide por parte", "parte N"),
+        ("XLSX", "As linhas de cada aba, como no CSV, com o nome da aba antes", "parte N"),
         ("TXT e MD", "O texto como está, dividido em partes por parágrafos", "parte N"),
         ("CSV", "Cada linha vira \"coluna: valor\", com o cabeçalho repetido a cada bloco de linhas", "parte N"),
         ("JSON", "Cada valor vira \"caminho: valor\", para que chaves e valores entrem na busca", "parte N"),
@@ -515,6 +612,39 @@ def usando(d):
            altura_max_mm=100)
     d.tela("tela-base-integrar.png", "Aba Integrar: exemplos prontos com o id da base e do agente para levar dados e "
            "perguntas de outros sistemas.", altura_max_mm=100)
+    d.sub("Importar de um link [[novo]]")
+    d.tela("tela-importar-link.png", "Importar de um link: o endereço da página ou do arquivo e um título opcional.",
+           altura_max_mm=100)
+    d.passos([
+        "Na aba Arquivos, clique em **Importar de um link**.",
+        "Cole o endereço de uma página (HTML) ou de um arquivo publicado (PDF, DOCX, planilha, texto…) e, se quiser, um título.",
+        "Clique em **Importar**. O Nexo baixa o conteúdo, guarda o link de origem e indexa como qualquer outro item.",
+        "Quando a página mudar, use o ícone **Atualizar do link** do item: o Nexo baixa de novo e só reindexa se o "
+        "conteúdo for diferente.",
+    ])
+    d.p("Por segurança, endereços da rede interna (localhost, 10.x, 172.16-31.x, 192.168.x e afins) são bloqueados, "
+        "inclusive quando um site redireciona para eles. Para importar de uma intranet, ligue `NEXO_ALLOW_PRIVATE_URLS`.")
+    d.sub("Ver os trechos indexados [[novo]]")
+    d.p("O ícone de camadas em cada item abre a gaveta **Trechos indexados**: o texto exato de cada trecho, na ordem, com "
+        "a página ou parte e o número de caracteres, uma busca por palavra que destaca os termos e o link para abrir o "
+        "arquivo naquela página. É o jeito mais rápido de entender por que um assunto não é encontrado.")
+    d.sub("Base de teste [[novo]]")
+    d.tela("tela-base-teste.png", "Base de teste criada com um clique: seis arquivos de exemplo e o Agente de teste.",
+           altura_max_mm=105)
+    d.p("Para experimentar o Nexo sem os seus documentos, clique em **Criar base de teste** no quadro \"Quer "
+        "experimentar?\" da lista de bases, ou rode `python -m nexo base-de-teste`. O Nexo cria a **Base de teste** com os "
+        "arquivos de `exemplos/base-de-teste` e o **Agente de teste**, já com perguntas sugeridas.")
+    d.tabela(["Arquivo", "Formato", "Conteúdo"], [
+        ("manual-roteador-rx200.pdf", "PDF", "Manual do Roteador RX-200: instalação, reset, firmware e especificações"),
+        ("garantia.md", "Markdown", "Prazo, cobertura e como acionar a garantia"),
+        ("perguntas-frequentes.html", "HTML", "Senha do Wi-Fi, aparelhos conectados, operadoras e rede de visitantes"),
+        ("planos-de-suporte.csv", "CSV", "Planos Básico, Plus e Empresarial com preço, atendimento e visita técnica"),
+        ("horario-de-atendimento.txt", "TXT", "Canais e horários do suporte"),
+        ("especificacoes.json", "JSON", "Ficha técnica do aparelho"),
+    ], larguras=["32%", "14%", "54%"], cls="compacta")
+    d.p("Pergunte, por exemplo, \"Quanto tempo dura a garantia?\" ou \"O suporte atende aos sábados?\". O arquivo "
+        "`exemplos/base-de-teste/perguntas-de-teste.jsonl` traz perguntas com a resposta esperada para o `scripts/avaliar.py`. "
+        "Rodar de novo não duplica nada; para remover, exclua o agente e a base.")
 
     d.secao("WhatsApp", quebra=True)
     d.tela("tela-whatsapp.png", "Caixa de entrada do WhatsApp: contatos com filtros, a conversa com o cliente, o agente "
@@ -534,6 +664,13 @@ def usando(d):
         "**Aguardando atendente:** quando o agente não encontra a resposta na base, ou quando o cliente pede \"atendente\" "
         "ou \"humano\", o contato ganha essa marca, o agente pausa nele e sai o evento `whatsapp.handoff`.",
     ])
+    d.sub("Respostas prontas [[novo]]")
+    d.tela("tela-respostas-prontas.png", "Menu de respostas prontas aberto na caixa de resposta do WhatsApp.",
+           altura_max_mm=105)
+    d.p("Textos que a equipe repete todo dia (boas-vindas, horário, prazo de entrega) ficam a um clique. Clique no ícone "
+        "de raio ao lado da caixa de resposta, ou digite `/` no começo da caixa, e escolha a resposta; ela entra no campo "
+        "para revisar antes de enviar. `{nome}` e `{telefone}` são trocados pelos dados do contato. **Gerenciar respostas "
+        "prontas** cria, edita e exclui; quem criou ou um administrador pode alterar cada uma.")
     d.tela("tela-whatsapp-conexoes.png", "Aba Conexões: provedor, agente que atende, resposta automática, URL do webhook "
            "e o QR code da Evolution API.", altura_max_mm=112)
     d.p("A aba **Conexões** lista os números conectados e, para administradores, permite criar, editar, pausar e excluir "
@@ -555,14 +692,23 @@ def usando(d):
     ])
 
     d.secao("Documentos", quebra=True)
-    d.tela("tela-documentos.png", "Documentos: o resumo do acervo na tampa preta, a área de envio com os formatos aceitos e a "
-           "barra de ações em lote com dois itens selecionados.", altura_max_mm=115)
+    d.tela("tela-documentos.png", "Documentos: a lista de todas as bases, com dois itens selecionados para uma ação em "
+           "lote e os ícones de cada item.", altura_max_mm=115)
     d.p("A tela Documentos mostra todos os itens de todas as bases numa lista só, com o filtro **Base** para ver uma base "
         "de cada vez. Escolha em **Enviar para** a base onde os arquivos enviados aqui vão entrar; sem escolha, vão para "
         "a base \"Acervo geral\". Cada item entra como Na fila, passa a Indexando e termina em Pronto; se aparecer "
         "Falhou, o motivo fica abaixo do título. Os ícones à direita abrem o arquivo, perguntam a este documento, "
         "renomeiam (reindexa), reindexam e excluem. A barra acima da lista filtra por título, situação e ordem.")
-    d.sub("Ações em lote [[novo]]")
+    d.tela("tela-trechos.png", "Gaveta Trechos indexados aberta por cima da lista, com a busca por palavra.",
+           altura_max_mm=105)
+    d.lista([
+        "**Ver trechos** [[novo]]: o ícone de camadas abre a gaveta com os trechos do item (seção 4.6).",
+        "**Índice desatualizado** [[novo]]: um item indexado com outro modelo de embeddings ou outro tamanho de trecho "
+        "ganha essa marca. A situação **Desatualizados** do filtro lista todos, e o administrador vê o aviso com o botão "
+        "para reindexar só eles.",
+        "Itens importados de um link mostram o endereço de origem abaixo do título.",
+    ])
+    d.sub("Ações em lote")
     d.passos([
         "Marque a caixa de seleção dos itens desejados, ou a caixa do cabeçalho para marcar todos os itens filtrados.",
         "Na barra que aparece, escolha **Reindexar**, **Mover para** (com a base de destino) ou **Excluir**. A exclusão "
@@ -587,9 +733,16 @@ def usando(d):
         ("Perguntas por dia", "Perguntas e perguntas sem resposta de cada dia"),
         ("Documentos mais citados", "Os seis documentos que mais embasaram respostas"),
         ("Lacunas do acervo", "As 10 perguntas sem resposta mais recentes, com Buscar e Abrir"),
-        ("Respostas avaliadas como \"não ajudou\"", "As 10 respostas mais recentes marcadas como \"não ajudou\", com a pergunta"),
+        ("Respostas avaliadas como \"não ajudou\"", "As 10 respostas mais recentes marcadas como \"não ajudou\", com a "
+         "pergunta e o comentário de quem avaliou"),
+        ("Por agente [[novo]]", "Perguntas, respondidas, taxa de resposta, tempo médio e \"não ajudou\" de cada agente e "
+         "das conversas gerais"),
     ], larguras=["32%", "68%"])
-    d.sub("Exportar CSV [[novo]]")
+    d.tela("tela-painel-agentes.png", "Tabela Por agente e as respostas avaliadas como \"não ajudou\" com o comentário.",
+           altura_max_mm=105)
+    d.p("O filtro **Agente** [[novo]], ao lado do período, restringe o painel inteiro e o CSV a um agente ou às conversas "
+        "gerais. Clicar numa linha da tabela Por agente aplica o mesmo filtro.")
+    d.sub("Exportar CSV")
     d.p("O botão **Exportar CSV** baixa as perguntas do período escolhido, uma por linha, pela rota "
         "`GET /api/metrics/export?days=N`. O escopo é o mesmo do painel: tudo para o administrador, só as próprias "
         "conversas para os demais.")
@@ -601,6 +754,7 @@ def usando(d):
         ("avaliação", "Útil, não ajudou ou vazio"),
         ("latência", "Tempo de resposta, em milissegundos"),
         ("fontes", "Documentos e páginas citados"),
+        ("comentario [[novo]]", "O que faltou, escrito por quem marcou \"não ajudou\" (última coluna, para não mudar as anteriores)"),
     ], larguras=["22%", "78%"], cls="compacta")
     d.nota("Rotina sugerida.", "Uma vez por semana, leia as lacunas e os contatos que ficaram aguardando atendente no "
            "WhatsApp. Se o assunto é legítimo e não está na base, crie um texto ou envie o arquivo que falta na base do agente.")
@@ -611,6 +765,8 @@ def usando(d):
     d.sub("Criar uma chave de API")
     d.passos([
         "Abra **Integrações** e, em **Chaves de API**, escreva um nome que diga onde a chave será usada.",
+        "Escolha a **Permissão** [[novo]]: **Completa** (tudo o que a conta pode), **Só consulta** (perguntar e buscar) "
+        "ou **Só alimentar bases** (enviar arquivos, textos e links). Escolha também a **Validade**: sem validade, 30, 90 ou 365 dias.",
         "Clique em **Criar chave** e copie a chave exibida. Ela começa com `nxk_` e aparece uma única vez.",
         "Guarde a chave no cofre de segredos do sistema que vai usá-la e teste com um dos exemplos de **Pergunta direta**.",
     ])
@@ -623,39 +779,84 @@ def usando(d):
     ])
     d.p("Cada webhook mostra o resultado da última entrega. Falhas passageiras são repetidas sozinhas, até três "
         "tentativas por evento (seção 5.5).")
+    d.p("A tabela de chaves mostra a permissão, a validade e se a chave venceu. Para administradores, o quadro "
+        "**Monitoramento** [[novo]] traz a rota de métricas do Prometheus e o link da documentação interativa da API.")
 
     d.secao("Sistema e conta", quebra=True)
-    d.tela("tela-sistema.png", "Sistema e conta: o pipeline de respostas com os provedores em uso, o acervo na tampa "
-           "preta, a conta com a troca de senha e Sair dos outros dispositivos e, para administradores, o painel Contas "
-           "com Nova conta e Redefinir senha.", altura_max_mm=196)
-    d.p("O pipeline de respostas aparece na ordem em que a pergunta passa por ele, com os parâmetros de busca. A tampa "
-        "preta resume o acervo.")
+    d.tela("tela-sistema.png", "Sistema e conta, aba Visão geral: o pipeline de respostas com os provedores em uso, o "
+           "acervo na tampa preta e a conta com a troca de senha e Sair dos outros dispositivos.", altura_max_mm=170)
+    d.p("A tela tem abas [[novo]]. **Visão geral** fica para todos; **Ajustes**, **Diagnóstico**, **Manutenção**, "
+        "**Atividades** e **Contas** aparecem só para administradores. O endereço guarda a aba (`/sistema?aba=ajustes`), "
+        "e a paleta de comandos leva direto a cada uma. Na Visão geral, o pipeline de respostas aparece na ordem em que a "
+        "pergunta passa por ele, com os parâmetros de busca, e a tampa preta resume o acervo.")
     d.sub("Sua conta")
     d.lista([
-        "**Nome** [[novo]]: cada pessoa troca o próprio nome de exibição (`PATCH /api/auth/me`). O nome de usuário não muda.",
+        "**Nome**: cada pessoa troca o próprio nome de exibição (`PATCH /api/auth/me`). O nome de usuário não muda.",
         "**Trocar senha:** pede a senha atual e a nova, que precisa ser diferente da atual. Ao trocar, todas as outras "
         "sessões da conta são encerradas; esta aba continua conectada com uma sessão nova.",
-        "**Sair dos outros dispositivos** [[novo]]: encerra as sessões abertas em outros navegadores e computadores sem "
+        "**Sair dos outros dispositivos**: encerra as sessões abertas em outros navegadores e computadores sem "
         "trocar a senha. Útil depois de usar um computador compartilhado.",
         "**Senha trocada em** mostra a data da última troca ou redefinição da senha.",
         "**Ver tutorial** abre de novo o tutorial de primeiro acesso.",
     ])
     d.sub("Contas (administrador)")
     d.lista([
-        "**Nova conta** [[novo]]: nome, usuário, senha e perfil. Funciona mesmo com o cadastro aberto desligado.",
-        "**Redefinir senha** [[novo]]: define uma senha nova para a conta, encerra todas as sessões dela e libera o "
+        "**Nova conta**: nome, usuário, senha e perfil. Funciona mesmo com o cadastro aberto desligado.",
+        "**Redefinir senha**: define uma senha nova para a conta, encerra todas as sessões dela e libera o "
         "bloqueio por senhas erradas.",
         "Promover, rebaixar e excluir contas. Ninguém rebaixa nem exclui a própria conta, e o último administrador não "
         "pode ser rebaixado.",
     ])
+    d.sub("Ajustes [[novo]]")
+    d.tela("tela-ajustes.png", "Aba Ajustes: modelo, busca, indexação, acesso e manutenção, com Salvar e Restaurar padrões.",
+           altura_max_mm=110)
+    d.p("Muda os parâmetros do pipeline e do acesso com o servidor no ar. Os campos e as regras estão na seção 3.6. "
+        "**Salvar** só fica ativo quando algo mudou; um erro de validação aparece no próprio campo.")
+    d.sub("Diagnóstico [[novo]]")
+    d.tela("tela-diagnostico.png", "Aba Diagnóstico: o resumo na tampa preta e cada verificação com o que fazer.",
+           altura_max_mm=110)
+    d.p("O **diagnóstico rápido** roda ao abrir a aba e confere, em grupos: o servidor (banco relacional, espaço em "
+        "disco), a segurança (senha padrão do administrador, segredo das sessões, cadastro aberto, CORS), os modelos "
+        "(provedor e pacotes instalados), o acervo (documentos com falha, presos na fila, desatualizados, arquivos "
+        "ausentes e trechos no banco vetorial), as integrações (webhooks falhando, conexões do WhatsApp) e a manutenção "
+        "(backup e retenção). Cada aviso traz a orientação do que fazer. O **diagnóstico completo** também carrega o modelo "
+        "de embeddings e faz uma chamada de teste ao modelo de linguagem, por isso leva mais tempo.")
+    d.sub("Manutenção [[novo]]")
+    d.tela("tela-manutencao.png", "Aba Manutenção: backup, conversas antigas e as ações sobre o acervo e o banco.",
+           altura_max_mm=110)
+    d.tabela(["Ação", "O que faz"], [
+        ("Baixar backup", "Um .zip com o banco SQLite, as contas, os ajustes, o segredo das sessões e os arquivos enviados "
+         "(seção 10.5)"),
+        ("Apagar conversas antigas", "Apaga as conversas não fixadas sem atividade há mais dias que o informado"),
+        ("Reindexar falhas", "Coloca de novo na fila os itens que falharam"),
+        ("Reindexar desatualizados", "Reindexa só os itens indexados com outra configuração de embeddings ou de trecho"),
+        ("Reindexar tudo", "Reindexa o acervo inteiro, por exemplo depois de trocar o modelo de embeddings"),
+        ("Limpar órfãos", "Apaga arquivos em `data/uploads` e vetores que não pertencem a nenhum item"),
+        ("Compactar o banco", "VACUUM e checkpoint do SQLite, com o tamanho antes e depois"),
+    ], larguras=["28%", "72%"])
+    d.p("As reindexações entram na fila e seguem enquanto você usa o Nexo. Cada ação mostra o resultado na tela e entra "
+        "no registro de atividades.")
+    d.sub("Atividades [[novo]]")
+    d.tela("tela-atividades.png", "Aba Atividades: quem fez o quê, quando, com os detalhes e o IP de origem.",
+           altura_max_mm=110)
+    d.p("O registro de atividades guarda entradas e tentativas falhas, cadastros, trocas e redefinições de senha, e a "
+        "criação, alteração e exclusão de bases, textos, documentos, agentes, chaves, webhooks, conexões do WhatsApp, "
+        "respostas prontas, contas e ajustes, além das manutenções e backups. Filtre por conta, tipo e período (1, 7, 30 "
+        "ou 90 dias) e use **Exportar CSV** para guardar ou auditar fora do Nexo. Senhas, chaves e segredos nunca entram "
+        "nos detalhes.")
 
     d.secao("Paleta de comandos e atalhos", quebra=True)
     d.tela("tela-comandos.png", "Paleta de comandos aberta com Ctrl + K.", altura_max_mm=105)
     d.p("Clique em **Ir para…** ou tecle `Ctrl + K` em qualquer tela, escreva parte do nome do que procura e tecle "
         "`Enter`. A paleta leva a qualquer tela, abre conversas e executa ações como nova conversa, criar agente, criar "
         "base, abrir o WhatsApp, trocar o tema e ver o tutorial.")
+    d.tela("tela-atalhos.png", "Lista de atalhos, aberta com a tecla ? ou pelo botão Atalhos do menu.", altura_max_mm=100)
     d.tabela(["Atalho", "O que faz"], [
         ("`Ctrl + K`", "Abre a paleta de comandos"),
+        ("`?` [[novo]]", "Mostra a lista de atalhos"),
+        ("`Alt + N` / `Alt + B` [[novo]]", "Nova conversa / Busca nos trechos"),
+        ("`Alt + D` / `Alt + W` [[novo]]", "Documentos / WhatsApp"),
+        ("`/` [[novo]]", "Na conversa, volta para a caixa de pergunta; no WhatsApp, no começo da caixa, abre as respostas prontas"),
         ("Setas e `Enter`", "Escolhem e executam um comando da paleta; no tutorial, as setas avançam e voltam"),
         ("`Esc`", "Fecha a paleta ou o tutorial e interrompe a resposta que está sendo escrita"),
         ("`Enter`", "Envia a pergunta, a mensagem do WhatsApp e a busca"),
@@ -683,11 +884,27 @@ X-API-Key: nxk_Q2x5...                   # recomendado
 Authorization: Bearer nxk_Q2x5...        # alternativa, para clientes que só enviam Bearer
 """)
     d.lista([
-        "A chave age em nome de quem a criou, com as mesmas permissões.",
+        "A chave age em nome de quem a criou, limitada pela permissão escolhida ao criá-la.",
         "Formato: `nxk_` seguido de 43 caracteres. O prefixo (12 primeiros caracteres) identifica a chave nas telas sem expô-la.",
         "O Nexo guarda só o hash SHA-256 da chave. Se ela se perder, revogue e crie outra.",
-        "Chave inválida ou revogada recebe 401 `INVALID_API_KEY`. Encerrar as sessões da conta não afeta as chaves de API.",
+        "Chave inválida ou revogada recebe 401 `INVALID_API_KEY`; chave vencida, 401 `API_KEY_EXPIRED`. Encerrar as "
+        "sessões da conta não afeta as chaves de API.",
     ])
+    d.sub("Permissão e validade [[novo]]")
+    d.tabela(["Permissão", "`scope`", "O que a chave pode fazer"], [
+        ("Completa", "`full`", "Tudo o que a conta pode fazer, inclusive as rotas de administrador se a conta for administradora"),
+        ("Só consulta", "`ask`", "Perguntar (`/api/ask`, conversas e streaming), buscar nos trechos e ler bases, agentes e formatos"),
+        ("Só alimentar bases", "`feed`", "Listar bases, enviar arquivos, criar e editar textos, importar e atualizar links"),
+    ], larguras=["20%", "12%", "68%"])
+    d.p("Fora do que a permissão libera, a resposta é 403 `KEY_SCOPE`. Uma chave restrita nunca age como administrador "
+        "nem cria outras chaves. Na criação, `expires_days` (1 a 3650) define a validade; sem ele, a chave não vence.")
+    d.sub("Limite de perguntas [[novo]]")
+    d.p("Cada conta pode fazer até `NEXO_RATE_LIMIT` perguntas e buscas por minuto (60 por padrão), somando a interface "
+        "e as chaves. Acima disso, a resposta é 429 `RATE_LIMITED` com o cabeçalho `Retry-After` dizendo quantos segundos "
+        "esperar. O administrador muda o limite em Ajustes; 0 desliga.")
+    d.sub("Chamadas pelo navegador (CORS) [[novo]]")
+    d.p("Um site em outro endereço só consegue chamar a API pelo navegador se estiver em `NEXO_CORS_ORIGINS`, por exemplo "
+        "`https://portal.empresa.com.br,https://intranet.empresa.com.br`. Integrações de servidor para servidor não precisam disso.")
 
     d.secao("Pergunta direta: /api/ask")
     d.p("Uma chamada, uma resposta com fontes. Sem `conversation_id`, nada é gravado. Com ele, o Nexo usa o histórico e "
@@ -769,6 +986,18 @@ curl -X POST http://127.0.0.1:8000/api/documents/bulk \\
     d.p("Em `/api/documents/bulk`, `action` é `reindex`, `delete` ou `move` (este com `base_id`). A ação vale só para os "
         "itens que a chave pode alterar; a resposta informa os itens aplicados e os pulados.")
 
+    d.sub("Importando uma página ou arquivo por link [[novo]]")
+    d.codigo("""
+curl -X POST http://127.0.0.1:8000/api/bases/ID_DA_BASE/links \\
+  -H "X-API-Key: nxk_..." -H "Content-Type: application/json" \\
+  -d '{"url": "https://empresa.com.br/politica-de-trocas", "title": "Política de trocas"}'
+
+curl -X POST http://127.0.0.1:8000/api/documents/ID_DO_ITEM/refetch -H "X-API-Key: nxk_..."
+""")
+    d.p("A primeira chamada cria o item e o coloca na fila. A segunda baixa de novo e devolve `changed: true` quando o "
+        "conteúdo mudou (e o item vai para a fila) ou `false` quando está igual. Rede interna é recusada com 403 "
+        "`PRIVATE_URL`; um endereço que não responde volta como 502 com `UNREACHABLE` ou `HTTP_ERROR`.")
+
     d.secao("Busca pela API")
     d.codigo("""
 curl -X POST http://127.0.0.1:8000/api/search \\
@@ -833,7 +1062,7 @@ def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
     esperado = "sha256=" + hmac.new(segredo.encode(), corpo, hashlib.sha256).hexdigest()
     return hmac.compare_digest(esperado, cabecalho or "")
 """, rotulo="Python")
-    d.sub("Novas tentativas [[novo]]")
+    d.sub("Novas tentativas")
     d.tabela(["Resultado da tentativa", "O que o Nexo faz"], [
         ("Resposta 2xx", "Entrega concluída; grava o status"),
         ("Erro de rede, tempo esgotado, 5xx ou 429", "Tenta de novo: a segunda tentativa sai 1 s depois, a terceira 3 s "
@@ -854,7 +1083,9 @@ def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
 
     d.secao("Boas práticas")
     d.lista([
-        "Uma chave por sistema integrado, com nome claro. Revogar uma não derruba as outras.",
+        "Uma chave por sistema integrado, com nome claro, a menor permissão que resolve e uma validade. Revogar uma não "
+        "derruba as outras.",
+        "Trate o 429 esperando o tempo de `Retry-After` antes de tentar de novo.",
         "Responda ao webhook rápido e faça o trabalho pesado depois, numa fila do seu lado. Uma resposta lenta vira "
         "tempo esgotado e uma nova tentativa.",
         "Guarde os `X-Nexo-Delivery` já processados para ignorar repetições.",
@@ -862,13 +1093,24 @@ def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
         "Use `question.unanswered` e `whatsapp.handoff` para abrir tarefas de curadoria das bases e avisar a equipe de atendimento.",
         "Registre o `X-Request-ID` de cada resposta do Nexo nos seus logs; ele localiza o pedido nos logs do servidor.",
     ])
+    d.sub("Monitorando com o Prometheus [[novo]]")
+    d.p("`GET /api/health/metrics` devolve, no formato de texto do Prometheus, pedidos e erros por rota, tempo de "
+        "resposta, itens por situação, perguntas, fila de indexação e tempo no ar. A rota exige uma chave completa de um "
+        "administrador:")
+    d.codigo("""
+scrape_configs:
+  - job_name: nexo
+    metrics_path: /api/health/metrics
+    authorization: { type: Bearer, credentials: nxk_... }
+    static_configs: [{ targets: ["nexo.empresa.com.br:8000"] }]
+""")
 
     d.secao("Exportação de conversas")
     d.p("O ícone de exportar no topo da conversa e a rota `GET /api/conversations/{id}/export` baixam a conversa inteira "
         "em `markdown` (padrão) ou `json`, com as fontes de cada resposta. Vale também para as conversas com agentes. "
         "Para as perguntas de um período em planilha, use o CSV do painel (seção 4.10).")
 
-    d.secao("Respostas em streaming", novo=True)
+    d.secao("Respostas em streaming")
     d.p("`POST /api/conversations/{id}/messages/stream` recebe o mesmo corpo de `POST /api/conversations/{id}/messages` e "
         "devolve `text/event-stream` (Server-Sent Events). A rota JSON antiga continua igual.")
     d.tabela(["Evento", "Dados", "Quando"], [
@@ -1046,7 +1288,16 @@ flowchart LR
     d.tabela(["Arquivo", "Responsabilidade"], [
         ("`nexo/config.py`", "Lê o .env com pydantic-settings e define os caminhos em data/"),
         ("`nexo/db.py`", "Modelos SQLAlchemy das tabelas, criação automática e sessões"),
-        ("`nexo/migrations.py`", "Migração automática de bancos da 2.0: colunas novas, base padrão e única de sha256 por base"),
+        ("`nexo/migrations.py`", "Migração automática: bancos da 2.0 (base padrão e única de sha256 por base) e, desde a "
+         "2.3, qualquer coluna nova que falte"),
+        ("`nexo/runtime.py` [[novo]]", "Ajustes pela tela: validação, gravação em data/ajustes.json e aplicação sobre o .env"),
+        ("`nexo/maintenance.py` [[novo]]", "Diagnóstico, ações de manutenção, retenção automática, backup e restauração"),
+        ("`nexo/audit.py` [[novo]]", "Registro de atividades com a conta, a ação, o alvo, os detalhes e o IP"),
+        ("`nexo/links.py` [[novo]]", "Download de links com bloqueio da rede interna, checagem de cada redirecionamento e limite de tamanho"),
+        ("`nexo/sample.py` [[novo]]", "Criação da Base de teste e do Agente de teste a partir de exemplos/base-de-teste"),
+        ("`nexo/cli.py` [[novo]]", "Linha de comando `python -m nexo`: servir, diagnostico, backup, restaurar, reindexar, "
+         "base-de-teste, contas e versao"),
+        ("`nexo/logs.py` / `nexo/context.py` [[novo]]", "Registros em texto ou JSON com o id do pedido, a conta e o IP"),
         ("`nexo/knowledge.py`", "Leitura de DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON, HTML e textos em partes para "
          "indexar, com o limite de 50 MB por item dos pacotes zip"),
         ("`nexo/whatsapp.py`", "Provedores Evolution, Cloud e simulador, webhook, contatos, resposta do agente e passagem "
@@ -1054,7 +1305,8 @@ flowchart LR
         ("`nexo/users.py`", "Contas em JSON: cadastro, criação pelo administrador, autenticação, bloqueio, troca e "
          "redefinição de senha, versão da sessão, perfil, exclusão e tutorial visto"),
         ("`nexo/security.py`", "Tokens JWT (HS256) com a versão da sessão e chaves de API"),
-        ("`nexo/api/deps.py`", "Identifica o usuário pelo token ou pela chave de API, confere a versão da sessão e o perfil"),
+        ("`nexo/api/deps.py`", "Identifica o usuário pelo token ou pela chave de API, confere a versão da sessão, o perfil, "
+         "a permissão e a validade da chave e o limite de perguntas"),
         ("`nexo/jobs.py`", "Fila de indexação em uma thread, retomada de pendências e eventos document.*"),
         ("`nexo/webhooks.py`", "Seleciona os webhooks do evento, assina com HMAC e entrega em segundo plano, com até 3 tentativas"),
         ("`nexo/rag/engine.py`", "Divisão em trechos, indexação, busca, reranking, prompt do agente e resposta, inteira "
@@ -1063,7 +1315,9 @@ flowchart LR
         ("`nexo/api/routes.py`", "Rotas REST de autenticação, sessões, documentos e ações em lote, conversas, streaming, "
          "Refazer, busca, métricas e CSV, chaves, webhooks, contas e sistema"),
         ("`nexo/api/agents.py`", "Rotas de bases de conhecimento, textos, formatos e agentes"),
-        ("`nexo/api/whatsapp.py`", "Rotas das conexões, do webhook público, dos contatos e das mensagens do WhatsApp"),
+        ("`nexo/api/whatsapp.py`", "Rotas das conexões, do webhook público, dos contatos, das mensagens e das respostas "
+         "prontas do WhatsApp"),
+        ("`nexo/api/system.py` [[novo]]", "Rotas de ajustes, diagnóstico, manutenção, backup, atividades e métricas do Prometheus"),
         ("`frontend/src`", "Interface React: páginas (Agents, Chats, Bases, WhatsApp e as da 2.0), componentes (Tutorial, "
          "paleta, trechos), cliente da API com leitura do streaming e temas"),
     ], larguras=["27%", "73%"])
@@ -1144,7 +1398,11 @@ flowchart TB
         "Sessões com JWT assinado por `NEXO_SECRET`; a interface guarda o token só na aba aberta (`sessionStorage`).",
         "Cada token leva a versão da sessão da conta (`session_version`). Trocar a senha, Sair dos outros dispositivos e "
         "a redefinição pelo administrador sobem a versão, e os tokens antigos passam a receber 401 `SESSION_REVOKED`.",
-        "Chaves de API só como hash SHA-256, exibidas uma vez e revogáveis.",
+        "Chaves de API só como hash SHA-256, exibidas uma vez e revogáveis, com permissão (completa, consulta ou "
+        "alimentação) e validade opcionais.",
+        "Limite de perguntas e buscas por minuto por conta (429 `RATE_LIMITED`) e CORS fechado por padrão.",
+        "Importação de links sem acesso à rede interna: o endereço e cada redirecionamento são conferidos antes da conexão.",
+        "Registro de atividades das ações sensíveis, com a conta e o IP, sem guardar senhas, chaves ou segredos.",
         "Webhooks assinados com HMAC-SHA256; cadastro restrito a administradores.",
         "Conexões do WhatsApp criadas só por administradores; segredos mascarados; webhook da Meta com assinatura e o da "
         "Evolution com token.",
@@ -1166,7 +1424,8 @@ def banco_de_dados(d):
     d.secao("Onde cada dado fica")
     d.tabela(["Camada", "Local padrão", "Conteúdo"], [
         ("Banco relacional", "`data/nexo.db`", "Bases, documentos, agentes, conversas, mensagens, fontes, avaliações, "
-         "chaves, webhooks e WhatsApp"),
+         "chaves, webhooks, WhatsApp, respostas prontas e o registro de atividades"),
+        ("Ajustes [[novo]]", "`data/ajustes.json`", "Valores alterados pela tela Ajustes, por cima do .env"),
         ("Banco vetorial", "`data/chroma/` ou `data/qdrant/`", "Trechos, embeddings e metadados de origem"),
         ("Arquivos", "`data/uploads/<id>.<extensão>`", "Arquivos originais enviados às bases"),
         ("Contas", "`data/usuarios.json`", "Usuários, perfis, hashes de senha, versão da sessão e tutorial visto"),
@@ -1174,8 +1433,8 @@ def banco_de_dados(d):
     ], larguras=["20%", "32%", "48%"])
 
     d.secao("Diagrama de relacionamentos", quebra=True)
-    d.diagrama(ER_DIAGRAMA, "As treze tabelas do Nexo. A 2.2 não muda nenhuma delas; `nx_api_key` e `nx_webhook` se "
-               "ligam às contas pelo nome de usuário, sem chave estrangeira.", altura_max_mm=205)
+    d.diagrama(ER_DIAGRAMA, "As tabelas do Nexo. `nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` se ligam "
+               "às contas pelo nome de usuário, sem chave estrangeira.", altura_max_mm=205)
 
     d.secao("Tabelas")
     d.tabela(["Tabela", "Uma linha por", "Ligações"], [
@@ -1186,7 +1445,9 @@ def banco_de_dados(d):
         ("`nx_conversation_document`", "Documento no escopo de uma conversa", "CASCADE dos dois lados"),
         ("`nx_message` / `nx_message_source` / `nx_feedback`", "Mensagem, trecho citado, avaliação", "Refazer troca a "
          "resposta, as fontes e apaga as avaliações dela"),
-        ("`nx_api_key` / `nx_webhook`", "Chave de API, webhook", "Pelo nome de usuário, sem chave estrangeira"),
+        ("`nx_api_key` / `nx_webhook`", "Chave de API (com scope e expires_at), webhook", "Pelo nome de usuário, sem chave estrangeira"),
+        ("`nx_quick_reply` [[novo]]", "Resposta pronta do WhatsApp", "created_by pelo nome de usuário; títulos repetidos recusados pela API"),
+        ("`nx_audit` [[novo]]", "Atividade registrada", "actor pelo nome de usuário; índices por data, conta e ação"),
         ("`nx_whatsapp_channel`", "Número conectado", "bot_id para nx_bot (SET NULL)"),
         ("`nx_whatsapp_contact`", "Cliente de um número", "channel_id (CASCADE); único (channel_id, phone)"),
         ("`nx_whatsapp_message`", "Mensagem recebida ou enviada", "contact_id (CASCADE)"),
@@ -1217,8 +1478,8 @@ def banco_de_dados(d):
     d.p("O arquivo é regravado de forma atômica. Nomes de usuário têm de 3 a 32 caracteres minúsculos (letras, números, "
         "ponto, hífen e sublinhado). O administrador cria contas, redefine senhas, muda perfis e exclui contas pela tela "
         "Sistema e conta; o login pré-definido só é recriado se não houver nenhum administrador. `tutorial_done_at` "
-        "guarda quando a conta viu o tutorial. `session_version` [[novo]] sobe a cada troca ou redefinição de senha e a "
-        "cada Sair dos outros dispositivos, e `password_changed_at` [[novo]] guarda a última troca de senha. Para "
+        "guarda quando a conta viu o tutorial. `session_version` sobe a cada troca ou redefinição de senha e a "
+        "cada Sair dos outros dispositivos, e `password_changed_at` guarda a última troca de senha. Para "
         "redefinir uma senha esquecida sem a tela, rode `python scripts/redefinir_senha.py nome-do-usuario` no servidor.")
 
     d.secao("Migração automática")
@@ -1226,8 +1487,10 @@ def banco_de_dados(d):
         "base \"Acervo geral\" e liga a ela todos os documentos existentes. No SQLite, a tabela `nx_document` é "
         "reconstruída seguindo os 12 passos oficiais (para trocar o único de sha256 pelo único por base); nos outros "
         "bancos, `ALTER TABLE`. Nenhum vetor precisa ser recalculado.")
-    d.p(f"A {VERSAO} não muda nenhuma tabela: um banco da 2.1 sobe sem nenhuma alteração de esquema. Só o arquivo de "
-        "contas ganha os dois campos novos, preenchidos sozinhos.")
+    d.p(f"Na {VERSAO}, a migração compara cada tabela com o modelo e acrescenta as colunas que faltam com "
+        "`ALTER TABLE ... ADD COLUMN` e o valor padrão: `nx_document.index_signature` e `source_url`, `nx_bot.suggestions`, "
+        "`nx_conversation.pinned`, `nx_api_key.scope` e `expires_at`. As tabelas `nx_quick_reply` e `nx_audit` são criadas. "
+        "Depois disso, os documentos prontos sem assinatura recebem a da configuração atual, então nada é reindexado.")
 
     d.secao("Outro banco relacional")
     d.tabela(["Banco", "Driver", "NEXO_DATABASE_URL"], [
@@ -1256,45 +1519,59 @@ def api(d):
     d.tabela(["Método", "Rota", "Descrição"], [
         "Sessão e conta",
         (m("GET"), "`/api/health`", "Situação do servidor e versão"),
-        (m("GET"), "`/api/health/ready` [[novo]]", "Prontidão: confere o banco; 503 quando ele não responde"),
+        (m("GET"), "`/api/health/ready`", "Prontidão: confere o banco; 503 quando ele não responde"),
         (m("GET"), "`/api/auth/options`", "Cadastro aberto e se o login pré-definido ainda está ativo"),
         (m("POST"), "`/api/auth/login` · `/api/auth/register`", "Entrar e criar conta"),
-        (m("GET / PATCH"), "`/api/auth/me`", "Usuário da sessão, com tutorial_done_at; PATCH {\"name\"} troca o próprio nome [[novo]]"),
+        (m("GET / PATCH"), "`/api/auth/me`", "Usuário da sessão, com tutorial_done_at; PATCH {\"name\"} troca o próprio nome"),
         (m("PUT"), "`/api/auth/password`", "Trocar a própria senha. Encerra as outras sessões e devolve uma sessão nova (200)"),
-        (m("POST"), "`/api/auth/sessions/revoke` [[novo]]", "Sair dos outros dispositivos; devolve uma sessão nova para este"),
+        (m("POST"), "`/api/auth/sessions/revoke`", "Sair dos outros dispositivos; devolve uma sessão nova para este"),
         (m("PUT"), "`/api/auth/tutorial`", "Marcar o tutorial como visto ({\"done\": true}) ou para rever (false)"),
-        (m("GET"), "`/api/system/status`", "Configuração ativa e números do acervo"),
+        (m("GET"), "`/api/system/status`", "Configuração ativa, números do acervo (com desatualizados) e operação"),
+        "Sistema (admin) [[novo]]",
+        (m("GET / PUT"), "`/api/system/settings`", "Ajustes pela tela: ler com padrões e grupos, ou alterar {\"values\": {...}}"),
+        (m("POST"), "`/api/system/settings/reset`", "Restaurar padrões do .env, todos ou só os de {\"keys\": [...]}"),
+        (m("GET"), "`/api/system/diagnostics?deep=false`", "Diagnóstico rápido ou completo (deep=true)"),
+        (m("POST"), "`/api/system/maintenance`", "{\"action\": reindex_failed | reindex_outdated | reindex_all | clean_orphans "
+         "| purge_conversations | vacuum, \"days\"?}"),
+        (m("GET"), "`/api/system/backup`", "Baixa o backup .zip"),
+        (m("GET"), "`/api/audit` · `/api/audit/export`", "Registro de atividades (actor, action, days, offset, limit) e CSV"),
+        (m("GET"), "`/api/health/metrics`", "Métricas no formato do Prometheus"),
         "Bases de conhecimento",
         (m("GET / POST"), "`/api/bases`", "Listar com os números de cada base, ou criar"),
         (m("GET / PATCH / DELETE"), "`/api/bases/{id}`", "Abrir, renomear ou excluir (409 se usada por agente ou se for a padrão)"),
         (m("GET / POST"), "`/api/bases/{id}/documents`", "Listar itens ou enviar arquivos (multipart, campo files)"),
         (m("POST"), "`/api/bases/{id}/texts`", "Criar um texto {\"title\", \"content\"}"),
+        (m("POST"), "`/api/bases/{id}/links` [[novo]]", "Importar uma página ou arquivo {\"url\", \"title\"?}"),
+        (m("POST"), "`/api/bases/sample` [[novo]]", "Criar a Base de teste e o Agente de teste (não duplica)"),
         (m("GET"), "`/api/formats`", "Extensões aceitas e tamanho máximo"),
         "Documentos",
         (m("GET / POST"), "`/api/documents`", "Listar todos ou enviar (campo base_id opcional)"),
-        (m("POST"), "`/api/documents/bulk` [[novo]]", "Ações em lote {\"action\": \"reindex\" | \"delete\" | \"move\", \"ids\", "
+        (m("POST"), "`/api/documents/bulk`", "Ações em lote {\"action\": \"reindex\" | \"delete\" | \"move\", \"ids\", "
          "\"base_id\"?}; informa os itens pulados"),
         (m("GET / PATCH"), "`/api/documents/{id}`", "Detalhes; renomear (reindexa) ou mover de base (base_id, sem reindexar)"),
         (m("GET / PUT"), "`/api/documents/{id}/text`", "Ler ou editar um texto (reindexa)"),
         (m("GET"), "`/api/documents/{id}/file`", "Baixar o arquivo original"),
         (m("POST"), "`/api/documents/{id}/reindex`", "Reindexar"),
+        (m("POST"), "`/api/documents/{id}/refetch` [[novo]]", "Baixar de novo do link de origem; changed diz se mudou"),
+        (m("GET"), "`/api/documents/{id}/chunks` [[novo]]", "Trechos indexados, com offset, limit e q"),
         (m("DELETE"), "`/api/documents/{id}`", "Excluir arquivo, vetores e escopos"),
         "Agentes, conversas e busca",
         (m("GET / POST"), "`/api/bots`", "Listar ou criar agentes"),
-        (m("GET / PATCH / DELETE"), "`/api/bots/{id}`", "Abrir, editar ou excluir (apaga as conversas do agente)"),
+        (m("GET / PATCH / DELETE"), "`/api/bots/{id}`", "Abrir, editar (inclusive suggestions) ou excluir (apaga as conversas do agente)"),
+        (m("POST"), "`/api/bots/{id}/duplicate` [[novo]]", "Criar uma cópia do agente"),
         (m("GET / POST"), "`/api/conversations`", "Listar (filtros only=general|bots, bot_id e q, que procura no título e "
          "nas mensagens) ou criar (bot_id opcional)"),
-        (m("GET / PATCH / DELETE"), "`/api/conversations/{id}`", "Abrir, renomear ou mudar escopo, excluir"),
+        (m("GET / PATCH / DELETE"), "`/api/conversations/{id}`", "Abrir; renomear, mudar escopo ou fixar (pinned); excluir"),
         (m("GET"), "`/api/conversations/{id}/export`", "Exportar em markdown ou json"),
         (m("POST"), "`/api/conversations/{id}/messages`", "Perguntar (resposta JSON)"),
-        (m("POST"), "`/api/conversations/{id}/messages/stream` [[novo]]", "Perguntar com resposta em Server-Sent Events: "
+        (m("POST"), "`/api/conversations/{id}/messages/stream`", "Perguntar com resposta em Server-Sent Events: "
          "status, delta, done e error"),
-        (m("POST"), "`/api/messages/{id}/regenerate` [[novo]]", "Refazer a resposta no lugar; renova as fontes e apaga a avaliação"),
-        (m("POST"), "`/api/messages/{id}/feedback`", "Avaliar resposta"),
+        (m("POST"), "`/api/messages/{id}/regenerate`", "Refazer a resposta no lugar; renova as fontes e apaga a avaliação"),
+        (m("POST"), "`/api/messages/{id}/feedback`", "Avaliar resposta {\"rating\", \"comment\"?}"),
         (m("POST"), "`/api/ask`", "Pergunta direta, com bot_id opcional"),
         (m("POST"), "`/api/search`", "Busca nos trechos, com base_id opcional"),
-        (m("GET"), "`/api/metrics?days=30`", "Painel de qualidade"),
-        (m("GET"), "`/api/metrics/export?days=N` [[novo]]", "CSV com data, conversa, pergunta, respondida, avaliação, latência e fontes"),
+        (m("GET"), "`/api/metrics?days=30&bot_id=`", "Painel de qualidade, com by_bot e filtro por agente (ou geral)"),
+        (m("GET"), "`/api/metrics/export?days=N`", "CSV com data, conversa, pergunta, respondida, avaliação, latência, fontes e comentário"),
         "WhatsApp",
         (m("GET / POST"), "`/api/whatsapp/channels`", "Listar conexões ou criar (admin)"),
         (m("PATCH / DELETE"), "`/api/whatsapp/channels/{id}`", "Editar, pausar ou excluir (admin)"),
@@ -1308,13 +1585,15 @@ def api(d):
         (m("GET / PATCH"), "`/api/whatsapp/contacts/{id}`", "Conversa (marca como lida); ligar ou pausar o agente, nome"),
         (m("POST"), "`/api/whatsapp/contacts/{id}/messages`", "Responder como a equipe"),
         (m("POST"), "`/api/whatsapp/contacts/{id}/suggest`", "Sugestão de resposta do agente, sem enviar"),
+        (m("GET / POST"), "`/api/whatsapp/quick-replies` [[novo]]", "Respostas prontas: listar ou criar {title, body}"),
+        (m("PATCH / DELETE"), "`/api/whatsapp/quick-replies/{id}` [[novo]]", "Editar ou excluir (quem criou ou admin)"),
         "Integrações e contas",
-        (m("GET / POST / DELETE"), "`/api/keys` · `/api/keys/{id}`", "Chaves de API do usuário"),
+        (m("GET / POST / DELETE"), "`/api/keys` · `/api/keys/{id}`", "Chaves de API do usuário; POST {name, scope, expires_days}"),
         (m("GET / POST / PATCH / DELETE"), "`/api/webhooks` · `/api/webhooks/{id}`", "Webhooks (admin)"),
         (m("POST"), "`/api/webhooks/{id}/test`", "Entregar ping (admin)"),
         (m("GET / POST"), "`/api/users`", "Listar contas ou criar uma {name, username, password, role} (admin), mesmo com "
          "o cadastro fechado"),
-        (m("PUT"), "`/api/users/{usuario}/password` [[novo]]", "Redefinir a senha {password}; encerra as sessões e libera o bloqueio (admin)"),
+        (m("PUT"), "`/api/users/{usuario}/password`", "Redefinir a senha {password}; encerra as sessões e libera o bloqueio (admin)"),
         (m("PATCH / DELETE"), "`/api/users/{usuario}`", "Mudar perfil ou excluir conta (admin)"),
     ], larguras=["17%", "42%", "41%"], cls="compacta")
 
@@ -1348,22 +1627,31 @@ curl -X POST http://127.0.0.1:8000/api/auth/sessions/revoke -H "Authorization: B
     d.tabela(["HTTP", "code", "Quando"], [
         ("400", "`EMPTY` / `NO_FILES` / `UNKNOWN_DOCUMENT`", "Pergunta vazia, envio sem arquivos ou escopo com documento que não existe"),
         ("400", "`SELF` / `LAST_ADMIN`", "Rebaixar ou excluir a própria conta, ou o último administrador"),
-        ("400", "`SAME_PASSWORD` [[novo]]", "Senha nova igual à atual"),
+        ("400", "`SAME_PASSWORD`", "Senha nova igual à atual"),
         ("400", "`INVALID_URL` / `INVALID_EVENTS`", "Webhook com URL inválida ou eventos desconhecidos"),
-        ("400", "`NOT_A_NOTE` / `INVALID_PROVIDER`", "Editar como texto um item que é arquivo; provedor de WhatsApp desconhecido"),
+        ("400", "`NOT_A_TEXT` / `INVALID_PROVIDER`", "Editar como texto um item que é arquivo; provedor de WhatsApp desconhecido"),
+        ("400", "`NOT_A_LINK` / `INVALID_SETTINGS` / `MAINTENANCE` [[novo]]", "Atualizar do link um item que não veio de "
+         "link; ajuste fora das regras (em fields); ação de manutenção desconhecida"),
         ("401", "`UNAUTHENTICATED` / `SESSION_EXPIRED` / `INVALID_API_KEY`", "Sem credencial, token vencido ou chave inválida"),
-        ("401", "`SESSION_REVOKED` [[novo]]", "Sessão encerrada por troca ou redefinição de senha ou por Sair dos outros dispositivos"),
+        ("401", "`SESSION_REVOKED`", "Sessão encerrada por troca ou redefinição de senha ou por Sair dos outros dispositivos"),
+        ("401", "`API_KEY_EXPIRED` [[novo]]", "Chave de API vencida"),
         ("401", "`INVALID_SIGNATURE`", "Webhook do WhatsApp com assinatura ou token errado"),
         ("403", "`FORBIDDEN` / `REGISTRATION_DISABLED`", "Rota de administrador, ação sobre conteúdo de outra pessoa ou cadastro fechado"),
+        ("403", "`KEY_SCOPE` / `PRIVATE_URL` [[novo]]", "Rota fora da permissão da chave; link para a rede interna"),
+        ("404", "`NO_SAMPLE` [[novo]]", "Os arquivos de exemplos/base-de-teste não estão no servidor"),
         ("404", "`NOT_FOUND` / `FILE_MISSING`", "Registro inexistente ou de outro usuário; arquivo original ausente"),
         ("409", "`DUPLICATE` / `NO_DOCUMENTS` / `BASE_EMPTY`", "Arquivo repetido na base, pergunta sem documentos prontos ou "
          "agente com base vazia"),
         ("409", "`BASE_IN_USE` / `DEFAULT_BASE`", "Excluir base usada por agente ou a base padrão"),
+        ("409", "`NAME_TAKEN` [[novo]]", "Resposta pronta com título repetido"),
         ("413 / 415", "`FILE_TOO_LARGE` / `NOT_A_PDF` / `UNSUPPORTED`", "Arquivo grande demais (inclusive item de pacote zip "
          "acima de 50 MB), PDF inválido ou formato não aceito"),
         ("422", "`VALIDATION`", "Corpo fora do formato, com os campos em fields"),
         ("429", "`LOCKED`", "Cinco senhas erradas seguidas"),
+        ("429", "`RATE_LIMITED` [[novo]]", "Mais perguntas por minuto que NEXO_RATE_LIMIT; veja Retry-After"),
         ("502 / 503", "`LLM_FAILURE` / `PROVIDER` / `WHATSAPP`", "Modelo fora do ar, provedor ausente ou WhatsApp recusou o pedido"),
+        ("502", "`UNREACHABLE` / `HTTP_ERROR` / `TOO_MANY_REDIRECTS` [[novo]]", "Link que não abre, responde erro ou "
+         "redireciona demais"),
     ], larguras=["11%", "41%", "48%"])
     d.p("Na rota de streaming, um erro depois do início da resposta chega como evento `error` com os mesmos `code` e "
         "`message`, porque o status HTTP 200 já foi enviado.")
@@ -1371,7 +1659,8 @@ curl -X POST http://127.0.0.1:8000/api/auth/sessions/revoke -H "Authorization: B
 
 def qualidade(d):
     d.capitulo("Qualidade e manutenção",
-               "Testes automatizados, medição da busca, integração contínua, backup e solução de problemas.")
+               "Testes automatizados, medição da busca, integração contínua, backup, linha de comando, registros e "
+               "solução de problemas.")
     d.secao("Testes automatizados")
     d.codigo("""
 pip install -r requirements-ci.txt
@@ -1384,10 +1673,12 @@ python -m pytest
         "escopo, reranking, scripts, busca, exportação, métricas, chaves, pergunta direta, webhooks e contas; as bases, "
         "os textos, mover entre bases, agentes, conversas com agentes, a migração de um banco da 2.0, o tutorial e o "
         "WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão).")
-    d.p(f"Na {VERSAO[:3]} entram `tests/test_streaming.py` (eventos status, delta, done e error, cancelamento sem gravar e "
-        "Refazer) e `tests/test_formatos.py` (EPUB, PPTX, XLSX, ODT e o limite dos pacotes zip), além de casos novos para "
-        "as sessões com versão, a criação de contas e a redefinição de senha pelo administrador, as ações em lote, o CSV "
-        "do painel, as novas tentativas dos webhooks, o `X-Request-ID` e a rota de prontidão.")
+    d.p("A 2.2 trouxe `tests/test_streaming.py` e `tests/test_formatos.py`. Na 2.3 entram `tests/test_manutencao.py` "
+        "(migração de um banco da 2.2, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e "
+        "restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas, "
+        "conversas fixadas, comentários, perguntas sugeridas, duplicação, painel por agente, respostas prontas, trechos, "
+        "linha de comando, logs JSON e base de teste) e `tests/test_links.py` (importação e atualização por link, erros e "
+        "bloqueio da rede interna, inclusive por redirecionamento).")
 
     d.secao("Medindo a recuperação")
     d.codigo("""
@@ -1398,7 +1689,8 @@ python -m pytest
     d.p("O script mostra, para a busca vetorial pura e com reranking, o acerto e o MRR. Repita depois de cada ajuste de parâmetros.")
 
     d.secao("Integração contínua")
-    d.p("O workflow `.github/workflows/ci.yml` roda os testes do Python e o build da interface a cada push e pull request.")
+    d.p("O workflow `.github/workflows/ci.yml` roda, a cada push e pull request, o `ruff check .` e os testes do Python, o "
+        "build da interface e o `docker build` da imagem.")
 
     d.secao("Commit automático diário")
     d.p("O workflow `.github/workflows/diario.yml` acrescenta a data e a hora em `.github/atividade.txt` e faz um commit "
@@ -1406,11 +1698,39 @@ python -m pytest
         "and variables › Actions** e marque **Read and write permissions** em **Settings › Actions › General**.")
 
     d.secao("Backup")
-    d.p("Pare o servidor e copie a pasta `data` inteira: banco SQLite (com bases, agentes, chaves, webhooks, conexões e "
-        "conversas do WhatsApp), vetores locais, arquivos, usuários e segredo. Com bancos externos, faça também o backup "
-        "deles no mesmo momento.")
+    d.p("Use **Baixar backup** em Sistema e conta › Manutenção ou a linha de comando, com o servidor no ar:")
+    d.codigo("""
+python -m nexo backup --saida backups/nexo.zip
+python -m nexo restaurar backups/nexo.zip --substituir
+""")
+    d.p("O .zip leva o banco SQLite (copiado de forma consistente, mesmo com o servidor rodando), as contas, os ajustes, "
+        "o segredo das sessões, os arquivos enviados e um `manifesto.json` com a versão e as contagens. Os vetores não vão: "
+        "a restauração, feita com o servidor parado, marca os documentos para reindexar quando ele subir. "
+        "`--substituir` guarda a pasta de dados atual numa cópia antes de restaurar. Com bancos externos, faça o backup "
+        "deles com a ferramenta do próprio banco no mesmo momento.")
+    d.p("Para uma cópia completa, inclusive dos vetores, pare o servidor e copie a pasta `data` inteira.")
     d.nota("O backup contém segredos.", "Os segredos dos webhooks, os tokens do WhatsApp e `data/.segredo` estão nele. "
            "Guarde as cópias com o mesmo cuidado de uma senha.", alerta=True)
+
+    d.secao("Linha de comando", novo=True)
+    d.tabela(["Comando", "O que faz"], [
+        ("`python -m nexo`", "Sobe o servidor (o mesmo que `servir` e `scripts/servir.py`)"),
+        ("`python -m nexo diagnostico [--completo]`", "O diagnóstico da tela no terminal; termina com erro se houver falha"),
+        ("`python -m nexo backup [--saida arquivo.zip]`", "Grava o backup"),
+        ("`python -m nexo restaurar arquivo.zip [--substituir]`", "Restaura um backup, com o servidor parado"),
+        ("`python -m nexo reindexar [--desatualizados | --todos]`", "Reindexa no terminal, com o servidor parado; sem opção, "
+         "só os que falharam ou ficaram na fila"),
+        ("`python -m nexo base-de-teste [--conta admin]`", "Cria a Base de teste e o Agente de teste, indexando na hora"),
+        ("`python -m nexo contas`", "Lista as contas com perfil e último acesso"),
+        ("`python -m nexo versao`", "Mostra a versão"),
+    ], larguras=["46%", "54%"])
+    d.p("Com um valor inválido no `.env`, os comandos dizem qual variável está errada e o valor recebido, em vez de um erro técnico.")
+
+    d.secao("Registros e acompanhamento", novo=True)
+    d.p("Cada pedido gera uma linha de registro com o método, a rota, o status, o tempo, a conta e o `X-Request-ID`. Com "
+        "`NEXO_LOG_FORMAT=json`, cada linha é um objeto JSON, pronto para Loki, Elastic ou CloudWatch; `NEXO_LOG_LEVEL` "
+        "controla o detalhe. Para acompanhar o servidor, use `/api/health/ready` na checagem de saúde e "
+        "`/api/health/metrics` no Prometheus (seção 5.6). Quem fez o quê fica no registro de atividades (seção 4.12).")
 
     d.secao("Atualizando dependências")
     d.codigo("""
@@ -1442,6 +1762,12 @@ cd frontend && npm update && npm run build
         ("Tela em branco em /", "Interface não compilada", "cd frontend, npm ci e npm run build"),
         ("Esqueci a senha do admin", "Senha trocada e perdida", "Outro administrador usa Redefinir senha; sem nenhum, rode "
          "`python scripts/redefinir_senha.py admin`"),
+        ("Integração recebe 429", "Limite de perguntas por minuto atingido", "Espere o Retry-After ou aumente o limite em Ajustes"),
+        ("Integração recebe 403 KEY_SCOPE", "Chave sem permissão para a rota", "Crie uma chave com a permissão certa"),
+        ("Documentos \"índice desatualizado\"", "Modelo de embeddings ou tamanho do trecho mudou", "Reindexar desatualizados "
+         "em Manutenção"),
+        ("Importar link recusado (403)", "Endereço da rede interna", "Ligue NEXO_ALLOW_PRIVATE_URLS se for confiável"),
+        ("Não sei o que está errado", "Vários motivos", "Rode o diagnóstico (tela ou `python -m nexo diagnostico`)"),
     ], larguras=["30%", "33%", "37%"])
 
 

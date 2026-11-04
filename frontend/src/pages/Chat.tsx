@@ -17,6 +17,25 @@ function fold(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+const DRAFT_KEY = "nexo.rascunho.";
+
+function readDraft(key: string): string {
+  try {
+    return localStorage.getItem(DRAFT_KEY + key) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function writeDraft(key: string, value: string): void {
+  try {
+    if (value.trim()) localStorage.setItem(DRAFT_KEY + key, value);
+    else localStorage.removeItem(DRAFT_KEY + key);
+  } catch {
+    return;
+  }
+}
+
 function plainAnswer(m: Message): string {
   const refs = m.sources.map((s) => `[${s.rank}] ${s.document_title}, página ${s.page}`).join("\n");
   return refs ? `${m.content}\n\nFontes:\n${refs}` : m.content;
@@ -47,7 +66,10 @@ export function ChatPage() {
   const [stage, setStage] = useState<StreamStage>("searching");
   const [redoing, setRedoing] = useState<string | null>(null);
   const [found, setFound] = useState<ConversationSummary[] | null>(null);
+  const [commenting, setCommenting] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
   const aborter = useRef<AbortController | null>(null);
+  const draftKey = useRef("nova");
   const bottom = useRef<HTMLDivElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -62,14 +84,17 @@ export function ChatPage() {
     setRenaming(false);
     setListOpen(false);
     setExportOpen(false);
+    setCommenting(null);
+    draftKey.current = id ?? "nova";
     if (!id) {
       setConversation(null);
       const doc = params.get("documento");
       setDraftScope(doc ? [doc] : []);
-      setQuestion(params.get("pergunta") ?? "");
+      setQuestion(params.get("pergunta") ?? readDraft("nova"));
       return;
     }
     if (conversation?.id === id) return;
+    setQuestion(readDraft(id));
     api.conversation(id).then(setConversation).catch((e: ApiError) => {
       setError(e.message);
       navigate("/conversas", { replace: true });
@@ -81,6 +106,23 @@ export function ChatPage() {
   }, [conversation?.items.length, pending, Math.floor(streamText.length / 160)]);
 
   useEffect(() => () => aborter.current?.abort(), []);
+
+  useEffect(() => {
+    if (!pending) writeDraft(draftKey.current, question);
+  }, [question]);
+
+  useEffect(() => {
+    const onSlash = (e: globalThis.KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const busy = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT");
+      if (e.key === "/" && !busy && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        textarea.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onSlash);
+    return () => window.removeEventListener("keydown", onSlash);
+  }, []);
 
   useEffect(() => {
     if (!pending) return;
@@ -142,6 +184,7 @@ export function ChatPage() {
     setError("");
     setPending(text);
     setQuestion("");
+    writeDraft(draftKey.current, "");
     setStreamText("");
     setStage("searching");
     const controller = new AbortController();
@@ -208,7 +251,36 @@ export function ChatPage() {
     try {
       const updated = await api.feedback(message.id, message.my_rating === rating ? 0 : rating);
       setConversation({ ...conversation, items: conversation.items.map((m) => (m.id === updated.id ? updated : m)) });
-      if (updated.my_rating === -1) toast("Avaliação registrada. Ela aparece no Painel de qualidade.");
+      if (updated.my_rating === -1) {
+        setCommenting(updated.id);
+        setComment(updated.my_comment ?? "");
+      } else if (commenting === updated.id) {
+        setCommenting(null);
+      }
+    } catch (e) {
+      setError((e as ApiError).message);
+    }
+  }
+
+  async function sendComment(e: FormEvent, message: Message) {
+    e.preventDefault();
+    if (!conversation) return;
+    try {
+      const updated = await api.feedback(message.id, -1, comment.trim() || null);
+      setConversation({ ...conversation, items: conversation.items.map((m) => (m.id === updated.id ? updated : m)) });
+      setCommenting(null);
+      toast("Obrigado. A avaliação e o comentário aparecem no Painel de qualidade.");
+    } catch (err) {
+      setError((err as ApiError).message);
+    }
+  }
+
+  async function togglePin(target: ConversationSummary) {
+    try {
+      const summary = await api.updateConversation(target.id, { pinned: !target.pinned });
+      if (conversation?.id === summary.id) setConversation({ ...conversation, ...summary });
+      toast(summary.pinned ? "Conversa fixada no topo da lista." : "Conversa desafixada.");
+      loadList();
     } catch (e) {
       setError((e as ApiError).message);
     }
@@ -279,8 +351,11 @@ export function ChatPage() {
           <p className="threads__empty">Nenhuma conversa com “{filter}”.</p>
         ) : (
           <ul>
-            {visible.map((c) => (
-              <li key={c.id} className={c.id === id ? "thread thread--active" : "thread"}>
+            {visible.map((c, index) => (
+              <li key={c.id} className={`thread${c.id === id ? " thread--active" : ""}${c.pinned ? " thread--pinned" : ""}`}>
+                {(index === 0 || !!visible[index - 1].pinned !== !!c.pinned) && visible.some((x) => x.pinned) && (
+                  <span className="thread__group">{c.pinned ? "Fixadas" : "Recentes"}</span>
+                )}
                 {confirmDelete === c.id ? (
                   <div className="thread__confirm">
                     <span>Apagar esta conversa?</span>
@@ -290,11 +365,16 @@ export function ChatPage() {
                 ) : (
                   <>
                     <Link to={`/conversas/${c.id}`} className="thread__link">
-                      <span className="thread__title">{c.title}</span>
+                      <span className="thread__title">{c.pinned && <Icon name="pin" size={12} />}{c.title}</span>
                       <span className="thread__meta">
                         {formatRelative(c.updated_at)}, {c.document_ids.length ? plural(c.document_ids.length, "documento", "documentos") : "todos os documentos"}
                       </span>
                     </Link>
+                    <button className={`icon-button thread__pin${c.pinned ? " is-pinned" : ""}`} aria-pressed={!!c.pinned}
+                      aria-label={c.pinned ? `Desafixar ${c.title}` : `Fixar ${c.title}`} title={c.pinned ? "Desafixar" : "Fixar no topo"}
+                      onClick={() => togglePin(c)}>
+                      <Icon name="pin" size={15} />
+                    </button>
                     <button className="icon-button thread__delete" aria-label={`Apagar ${c.title}`} onClick={() => setConfirmDelete(c.id)}>
                       <Icon name="trash" size={16} />
                     </button>
@@ -325,6 +405,15 @@ export function ChatPage() {
               <button className="icon-button" aria-label="Renomear conversa" title="Renomear"
                 onClick={() => { setTitle(conversation.title); setRenaming(true); }}>
                 <Icon name="edit" size={16} />
+              </button>
+              <button className={`icon-button${conversation.pinned ? " is-on" : ""}`} aria-pressed={!!conversation.pinned}
+                aria-label={conversation.pinned ? "Desafixar conversa" : "Fixar conversa"} title={conversation.pinned ? "Desafixar" : "Fixar no topo da lista"}
+                onClick={() => togglePin(conversation)}>
+                <Icon name="pin" size={16} />
+              </button>
+              <button className="icon-button" aria-label="Imprimir ou salvar em PDF" title="Imprimir ou salvar em PDF"
+                onClick={() => window.print()} disabled={!items.length}>
+                <Icon name="print" size={16} />
               </button>
               <span className="menu-anchor">
                 <button className="icon-button" aria-label="Exportar conversa" title="Exportar" aria-expanded={exportOpen}
@@ -449,6 +538,23 @@ export function ChatPage() {
                     </button>
                   </span>
                 </footer>
+                {commenting === m.id ? (
+                  <form className="feedback-note" onSubmit={(e) => sendComment(e, m)}>
+                    <label htmlFor={`nota-${m.id}`}>O que faltou nesta resposta?</label>
+                    <textarea id={`nota-${m.id}`} value={comment} onChange={(e) => setComment(e.target.value)} rows={2} maxLength={1000} autoFocus
+                      placeholder="Ex.: faltou o valor do torque, citou o manual errado, a resposta está incompleta"
+                      onKeyDown={(e) => { if (e.key === "Escape") setCommenting(null); }} />
+                    <span className="feedback-note__actions">
+                      <button className="primary-button small" type="submit">Enviar comentário</button>
+                      <button className="ghost-button small" type="button" onClick={() => setCommenting(null)}>Agora não</button>
+                    </span>
+                  </form>
+                ) : m.my_rating === -1 && m.my_comment ? (
+                  <p className="feedback-note__saved">
+                    Seu comentário: {m.my_comment}{" "}
+                    <button className="link-button" onClick={() => { setCommenting(m.id); setComment(m.my_comment ?? ""); }}>Editar</button>
+                  </p>
+                ) : null}
               </div>
             ),
           )}

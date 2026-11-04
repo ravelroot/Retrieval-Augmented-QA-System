@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ApiError, api, type ApiKey, type Webhook, type WebhookEvent } from "../api";
+import { ApiError, api, type ApiKey, type KeyScope, type Webhook, type WebhookEvent } from "../api";
 import { useAuth } from "../auth";
 import { Icon } from "../components/Icon";
 import { useToast } from "../components/Toast";
@@ -15,6 +15,19 @@ const EVENTS: { name: WebhookEvent; label: string }[] = [
 ];
 
 type Lang = "curl" | "python" | "javascript";
+
+const SCOPES: { id: KeyScope; label: string; hint: string }[] = [
+  { id: "full", label: "Completa", hint: "As mesmas permissões da sua conta." },
+  { id: "ask", label: "Só consulta", hint: "Perguntar, buscar, abrir conversas e listar agentes e bases." },
+  { id: "feed", label: "Só alimentar bases", hint: "Enviar arquivos, textos e links, atualizar e remover itens." },
+];
+
+const EXPIRES: { days: number | null; label: string }[] = [
+  { days: null, label: "Sem validade" },
+  { days: 30, label: "30 dias" },
+  { days: 90, label: "90 dias" },
+  { days: 365, label: "1 ano" },
+];
 
 function snippet(lang: Lang, origin: string, key: string): string {
   const k = key || "nxk_SUA_CHAVE";
@@ -64,6 +77,8 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
   const toast = useToast();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [name, setName] = useState("");
+  const [scope, setScope] = useState<KeyScope>("full");
+  const [expires, setExpires] = useState<number | null>(null);
   const [created, setCreated] = useState<ApiKey | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
 
@@ -73,7 +88,7 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
   async function create(e: FormEvent) {
     e.preventDefault();
     try {
-      const key = await api.createKey(name.trim());
+      const key = await api.createKey(name.trim(), scope, expires);
       setCreated(key);
       setName("");
       if (key.key) onNewKey(key.key);
@@ -99,13 +114,25 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
       <h2>Chaves de API</h2>
       <p className="panel__lead">
         Para sistemas externos (intranet, help desk, automações) consultarem o Nexo em seu nome. Envie a chave no cabeçalho
-        <code>X-API-Key</code>. Ela tem as mesmas permissões da sua conta.
+        <code>X-API-Key</code>. Dê a cada sistema só o que ele precisa: uma chave de consulta não envia arquivos e uma chave de
+        alimentação não faz perguntas. Chaves com validade param sozinhas na data escolhida.
       </p>
-      <form className="inline-form inline-form--wide" onSubmit={create}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da chave, ex.: Portal de suporte"
+      <form className="key-form" onSubmit={create}>
+        <input className="toolbar__search" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da chave, ex.: Portal de suporte"
           aria-label="Nome da chave" maxLength={80} />
+        <label className="select"><span>Permissão</span>
+          <select value={scope} onChange={(e) => setScope(e.target.value as KeyScope)} title={SCOPES.find((x) => x.id === scope)?.hint}>
+            {SCOPES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+          </select>
+        </label>
+        <label className="select"><span>Validade</span>
+          <select value={expires ?? ""} onChange={(e) => setExpires(e.target.value ? Number(e.target.value) : null)}>
+            {EXPIRES.map((x) => <option key={x.label} value={x.days ?? ""}>{x.label}</option>)}
+          </select>
+        </label>
         <button className="primary-button" type="submit" disabled={!name.trim()}><Icon name="key" size={16} />Criar chave</button>
       </form>
+      <p className="field__hint">{SCOPES.find((x) => x.id === scope)?.hint}</p>
       {created?.key && (
         <div className="secret" role="status">
           <p><b>Copie a chave agora.</b> Por segurança, o Nexo guarda só um resumo dela e não consegue mostrá-la de novo.</p>
@@ -114,13 +141,14 @@ function Keys({ onNewKey }: { onNewKey: (key: string) => void }) {
       )}
       {keys && keys.length > 0 && (
         <table className="table">
-          <thead><tr><th>Nome</th><th>Início da chave</th><th>Criada em</th><th>Último uso</th><th><span className="sr-only">Ações</span></th></tr></thead>
+          <thead><tr><th>Nome</th><th>Início da chave</th><th>Permissão</th><th>Validade</th><th>Último uso</th><th><span className="sr-only">Ações</span></th></tr></thead>
           <tbody>
             {keys.map((k) => (
-              <tr key={k.id}>
+              <tr key={k.id} className={k.expired ? "is-off" : ""}>
                 <td>{k.name}</td>
                 <td><code>{k.prefix}…</code></td>
-                <td>{formatDateTime(k.created_at)}</td>
+                <td>{SCOPES.find((x) => x.id === k.scope)?.label ?? k.scope}</td>
+                <td>{k.expired ? <span className="bad">Venceu em {formatDateTime(k.expires_at)}</span> : k.expires_at ? `Até ${formatDateTime(k.expires_at)}` : "Sem validade"}</td>
                 <td>{k.last_used_at ? formatDateTime(k.last_used_at) : "Nunca usada"}</td>
                 <td className="table__actions">
                   {confirm === k.id ? (
@@ -297,6 +325,20 @@ export function IntegrationsPage() {
           Referência completa e teste das rotas em <a href="/api/docs" target="_blank" rel="noreferrer">/api/docs</a>.
           A conversa também pode ser exportada em Markdown ou JSON pelo botão de download no topo de cada conversa.
         </p>
+      </section></div>
+
+      <div className="box"><section className="panel">
+        <h2>Monitoramento</h2>
+        <p className="panel__lead">
+          Rotas para balanceadores, orquestradores e painéis. Toda resposta traz <code>X-Request-ID</code>, o mesmo que aparece nos registros do servidor.
+          Perguntas acima do limite por minuto recebem HTTP 429 com <code>Retry-After</code>.
+        </p>
+        <dl className="config">
+          <div><dt><code>GET /api/health</code></dt><dd>Versão, sem autenticação</dd></div>
+          <div><dt><code>GET /api/health/ready</code></dt><dd>Confere o banco; responde 503 se ele estiver fora</dd></div>
+          <div><dt><code>GET /api/health/metrics</code></dt><dd>Métricas no formato do Prometheus (chave completa de administrador)</dd></div>
+          <div><dt><code>NEXO_CORS_ORIGINS</code></dt><dd>Libera sites que chamam a API direto do navegador, separados por vírgula</dd></div>
+        </dl>
       </section></div>
 
       {user?.role === "admin" ? <Webhooks /> : (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../auth";
 import { useStore } from "../store";
 import { Icon } from "./Icon";
 
@@ -16,8 +17,12 @@ function fold(text: string) {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-export function CommandPalette({ onClose, onTheme, onTutorial }: { onClose: () => void; onTheme: () => void; onTutorial: () => void }) {
+export function CommandPalette({ onClose, onTheme, onTutorial, onShortcuts }: {
+  onClose: () => void; onTheme: () => void; onTutorial: () => void; onShortcuts: () => void;
+}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const admin = user?.role === "admin";
   const { conversations, documents } = useStore();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -38,6 +43,14 @@ export function CommandPalette({ onClose, onTheme, onTutorial }: { onClose: () =
       { id: "upload", group: "Ações", label: "Enviar PDFs", icon: "upload", run: go("/documentos") },
       { id: "theme", group: "Ações", label: "Trocar o tema", icon: "auto", run: () => { onTheme(); onClose(); } },
       { id: "tutorial", group: "Ações", label: "Ver tutorial", icon: "help", run: () => { onTutorial(); } },
+      { id: "shortcuts", group: "Ações", label: "Atalhos de teclado", hint: "?", icon: "command", run: () => { onShortcuts(); } },
+      ...(admin ? [
+        { id: "settings", group: "Administração", label: "Ajustes do pipeline", icon: "system", run: go("/sistema?aba=ajustes") },
+        { id: "doctor", group: "Administração", label: "Rodar o diagnóstico", icon: "bolt", run: go("/sistema?aba=diagnostico") },
+        { id: "backup", group: "Administração", label: "Backup e manutenção", icon: "download", run: go("/sistema?aba=manutencao") },
+        { id: "audit", group: "Administração", label: "Registro de atividades", icon: "user2", run: go("/sistema?aba=atividades") },
+        { id: "accounts", group: "Administração", label: "Contas de acesso", icon: "user", run: go("/sistema?aba=contas") },
+      ] : []),
       { id: "nav-docs", group: "Ir para", label: "Documentos", icon: "docs", run: go("/documentos") },
       { id: "nav-bots", group: "Ir para", label: "Agentes", icon: "bot", run: go("/agentes") },
       { id: "nav-bases", group: "Ir para", label: "Bases de conhecimento", icon: "base", run: go("/bases") },
@@ -47,7 +60,8 @@ export function CommandPalette({ onClose, onTheme, onTutorial }: { onClose: () =
       { id: "nav-sys", group: "Ir para", label: "Sistema e conta", icon: "system", run: go("/sistema") },
     ];
     const convs: Item[] = conversations.filter((c) => !c.bot_id).slice(0, 40).map((c) => ({
-      id: `c-${c.id}`, group: "Conversas", label: c.title, icon: "chat", run: go(`/conversas/${c.id}`),
+      id: `c-${c.id}`, group: c.pinned ? "Conversas fixadas" : "Conversas", label: c.title, icon: "chat",
+      hint: c.pinned ? "fixada" : undefined, run: go(`/conversas/${c.id}`),
     }));
     const docs: Item[] = documents.filter((d) => d.status === "READY").map((d) => ({
       id: `d-${d.id}`, group: "Perguntar a um documento", label: d.title, hint: `${d.pages} p.`, icon: "docs",
@@ -57,7 +71,7 @@ export function CommandPalette({ onClose, onTheme, onTutorial }: { onClose: () =
     const q = fold(query.trim());
     if (!q) return [...base, ...convs.slice(0, 5)];
     return all.filter((i) => fold(i.label).includes(q)).slice(0, 30);
-  }, [query, conversations, documents]);
+  }, [query, conversations, documents, admin]);
 
   useEffect(() => setCursor(0), [query]);
   useEffect(() => {

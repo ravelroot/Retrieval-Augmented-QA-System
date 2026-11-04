@@ -1,18 +1,33 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { api, type User } from "../api";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ApiError, api, type User } from "../api";
 import { useAuth } from "../auth";
 import { applyTheme, initialTheme, watchSystemTheme, type ThemeChoice } from "../theme";
 import { CommandPalette } from "./CommandPalette";
 import { Icon } from "./Icon";
 import { Brand } from "./Logo";
+import { ShortcutsDialog } from "./Shortcuts";
 import { Tutorial } from "./Tutorial";
 
 export const TUTORIAL_EVENT = "nexo:tutorial";
+export const SHORTCUTS_EVENT = "nexo:atalhos";
 
 export function openTutorial(): void {
   window.dispatchEvent(new Event(TUTORIAL_EVENT));
 }
+
+export function openShortcuts(): void {
+  window.dispatchEvent(new Event(SHORTCUTS_EVENT));
+}
+
+function typing(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+}
+
+const JUMPS: Record<string, string> = { n: "/conversas", b: "/busca", d: "/documentos", w: "/whatsapp" };
 
 const groups = [
   {
@@ -62,13 +77,47 @@ export function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(false);
   const [tutorial, setTutorial] = useState(() => !!user && !user.tutorial_done_at);
+  const [shortcuts, setShortcuts] = useState(false);
+  const [waiting, setWaiting] = useState(0);
+  const [offline, setOffline] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const show = () => { setPalette(false); setOpen(false); setTutorial(true); };
+    const keys = () => { setPalette(false); setShortcuts(true); };
     window.addEventListener(TUTORIAL_EVENT, show);
-    return () => window.removeEventListener(TUTORIAL_EVENT, show);
+    window.addEventListener(SHORTCUTS_EVENT, keys);
+    return () => {
+      window.removeEventListener(TUTORIAL_EVENT, show);
+      window.removeEventListener(SHORTCUTS_EVENT, keys);
+    };
   }, []);
+
+  const ping = useCallback(() => {
+    api.waSummary()
+      .then((s) => { setWaiting(s.waiting); setOffline(false); })
+      .catch((e: ApiError) => setOffline(e.code === "NETWORK"));
+  }, []);
+
+  useEffect(() => {
+    ping();
+    const timer = window.setInterval(ping, offline ? 8000 : 30000);
+    const goOffline = () => setOffline(true);
+    window.addEventListener("online", ping);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", ping);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [ping, offline]);
+
+  useEffect(() => { ping(); }, [location.pathname]);
+
+  useEffect(() => {
+    document.title = waiting > 0 ? `(${waiting}) Nexo` : "Nexo";
+  }, [waiting]);
 
   function finishTutorial() {
     setTutorial(false);
@@ -86,11 +135,21 @@ export function Shell({ children }: { children: ReactNode }) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((v) => !v);
+        return;
+      }
+      if (e.altKey && !e.ctrlKey && !e.metaKey && JUMPS[e.key.toLowerCase()]) {
+        e.preventDefault();
+        navigate(JUMPS[e.key.toLowerCase()]);
+        return;
+      }
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey && !typing(e.target)) {
+        e.preventDefault();
+        setShortcuts((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const initials = (user?.name ?? "")
     .split(/\s+/)
@@ -130,6 +189,9 @@ export function Shell({ children }: { children: ReactNode }) {
                 <NavLink key={link.to} to={link.to} className="rail__link">
                   <Icon name={link.icon} />
                   <span>{link.label}</span>
+                  {link.to === "/whatsapp" && waiting > 0 && (
+                    <span className="rail__badge" aria-label={`${waiting} aguardando atendente`} title="Clientes aguardando atendente">{waiting}</span>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -140,6 +202,10 @@ export function Shell({ children }: { children: ReactNode }) {
             <button className="rail__link" onClick={() => setTutorial(true)} title="Rever o tutorial">
               <Icon name="help" />
               <span>Tutorial</span>
+            </button>
+            <button className="rail__link" onClick={() => setShortcuts(true)} title="Atalhos de teclado (?)">
+              <Icon name="command" />
+              <span>Atalhos</span>
             </button>
             <button className="rail__link" onClick={() => setTheme(nextTheme[theme])} title="Alternar entre claro, escuro e automático">
               <Icon name={themeLabel[theme].icon} />
@@ -160,10 +226,20 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
-      <main className="stage">{children}</main>
+      <main className="stage">
+        {offline && (
+          <div className="offline" role="alert">
+            <span>Sem conexão com o servidor do Nexo. O que você digitar continua aqui; tentando de novo a cada poucos segundos.</span>
+            <button className="ghost-button small" onClick={ping}>Tentar agora</button>
+          </div>
+        )}
+        {children}
+      </main>
       {palette && <CommandPalette onClose={() => setPalette(false)} onTheme={() => setTheme(nextTheme[theme])}
-        onTutorial={() => { setPalette(false); setTutorial(true); }} />}
+        onTutorial={() => { setPalette(false); setTutorial(true); }}
+        onShortcuts={() => { setPalette(false); setShortcuts(true); }} />}
       {tutorial && <Tutorial name={user?.name ?? ""} onDone={finishTutorial} />}
+      {shortcuts && <ShortcutsDialog onClose={() => setShortcuts(false)} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } 
 import { Link } from "react-router-dom";
 import { ApiError, api, openDocument, type DocumentItem, type DocumentStatus, type KnowledgeBase } from "../api";
 import { useAuth } from "../auth";
+import { ChunksDrawer } from "../components/ChunksDrawer";
 import { Icon } from "../components/Icon";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatDateTime, formatSize, plural } from "../format";
@@ -36,7 +37,7 @@ export function DocumentsPage() {
   const [title, setTitle] = useState("");
   const [confirming, setConfirming] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-  const [status, setStatus] = useState<DocumentStatus | "">("");
+  const [status, setStatus] = useState<DocumentStatus | "OUTDATED" | "">("");
   const [sort, setSort] = useState<Sort>("recent");
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [target, setTarget] = useState("");
@@ -45,6 +46,7 @@ export function DocumentsPage() {
   const [moveTo, setMoveTo] = useState("");
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [viewing, setViewing] = useState<DocumentItem | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => { load(); setLoaded(true); }, [load]);
@@ -151,11 +153,12 @@ export function DocumentsPage() {
 
   const queued = docs?.filter((d) => d.status === "PENDING" || d.status === "PROCESSING").length ?? 0;
   const failed = docs?.filter((d) => d.status === "FAILED").length ?? 0;
+  const outdated = docs?.filter((d) => d.outdated).length ?? 0;
 
   const visible = useMemo(() => {
     const q = fold(filter.trim());
-    const list = (docs ?? []).filter((d) => (!status || d.status === status) && (!baseFilter || d.base_id === baseFilter)
-      && (!q || fold(`${d.title} ${d.filename}`).includes(q)));
+    const list = (docs ?? []).filter((d) => (!status || (status === "OUTDATED" ? d.outdated : d.status === status))
+      && (!baseFilter || d.base_id === baseFilter) && (!q || fold(`${d.title} ${d.filename} ${d.source_url ?? ""}`).includes(q)));
     if (sort === "title") return [...list].sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     if (sort === "pages") return [...list].sort((a, b) => b.pages - a.pages);
     return list;
@@ -230,6 +233,12 @@ export function DocumentsPage() {
       </div>
 
       {notice && <p className={notice.kind === "ok" ? "alert alert--ok" : "alert"} role="status">{notice.text}</p>}
+      {outdated > 0 && user?.role === "admin" && (
+        <div className="ops-callout ops-callout--page" role="status">
+          <span><b>{plural(outdated, "documento foi indexado", "documentos foram indexados")} com outra configuração.</b> As respostas continuam, mas os trechos não seguem os ajustes atuais.</span>
+          <Link className="ghost-button small" to="/sistema?aba=manutencao"><Icon name="refresh" size={15} />Reindexar em Manutenção</Link>
+        </div>
+      )}
 
       {docs && docs.length > 0 && (
         <div className="toolbar">
@@ -246,12 +255,13 @@ export function DocumentsPage() {
           )}
           <label className="select">
             <span>Situação</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | "")}>
+            <select value={status} onChange={(e) => setStatus(e.target.value as DocumentStatus | "OUTDATED" | "")}>
               <option value="">Todas</option>
               <option value="READY">Prontos</option>
               <option value="PROCESSING">Indexando</option>
               <option value="PENDING">Na fila</option>
               <option value="FAILED">Com falha</option>
+              {outdated > 0 && <option value="OUTDATED">Índice desatualizado</option>}
             </select>
           </label>
           <label className="select">
@@ -327,7 +337,12 @@ export function DocumentsPage() {
                 <p className="doc__meta">
                   <span className="kind-tag">{kindLabel(doc)}</span>
                   {baseName[doc.base_id] && <Link className="doc__base" to={`/bases/${doc.base_id}`}>{baseName[doc.base_id]}</Link>}
-                  <span>{doc.filename}</span>
+                  {doc.source_url ? (
+                    <a className="kb-source" href={doc.source_url} target="_blank" rel="noreferrer" title={doc.source_url}>
+                      <Icon name="globe" size={12} />{(() => { try { return new URL(doc.source_url).hostname; } catch { return doc.source_url; } })()}
+                    </a>
+                  ) : <span>{doc.filename}</span>}
+                  {doc.outdated && <span className="kb-outdated">índice desatualizado</span>}
                   <span>{formatSize(doc.size_bytes)}</span>
                   {doc.status === "READY" && <span>{unitLabel(doc, doc.pages)}</span>}
                   {doc.status === "READY" && <span>{plural(doc.chunks, "trecho", "trechos")}</span>}
@@ -353,6 +368,12 @@ export function DocumentsPage() {
                         to={`/conversas?documento=${doc.id}`}>
                         <Icon name="chat" />
                       </Link>
+                    )}
+                    {doc.status === "READY" && (
+                      <button className="icon-button" title="Ver os trechos indexados" aria-label={`Ver trechos de ${doc.title}`}
+                        onClick={() => setViewing(doc)}>
+                        <Icon name="layers" />
+                      </button>
                     )}
                     {doc.kind !== "note" && (
                       <button className="icon-button" title="Abrir arquivo" aria-label={`Abrir ${doc.title}`}
@@ -388,6 +409,7 @@ export function DocumentsPage() {
           ))}
         </ul>
       )}
+      {viewing && <ChunksDrawer doc={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }

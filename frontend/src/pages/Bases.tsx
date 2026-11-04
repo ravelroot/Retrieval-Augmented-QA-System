@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError, api, openDocument, type Bot, type DocumentItem, type KnowledgeBase, type SearchResult } from "../api";
+import { ChunksDrawer } from "../components/ChunksDrawer";
 import { Icon } from "../components/Icon";
 import { SourceSlip } from "../components/SourceSlip";
 import { StatusBadge } from "../components/StatusBadge";
@@ -91,6 +92,11 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const [formats, setFormats] = useState<{ extensions: string[]; max_upload_mb: number } | null>(null);
+  const [link, setLink] = useState("");
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [viewing, setViewing] = useState<DocumentItem | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => { api.formats().then(setFormats).catch(() => undefined); }, []);
@@ -135,6 +141,34 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
     if (e.dataTransfer.files.length) void send(e.dataTransfer.files);
   }
 
+  async function importLink(e: FormEvent) {
+    e.preventDefault();
+    if (!link.trim()) return;
+    setImporting(true);
+    try {
+      const doc = await api.importLink(base.id, link.trim(), linkTitle.trim());
+      onNotice("ok", `“${doc.title}” importado de ${new URL(doc.source_url ?? link).hostname}. A indexação começa em seguida.`);
+      setLink("");
+      setLinkTitle("");
+      setLinkOpen(false);
+      reload();
+    } catch (err) {
+      onNotice("error", (err as ApiError).message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function refetch(doc: DocumentItem) {
+    try {
+      const out = await api.refetch(doc.id);
+      onNotice("ok", out.changed ? `“${doc.title}” mudou no link e está sendo reindexado.` : `“${doc.title}” continua igual ao link.`);
+      reload();
+    } catch (err) {
+      onNotice("error", (err as ApiError).message);
+    }
+  }
+
   const exts = formats?.extensions.map((x) => x.replace(/^\./, "").toUpperCase()).join(", ") ?? "PDF, DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML";
 
   return (
@@ -153,6 +187,32 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
           onChange={(e) => e.target.files && send(e.target.files)} />
       </div>
 
+      {linkOpen ? (
+        <form className="kb-link-form" onSubmit={importLink}>
+          <label className="kb-field">
+            <span>Endereço da página ou do arquivo</span>
+            <input type="url" value={link} onChange={(e) => setLink(e.target.value)} autoFocus required maxLength={1000}
+              placeholder="https://exemplo.com/politica-de-trocas" />
+          </label>
+          <label className="kb-field">
+            <span>Título (opcional)</span>
+            <input value={linkTitle} onChange={(e) => setLinkTitle(e.target.value)} maxLength={200} placeholder="Usa o título da página se ficar vazio" />
+          </label>
+          <div className="kb-form__actions">
+            <button className="primary-button small" type="submit" disabled={importing || !link.trim()}>
+              <Icon name="globe" size={15} />{importing ? "Baixando…" : "Importar"}
+            </button>
+            <button className="ghost-button small" type="button" onClick={() => setLinkOpen(false)}>Cancelar</button>
+            <span className="kb-hint">Páginas HTML, PDF, TXT, Markdown, CSV, JSON e arquivos do Office. Endereços da rede interna ficam bloqueados.</span>
+          </div>
+        </form>
+      ) : (
+        <div className="kb-link-cta">
+          <span><Icon name="globe" size={16} />Tem a informação num site? Importe a página e atualize quando ela mudar.</span>
+          <button className="ghost-button small" onClick={() => setLinkOpen(true)}>Importar de um link</button>
+        </div>
+      )}
+
       {docs.some((d) => d.kind !== "note") && (
         <input className="toolbar__search kb-filter" value={filter} onChange={(e) => setFilter(e.target.value)}
           placeholder="Filtrar arquivos pelo nome" aria-label="Filtrar arquivos" />
@@ -166,8 +226,13 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
               <div className="kb-item__main">
                 <strong>{doc.title}</strong>
                 <span className="kb-item__meta">
-                  <span>{doc.filename}</span>
+                  {doc.source_url ? (
+                    <a className="kb-source" href={doc.source_url} target="_blank" rel="noreferrer" title={doc.source_url}>
+                      <Icon name="globe" size={12} />{(() => { try { return new URL(doc.source_url).hostname; } catch { return doc.source_url; } })()}
+                    </a>
+                  ) : <span>{doc.filename}</span>}
                   <span>{formatSize(doc.size_bytes)}</span>
+                  {doc.outdated && <span className="kb-outdated" title="Indexado com outra configuração de trechos ou embeddings">índice desatualizado</span>}
                   {doc.status === "READY" && <span>{unitLabel(doc, doc.pages)}</span>}
                   {doc.status === "READY" && <span>{plural(doc.chunks, "trecho", "trechos")}</span>}
                   <span>{formatDateTime(doc.created_at)}</span>
@@ -197,10 +262,21 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
                   </label>
                 ) : (
                   <>
+                    {doc.status === "READY" && (
+                      <button className="icon-button" title="Ver os trechos indexados" aria-label={`Ver trechos de ${doc.title}`} onClick={() => setViewing(doc)}>
+                        <Icon name="layers" />
+                      </button>
+                    )}
                     {doc.kind === "pdf" && (
                       <button className="icon-button" title="Abrir PDF" aria-label={`Abrir ${doc.title}`}
                         onClick={() => openDocument(doc.id).catch((e: ApiError) => onNotice("error", e.message))}>
                         <Icon name="open" />
+                      </button>
+                    )}
+                    {doc.can_delete && doc.source_url && (
+                      <button className="icon-button" title="Atualizar do link" aria-label={`Atualizar ${doc.title} do link`}
+                        disabled={doc.status === "PENDING" || doc.status === "PROCESSING"} onClick={() => refetch(doc)}>
+                        <Icon name="globe" />
                       </button>
                     )}
                     {doc.can_delete && (
@@ -228,6 +304,7 @@ function FilesTab({ base, bases, docs, reload, onNotice }: {
         </ul>
       )}
       {docs.some((d) => d.kind !== "note") && files.length === 0 && <p className="toolbar__empty">Nenhum arquivo com “{filter}”.</p>}
+      {viewing && <ChunksDrawer doc={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
@@ -241,6 +318,7 @@ function TextsTab({ base, docs, reload, onNotice }: {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [viewing, setViewing] = useState<DocumentItem | null>(null);
   const notes = docs.filter((d) => d.kind === "note");
 
   useEffect(() => {
@@ -349,6 +427,11 @@ function TextsTab({ base, docs, reload, onNotice }: {
                   </>
                 ) : doc.can_delete && (
                   <>
+                    {doc.status === "READY" && (
+                      <button className="icon-button" title="Ver os trechos indexados" aria-label={`Ver trechos de ${doc.title}`} onClick={() => setViewing(doc)}>
+                        <Icon name="layers" />
+                      </button>
+                    )}
                     <button className="icon-button" title="Editar" aria-label={`Editar ${doc.title}`} onClick={() => open(doc)}>
                       <Icon name="edit" />
                     </button>
@@ -362,6 +445,7 @@ function TextsTab({ base, docs, reload, onNotice }: {
           ))}
         </ul>
       )}
+      {viewing && <ChunksDrawer doc={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
@@ -428,6 +512,7 @@ function snippets(lang: Lang, origin: string, base: KnowledgeBase, bot: Bot | nu
     return [
       { title: "Enviar arquivo", lead: "Qualquer formato aceito, um ou vários campos files.", code: `curl -X POST ${origin}/api/bases/${b}/documents \\\n  -H "X-API-Key: ${k}" \\\n  -F "files=@tabela-de-precos.pdf"` },
       { title: "Adicionar texto", lead: "Informação digitada, que entra na base na hora.", code: `curl -X POST ${origin}/api/bases/${b}/texts \\\n  -H "X-API-Key: ${k}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"title": "Horário", "content": "Atendemos de segunda a sexta, das 8h às 18h."}'` },
+      { title: "Importar link", lead: "Página ou arquivo publicado, com atualização pelo id.", code: `curl -X POST ${origin}/api/bases/${b}/links \\\n  -H "X-API-Key: ${k}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"url": "https://exemplo.com/politica-de-trocas"}'\n\ncurl -X POST ${origin}/api/documents/ID_DO_ITEM/refetch \\\n  -H "X-API-Key: ${k}"` },
       { title: bot ? `Perguntar a ${bot.name}` : "Buscar nesta base", lead: bot ? "Resposta com fontes, usando só esta base." : "Trechos mais relevantes, sem gerar resposta.", code: `curl -X POST ${origin}${ask.path} \\\n  -H "X-API-Key: ${k}" \\\n  -H "Content-Type: application/json" \\\n  -d '${ask.body}'` },
       { title: "Remover item", lead: "Use o id devolvido no envio ou em GET /api/bases/{id}/documents.", code: `curl -X DELETE ${origin}/api/documents/ID_DO_ITEM \\\n  -H "X-API-Key: ${k}"` },
     ];
@@ -436,6 +521,7 @@ function snippets(lang: Lang, origin: string, base: KnowledgeBase, bot: Bot | nu
     return [
       { title: "Enviar arquivo", lead: "Qualquer formato aceito, um ou vários campos files.", code: `import requests\n\nwith open("tabela-de-precos.pdf", "rb") as arquivo:\n    r = requests.post(\n        "${origin}/api/bases/${b}/documents",\n        headers={"X-API-Key": "${k}"},\n        files=[("files", arquivo)],\n    )\nprint(r.json())` },
       { title: "Adicionar texto", lead: "Informação digitada, que entra na base na hora.", code: `import requests\n\nr = requests.post(\n    "${origin}/api/bases/${b}/texts",\n    headers={"X-API-Key": "${k}"},\n    json={"title": "Horário", "content": "Atendemos de segunda a sexta, das 8h às 18h."},\n)\nprint(r.json()["id"])` },
+      { title: "Importar link", lead: "Página ou arquivo publicado, com atualização pelo id.", code: `import requests\n\nr = requests.post(\n    "${origin}/api/bases/${b}/links",\n    headers={"X-API-Key": "${k}"},\n    json={"url": "https://exemplo.com/politica-de-trocas"},\n)\nitem = r.json()\n\nrequests.post(f"${origin}/api/documents/{item['id']}/refetch", headers={"X-API-Key": "${k}"})` },
       { title: bot ? `Perguntar a ${bot.name}` : "Buscar nesta base", lead: bot ? "Resposta com fontes, usando só esta base." : "Trechos mais relevantes, sem gerar resposta.", code: `import requests\n\nr = requests.post(\n    "${origin}${ask.path}",\n    headers={"X-API-Key": "${k}"},\n    json=${ask.py},\n    timeout=120,\n).json()\nprint(r)` },
       { title: "Remover item", lead: "Use o id devolvido no envio ou em GET /api/bases/{id}/documents.", code: `import requests\n\nrequests.delete("${origin}/api/documents/ID_DO_ITEM", headers={"X-API-Key": "${k}"})` },
     ];
@@ -443,6 +529,7 @@ function snippets(lang: Lang, origin: string, base: KnowledgeBase, bot: Bot | nu
   return [
     { title: "Enviar arquivo", lead: "Qualquer formato aceito, um ou vários campos files.", code: `const form = new FormData();\nform.append("files", arquivo);\n\nconst r = await fetch("${origin}/api/bases/${b}/documents", {\n  method: "POST",\n  headers: { "X-API-Key": "${k}" },\n  body: form,\n}).then((x) => x.json());` },
     { title: "Adicionar texto", lead: "Informação digitada, que entra na base na hora.", code: `await fetch("${origin}/api/bases/${b}/texts", {\n  method: "POST",\n  headers: { "X-API-Key": "${k}", "Content-Type": "application/json" },\n  body: JSON.stringify({ title: "Horário", content: "Atendemos de segunda a sexta, das 8h às 18h." }),\n});` },
+    { title: "Importar link", lead: "Página ou arquivo publicado, com atualização pelo id.", code: `const item = await fetch("${origin}/api/bases/${b}/links", {\n  method: "POST",\n  headers: { "X-API-Key": "${k}", "Content-Type": "application/json" },\n  body: JSON.stringify({ url: "https://exemplo.com/politica-de-trocas" }),\n}).then((x) => x.json());\n\nawait fetch(\`${origin}/api/documents/\${item.id}/refetch\`, { method: "POST", headers: { "X-API-Key": "${k}" } });` },
     { title: bot ? `Perguntar a ${bot.name}` : "Buscar nesta base", lead: bot ? "Resposta com fontes, usando só esta base." : "Trechos mais relevantes, sem gerar resposta.", code: `const r = await fetch("${origin}${ask.path}", {\n  method: "POST",\n  headers: { "X-API-Key": "${k}", "Content-Type": "application/json" },\n  body: JSON.stringify(${ask.body}),\n}).then((x) => x.json());` },
     { title: "Remover item", lead: "Use o id devolvido no envio ou em GET /api/bases/{id}/documents.", code: `await fetch("${origin}/api/documents/ID_DO_ITEM", {\n  method: "DELETE",\n  headers: { "X-API-Key": "${k}" },\n});` },
   ];
@@ -522,6 +609,7 @@ export function BasesPage() {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [sampling, setSampling] = useState(false);
   const tab = (TABS.find((t) => t.id === params.get("aba"))?.id ?? "arquivos") as Tab;
 
   const loadBases = useCallback(() => api.bases().then(setBases).catch((e: ApiError) => toast(e.message, "error")), [toast]);
@@ -559,6 +647,22 @@ export function BasesPage() {
 
   function onNotice(kind: "ok" | "error", text: string) {
     setNotice({ kind, text });
+  }
+
+  async function createSample() {
+    setSampling(true);
+    try {
+      const out = await api.createSample();
+      toast(out.existed && !out.added ? `A ${out.base.name} já existe. Converse com o ${out.bot.name}.`
+        : `${out.base.name} criada com ${plural(out.added, "arquivo", "arquivos")} e o ${out.bot.name}. A indexação leva alguns segundos.`);
+      await loadBases();
+      api.bots().then(setBots).catch(() => undefined);
+      navigate(`/bases/${out.base.id}`);
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    } finally {
+      setSampling(false);
+    }
   }
 
   async function removeBase() {
@@ -620,6 +724,15 @@ export function BasesPage() {
               ))}
             </ul>
           )}
+          {bases && !bases.some((b) => b.name === "Base de teste") && (
+            <div className="kb-sample">
+              <strong>Quer experimentar?</strong>
+              <p>Crie uma base de teste com arquivos fictícios em seis formatos e um agente pronto para conversar.</p>
+              <button className="ghost-button small" onClick={createSample} disabled={sampling}>
+                <Icon name="sparkle" size={15} />{sampling ? "Criando…" : "Criar base de teste"}
+              </button>
+            </div>
+          )}
         </aside>
 
         {base && (
@@ -651,6 +764,15 @@ export function BasesPage() {
               </div>
             )}
             {lock && base.can_edit && !editing && <p className="kb-lock">{lock}</p>}
+            {base.name === "Base de teste" && (() => {
+              const tester = bots.find((b) => b.base_id === base.id);
+              return tester ? (
+                <div className="ops-callout ops-callout--page kb-sample-note">
+                  <span><b>Esta é a base de teste.</b> Pergunte ao {tester.name}, por exemplo: “Quanto tempo dura a garantia?” ou “Quanto custa o plano Plus?”.</span>
+                  <Link className="ghost-button small" to={`/chats?agente=${tester.id}`}><Icon name="chats" size={15} />Conversar</Link>
+                </div>
+              ) : null;
+            })()}
             {confirmDelete && (
               <div className="kb-confirm" role="alertdialog">
                 <span>Excluir <b>{base.name}</b> com {plural(base.documents, "item", "itens")} e todos os trechos?</span>

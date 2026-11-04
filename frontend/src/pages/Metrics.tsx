@@ -55,20 +55,21 @@ function Daily({ data }: { data: Metrics["daily"] }) {
 
 export function MetricsPage() {
   const [days, setDays] = useState(30);
+  const [bot, setBot] = useState("");
   const [m, setM] = useState<Metrics | null>(null);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setError("");
-    api.metrics(days).then(setM).catch((e: ApiError) => setError(e.message));
-  }, [days]);
+    api.metrics(days, bot).then(setM).catch((e: ApiError) => setError(e.message));
+  }, [days, bot]);
 
   async function exportCsv() {
     setExporting(true);
     setError("");
     try {
-      await downloadMetrics(days);
+      await downloadMetrics(days, bot);
     } catch (e) {
       setError((e as ApiError).message);
     } finally {
@@ -78,6 +79,8 @@ export function MetricsPage() {
 
   const maxCite = Math.max(1, ...(m?.top_documents.map((d) => d.citations) ?? [1]));
   const rated = m ? m.feedback.up + m.feedback.down : 0;
+  const options = m?.by_bot ?? [];
+  const chosen = options.find((b) => (b.bot_id ?? "geral") === bot);
 
   return (
     <div className="page">
@@ -88,9 +91,19 @@ export function MetricsPage() {
           <p className="page__lead">
             Quanto o acervo responde, em quanto tempo e onde faltam documentos.
             {m && (m.scope === "all" ? " Dados de todas as contas." : " Dados das suas conversas.")}
+            {chosen && ` Filtrado por ${chosen.name}.`}
           </p>
         </div>
         <span className="page__tools">
+          {(options.length > 1 || bot) && (
+            <label className="select metrics-bot">
+              <span className="sr-only">Agente</span>
+              <select value={bot} onChange={(e) => setBot(e.target.value)} aria-label="Filtrar por agente">
+                <option value="">Todos os agentes e conversas</option>
+                {options.map((b) => <option key={b.bot_id ?? "geral"} value={b.bot_id ?? "geral"}>{b.name}</option>)}
+              </select>
+            </label>
+          )}
           <button className="ghost-button small" onClick={exportCsv} disabled={exporting || !m || m.questions === 0}
             title="Baixa as perguntas do período em CSV, com resposta, avaliação, tempo e fontes">
             <Icon name="download" size={15} />{exporting ? "Exportando…" : "Exportar CSV"}
@@ -165,6 +178,44 @@ export function MetricsPage() {
             </section>
           </div>
 
+          {m.by_bot.length > 0 && (
+            <div className="box">
+              <section className="panel">
+                <h2>Por agente</h2>
+                <p className="panel__lead">Perguntas, taxa de resposta e avaliações negativas de cada agente no período. Clique para filtrar o painel.</p>
+                <div className="table-wrap">
+                  <table className="table bot-stats">
+                    <thead><tr><th>Agente</th><th>Perguntas</th><th>Respondidas</th><th>Taxa</th><th>Tempo médio</th><th>Não ajudou</th></tr></thead>
+                    <tbody>
+                      {m.by_bot.map((b) => {
+                        const key = b.bot_id ?? "geral";
+                        return (
+                          <tr key={key} className={bot === key ? "is-on" : ""}>
+                            <td>
+                              <button className="link-button bot-stats__name" onClick={() => setBot(bot === key ? "" : key)}>
+                                <span className="kb-dot" style={{ background: b.color ?? "var(--neutro)" }} aria-hidden="true" />{b.name}
+                              </button>
+                            </td>
+                            <td>{b.questions.toLocaleString("pt-BR")}</td>
+                            <td>{b.answered.toLocaleString("pt-BR")}</td>
+                            <td>
+                              <span className="bot-stats__rate">
+                                <span className="bars__track"><span style={{ width: `${(b.answer_rate ?? 0) * 100}%` }} /></span>
+                                {pct(b.answer_rate)}
+                              </span>
+                            </td>
+                            <td>{seconds(b.avg_latency_ms)}</td>
+                            <td>{b.negative ? <span className="bad">{b.negative}</span> : "0"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
           <div className="box">
             <section className="panel">
               <h2>Respostas avaliadas como “não ajudou”</h2>
@@ -176,6 +227,7 @@ export function MetricsPage() {
                     <li key={r.message_id}>
                       <p className="reviews__q">{r.question}</p>
                       <p className="reviews__a">{clip(r.answer)}</p>
+                      {r.comment && <p className="reviews__note"><b>Comentário{m.scope === "all" && r.owner ? ` de ${r.owner}` : ""}:</b> {r.comment}</p>}
                       <Link to={`/conversas/${r.conversation_id}`} className="link-button">Abrir conversa, {formatRelative(r.asked_at)}</Link>
                     </li>
                   ))}

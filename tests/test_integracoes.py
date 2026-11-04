@@ -451,7 +451,7 @@ def test_webhook_events_are_fired(client, receiver):
     client.post(f"/api/messages/{good['id']}/feedback", headers=admin, json={"rating": -1, "comment": "Incompleta"})
     [negative] = events(receiver, "feedback.negative")
     assert negative["data"] == {"message_id": good["id"], "question": QUESTION, "answer": good["content"],
-                                "username": "admin"}
+                                "comment": None, "username": "admin"}
 
     for req in receiver["received"]:
         assert req["headers"]["x-nexo-signature"] == \
