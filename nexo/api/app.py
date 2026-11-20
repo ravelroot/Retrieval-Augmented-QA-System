@@ -19,9 +19,11 @@ from fastapi.staticfiles import StaticFiles
 from nexo import __version__, context, db, jobs, maintenance
 from nexo.api.agents import router as agents_router
 from nexo.api.deps import ApiError, get_users
+from nexo.api.openai_compat import router as openai_router
 from nexo.api.routes import router
 from nexo.api.system import router as system_router
 from nexo.api.whatsapp import router as whatsapp_router
+from nexo.api.widgets import router as widgets_router
 from nexo.config import get_settings
 from nexo.rag.engine import get_engine
 
@@ -48,7 +50,12 @@ TAGS = (
     ("/api/system", "Sistema e manutenção"),
     ("/api/audit", "Sistema e manutenção"),
     ("/api/health", "Saúde"),
+    ("/api/widgets", "Widget para sites"),
+    ("/api/public", "Widget para sites"),
 )
+
+OPENAI_TYPES = {400: "invalid_request_error", 401: "authentication_error", 403: "permission_error", 404: "invalid_request_error",
+                409: "invalid_request_error", 422: "invalid_request_error", 429: "rate_limit_error"}
 
 DESCRIPTION = ("API do Nexo: agentes de IA que respondem só com a própria base de conhecimento, citando a página. "
                "Autentique com `Authorization: Bearer <token>` ou com uma chave de API em `X-API-Key`.")
@@ -76,6 +83,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     db.engine()
     get_users()
+    rebuilt = maintenance.sync_vector_space(settings, enqueue=False)
+    if rebuilt:
+        log.warning("O modelo de embeddings mudou: %d documento(s) voltaram para a fila de indexação.", rebuilt)
     stamped = jobs.stamp_unsigned(get_engine(settings).signature())
     if stamped:
         log.info("Configuração de índice registrada em %d documento(s).", stamped)
@@ -84,10 +94,14 @@ async def lifespan(app: FastAPI):
         log.info("Retomando a indexação de %d documento(s).", pending)
     retention = maintenance.Retention(settings)
     retention.start()
+    backups = maintenance.AutoBackup(settings)
+    app.state.auto_backup = backups
+    backups.start()
     try:
         yield
     finally:
         retention.stop()
+        backups.stop()
 
 
 def create_app() -> FastAPI:
@@ -97,12 +111,21 @@ def create_app() -> FastAPI:
     app.state.stats = Stats()
 
     @app.exception_handler(ApiError)
-    async def api_error(_: Request, e: ApiError):
+    async def api_error(request: Request, e: ApiError):
+        if request.url.path.startswith("/v1/"):
+            kind = OPENAI_TYPES.get(e.status, "api_error")
+            return JSONResponse({"error": {"message": e.message, "type": kind, "code": e.code.lower(), "param": None}},
+                                status_code=e.status, headers=e.headers or None)
         return JSONResponse({"code": e.code, "message": e.message, "fields": e.fields}, status_code=e.status,
                             headers=e.headers or None)
 
     @app.exception_handler(RequestValidationError)
-    async def invalid(_: Request, e: RequestValidationError):
+    async def invalid(request: Request, e: RequestValidationError):
+        if request.url.path.startswith("/v1/"):
+            first = e.errors()[0] if e.errors() else {}
+            param = ".".join(str(x) for x in first.get("loc", []) if x != "body") or None
+            return JSONResponse({"error": {"message": f"Campo inválido: {param or 'corpo'}.", "type": "invalid_request_error",
+                                           "code": "invalid_value", "param": param}}, status_code=400)
         fields = {}
         for err in e.errors():
             loc = [str(x) for x in err.get("loc", []) if x not in ("body", "query", "path")]
@@ -148,7 +171,7 @@ def create_app() -> FastAPI:
                            allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
                            expose_headers=["X-Request-ID", "Retry-After", "Content-Disposition"], max_age=600)
 
-    for part in (router, agents_router, whatsapp_router, system_router):
+    for part in (router, agents_router, whatsapp_router, system_router, widgets_router, openai_router):
         for route in part.routes:
             if isinstance(route, APIRoute) and not route.tags:
                 tag = _tag(route.path)
@@ -163,7 +186,7 @@ def create_app() -> FastAPI:
 
         @app.get("/{path:path}", include_in_schema=False)
         async def spa(path: str):
-            if path.startswith("api/"):
+            if path.startswith(("api/", "v1/")):
                 return JSONResponse({"code": "NOT_FOUND", "message": "Rota não encontrada.", "fields": {}},
                                     status_code=404)
             target = (WEB_DIR / path).resolve()

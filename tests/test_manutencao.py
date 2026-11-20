@@ -74,8 +74,9 @@ def test_runtime_settings(client):
     assert client.get("/api/system/settings", headers=maria).status_code == 403
     out = client.get("/api/system/settings", headers=admin).json()
     names = {i["name"] for i in out["items"]}
-    assert {"top_k", "top_n", "chunk_size", "rate_limit", "retention_days", "llm_model"} <= names
-    assert "Embeddings" in out["fixed"]
+    assert {"top_k", "top_n", "chunk_size", "rate_limit", "retention_days", "llm_model", "llm_provider", "embed_model",
+            "backup_hours"} <= names
+    assert "Banco vetorial" in out["fixed"] and "Embeddings" not in out["fixed"]
 
     r = client.put("/api/system/settings", headers=admin, json={"values": {"top_k": 3, "top_n": 5}})
     assert r.status_code == 400 and "top_n" in r.json()["fields"]

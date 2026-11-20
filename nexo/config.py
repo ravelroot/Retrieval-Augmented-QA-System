@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     retention_days: int = Field(0, ge=0, le=3650)
     allow_private_urls: bool = False
     link_timeout: float = Field(20.0, gt=0, le=120)
+    require_password_change: bool = True
+    backup_hours: int = Field(0, ge=0, le=720)
+    backup_keep: int = Field(7, ge=1, le=90)
+    widget_rate_limit: int = Field(10, ge=1, le=600)
 
-    llm_provider: Literal["ollama", "openai", "extrativo"] = "ollama"
+    llm_provider: Literal["ollama", "openai", "compativel", "extrativo"] = "ollama"
     llm_model: str = "llama3.1"
     llm_temperature: float = Field(0.1, ge=0.0, le=1.0)
     llm_timeout: float = 120.0
@@ -70,6 +74,16 @@ class Settings(BaseSettings):
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
 
+    @field_validator("ollama_url", "openai_base_url", "public_url")
+    @classmethod
+    def _http_url(cls, value):
+        if value is None:
+            return value
+        value = value.strip().rstrip("/")
+        if not value.lower().startswith(("http://", "https://")) or len(value) < 10:
+            raise ValueError("Use um endereço começando com http:// ou https://.")
+        return value
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _upper_level(cls, value):
@@ -84,6 +98,22 @@ class Settings(BaseSettings):
     @property
     def overrides_file(self) -> Path:
         return self.data_dir / "ajustes.json"
+
+    @property
+    def secrets_file(self) -> Path:
+        return self.data_dir / "segredos.json"
+
+    @property
+    def setup_file(self) -> Path:
+        return self.data_dir / "instalacao.json"
+
+    @property
+    def vectors_file(self) -> Path:
+        return self.data_dir / "vetores.json"
+
+    @property
+    def backups_dir(self) -> Path:
+        return self.data_dir / "backups"
 
     @property
     def uploads_dir(self) -> Path:

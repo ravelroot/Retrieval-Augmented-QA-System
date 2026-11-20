@@ -30,6 +30,7 @@ class UserOut(BaseModel):
     last_login_at: str | None = None
     tutorial_done_at: str | None = None
     password_changed_at: str | None = None
+    must_change_password: bool = False
 
 
 class ProfilePatch(BaseModel):
@@ -610,6 +611,11 @@ class SettingItem(BaseModel):
     default: Any
     overridden: bool
     reindex: bool
+    wipe: bool = False
+    required: bool = True
+    configured: bool | None = None
+    placeholder: str | None = None
+    options: list[dict[str, str]] | None = None
     min: float | None = None
     max: float | None = None
 
@@ -631,6 +637,7 @@ class SettingsResetIn(BaseModel):
 class SettingsChanged(SettingsOut):
     changed: list[str]
     reindex_needed: bool = False
+    rebuilt: int = 0
 
 
 class CheckOut(BaseModel):
@@ -680,3 +687,134 @@ class AuditPage(BaseModel):
     total: int
     items: list[AuditItem]
     actions: dict[str, str]
+
+
+class ProviderTestIn(BaseModel):
+    target: Literal["llm", "embedding", "reranker"]
+    values: dict[str, Any] = Field(default_factory=dict, max_length=40)
+
+
+class ProviderTestOut(BaseModel):
+    target: str
+    ok: bool
+    detail: str
+    latency_ms: int
+
+
+class OllamaModelsOut(BaseModel):
+    url: str
+    models: list[str]
+    error: str | None = None
+
+
+class SetupStep(BaseModel):
+    id: str
+    label: str
+    detail: str
+    done: bool
+    to: str | None = None
+
+
+class SetupOut(BaseModel):
+    done: bool
+    done_at: str | None = None
+    must_change_password: bool
+    public_url: str | None = None
+    llm_provider: str
+    steps: list[SetupStep]
+    completed: int
+    total: int
+
+
+class BackupFileOut(BaseModel):
+    name: str
+    bytes: int
+    created_at: datetime
+
+
+class BackupListOut(BaseModel):
+    every_hours: int
+    keep: int
+    folder: str
+    last_at: datetime | None = None
+    next_at: datetime | None = None
+    last_error: str | None = None
+    items: list[BackupFileOut]
+
+
+class WidgetIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    bot_id: str = Field(min_length=1, max_length=32)
+    origins: list[str] = Field(default_factory=list, max_length=20)
+    title: str | None = Field(None, max_length=80)
+    welcome: str | None = Field(None, max_length=500)
+    color: str | None = Field(None, max_length=16)
+    position: Literal["right", "left"] = "right"
+    show_sources: bool = True
+    active: bool = True
+
+
+class WidgetPatch(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=80)
+    bot_id: str | None = Field(None, min_length=1, max_length=32)
+    origins: list[str] | None = Field(None, max_length=20)
+    title: str | None = Field(None, max_length=80)
+    welcome: str | None = Field(None, max_length=500)
+    color: str | None = Field(None, max_length=16)
+    position: Literal["right", "left"] | None = None
+    show_sources: bool | None = None
+    active: bool | None = None
+
+
+class WidgetOut(BaseModel):
+    id: str
+    name: str
+    bot_id: str
+    bot_name: str | None
+    public_key: str
+    origins: list[str]
+    title: str | None
+    welcome: str | None
+    color: str
+    position: str
+    show_sources: bool
+    active: bool
+    questions: int
+    unanswered: int
+    last_used_at: datetime | None
+    created_by: str
+    created_at: datetime
+    snippet: str
+    can_edit: bool
+
+
+class WidgetConfigOut(BaseModel):
+    title: str
+    welcome: str | None
+    color: str
+    position: str
+    show_sources: bool
+    suggestions: list[str]
+    bot: str
+
+
+class WidgetTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class WidgetAskIn(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    history: list[WidgetTurn] = Field(default_factory=list, max_length=12)
+
+
+class WidgetSource(BaseModel):
+    rank: int
+    title: str
+    page: int
+
+
+class WidgetAnswerOut(BaseModel):
+    answer: str
+    answered: bool
+    sources: list[WidgetSource]

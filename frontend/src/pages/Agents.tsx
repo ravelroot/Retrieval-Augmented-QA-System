@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api, type Bot, type BotInput, type KnowledgeBase } from "../api";
+import { useAuth } from "../auth";
 import { BOT_COLORS, BotAvatar } from "../components/BotAvatar";
 import { Icon } from "../components/Icon";
 import { useToast } from "../components/Toast";
@@ -203,6 +204,8 @@ function Drawer({ bot, bases, onClose, onSaved, onBaseCreated }: {
 export function AgentsPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
+  const admin = user?.role === "admin";
   const [bots, setBots] = useState<Bot[] | null>(null);
   const [bases, setBases] = useState<KnowledgeBase[]>([]);
   const [editing, setEditing] = useState<Bot | null | "new">(null);
@@ -338,6 +341,12 @@ export function AgentsPage() {
                   <button className="icon-button" title="Duplicar" aria-label={`Duplicar ${bot.name}`} onClick={() => duplicate(bot)}>
                     <Icon name="duplicate" size={16} />
                   </button>
+                  {admin && (
+                    <button className="icon-button" title="Colocar no site" aria-label={`Colocar ${bot.name} num site`}
+                      onClick={() => navigate(`/integracoes?widget=${bot.id}#widget`)}>
+                      <Icon name="globe" size={16} />
+                    </button>
+                  )}
                   {bot.can_edit && (
                     <>
                       <button className="icon-button" title="Editar" aria-label={`Editar ${bot.name}`} onClick={() => setEditing(bot)}>

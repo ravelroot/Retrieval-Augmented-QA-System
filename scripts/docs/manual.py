@@ -41,44 +41,40 @@ def visao_geral(d):
     ])
 
     d.secao(f"O que há de novo na {VERSAO}")
-    d.p(f"A versão {VERSAO} cuida de quem opera o Nexo: ajustes pela tela, diagnóstico, manutenção, backup, registro de "
-        "atividades e uma linha de comando, além de recursos de uso diário pedidos por quem conversa e atende. A "
-        "identidade \"caixa única\" continua igual, e tudo o que funcionava na 2.2 continua funcionando; o banco é "
-        "migrado sozinho na primeira execução.")
+    d.p(f"A versão {VERSAO} deixa o Nexo fácil de instalar, configurar, manter e integrar. Um assistente guia o primeiro "
+        "acesso, o provedor de IA e as chaves passam a ser escolhidos pela tela, com teste de conexão, os agentes chegam a "
+        "qualquer site com uma linha de código e a qualquer ferramenta que fale com a API da OpenAI, e o backup passa a "
+        "ser automático. A identidade \"caixa única\" continua igual, e o banco da 2.3 é migrado sozinho.")
     d.cartoes([
-        ("Ajustes pela tela", "Sistema e conta › Ajustes",
-         "Modelo, temperatura, cortes, trechos, cadastro, limites e retenção mudam na hora, sem editar o .env nem reiniciar."),
-        ("Diagnóstico", "tela e linha de comando",
-         "Confere banco, disco, segurança, modelos, banco vetorial, arquivos, índice e integrações, com o que fazer em cada aviso."),
-        ("Manutenção e backup", "Sistema e conta › Manutenção",
-         "Reindexar falhas, desatualizados ou tudo, limpar órfãos, apagar conversas antigas, compactar o banco e baixar um backup .zip."),
-        ("Registro de atividades", "auditoria",
-         "Quem entrou, criou, alterou ou excluiu bases, agentes, documentos, contas, chaves e conexões, com filtro e CSV."),
-        ("Base de teste", "um clique ou um comando",
-         "Arquivos de exemplo em seis formatos e um agente pronto, para experimentar o Nexo sem os seus documentos."),
-        ("Importar de um link", "páginas e arquivos publicados",
-         "Traz uma página ou arquivo da internet para a base e atualiza quando ele mudar, com bloqueio da rede interna."),
-        ("Trechos indexados", "Documentos e Bases",
-         "Mostra exatamente como cada arquivo foi dividido, com busca por palavra e o link para a página do PDF."),
-        ("Conversas fixadas e rascunhos", "Conversas",
-         "Fixe as conversas mais usadas no topo; o que você digitou fica guardado mesmo trocando de conversa."),
-        ("Comentário no \"não ajudou\"", "avaliação",
-         "Quem avalia diz o que faltou; o comentário vai para o painel, o CSV e o webhook feedback.negative."),
-        ("Perguntas sugeridas e duplicar", "Agentes",
-         "Atalhos de pergunta no começo de cada chat e cópia de um agente para criar variações rápido."),
-        ("Respostas prontas", "WhatsApp",
-         "Textos da equipe com {nome} e {telefone}, inseridos pelo botão ou digitando / na caixa de resposta."),
-        ("Painel por agente", "Painel de qualidade",
-         "Perguntas, taxa de resposta, tempo e avaliações de cada agente, com filtro do painel e do CSV."),
-        ("Chaves com permissão", "consulta, alimentação ou completa",
-         "Cada chave pode só perguntar, só alimentar bases ou tudo, e pode vencer sozinha em 30, 90 ou 365 dias."),
-        ("Limite e CORS", "proteção da API",
-         "Limite de perguntas por minuto por conta (HTTP 429) e liberação de sites que chamam a API pelo navegador."),
-        ("Operação", "logs, métricas e Docker",
-         "Logs em texto ou JSON com o id do pedido, métricas no formato do Prometheus, Dockerfile e serviço no compose."),
-        ("Atalhos e avisos", "uso diário",
-         "Atalhos Alt + N, B, D e W, a tecla ? com a lista de atalhos, aviso de servidor fora do ar e contador do WhatsApp no menu."),
+        ("Assistente de configuração", "primeiro acesso",
+         "Troca obrigatória da senha padrão, escolha da inteligência com teste de conexão, acesso, backup e a lista de próximos passos."),
+        ("Provedor de IA pela tela", "Sistema e conta › Ajustes",
+         "Ollama, OpenAI, Groq, OpenRouter, Gemini, LM Studio ou outro serviço compatível, sem editar o .env nem reiniciar."),
+        ("Chaves guardadas no servidor", "data/segredos.json",
+         "As chaves dos provedores ficam num arquivo próprio, com permissão restrita, e nunca voltam para a tela."),
+        ("Testar conexão", "modelo, embeddings e reranking",
+         "Cada provedor é testado com os valores do formulário antes de salvar, com o tempo da resposta."),
+        ("Troca de embeddings segura", "reindexação automática",
+         "Trocar o modelo de embeddings apaga os vetores antigos e reindexa o acervo sozinho, pela tela ou pelo .env."),
+        ("Widget para sites", "Integrações",
+         "Um botão de conversa com o agente em qualquer site, com uma linha de código, sites autorizados e limite por visitante."),
+        ("API compatível com OpenAI", "/v1/chat/completions",
+         "n8n, Make, Typebot, Flowise, Dify, Open WebUI e os SDKs oficiais usam os agentes como se fossem modelos."),
+        ("Backup automático", "Sistema e conta › Manutenção",
+         "Cópias periódicas em data/backups, com quantas guardar, botão para fazer uma agora e download pela tela."),
+        ("Primeiros passos", "menu e Visão geral",
+         "Uma lista com o que falta para o Nexo trabalhar sozinho, com o progresso no menu e o atalho para cada tela."),
+        ("Instalador mais esperto", "iniciar.cmd e iniciar.sh",
+         "Confere a versão do Python, reinstala as dependências quando mudam e abre o navegador quando o servidor está pronto."),
+        ("Linha de comando", "configurar e senha",
+         "python -m nexo configurar faz o assistente no terminal; python -m nexo senha redefine a senha de qualquer conta."),
+        ("Porta ocupada", "servidor",
+         "Se o Nexo já estiver rodando, o script só abre o navegador; se outro programa usar a porta, diz como trocar."),
     ])
+    d.p("**Na 2.3.0**, vieram os ajustes pela tela, o diagnóstico, a manutenção e o backup, o registro de atividades, a "
+        "base de teste, a importação por link, os trechos indexados, as conversas fixadas, as perguntas sugeridas, as "
+        "respostas prontas do WhatsApp, o painel por agente, as chaves com permissão e validade, o limite de perguntas, "
+        "o CORS, os logs em JSON, as métricas do Prometheus e o Docker.")
     d.p("**Na 2.2.0**, as respostas passaram a aparecer enquanto são escritas, com Parar e Refazer; vieram as contas pela "
         "tela, as sessões encerradas na troca de senha, os formatos EPUB, PPTX, XLSX e ODT, as ações em lote, a busca no "
         "conteúdo das conversas, o CSV do painel e os webhooks com nova tentativa.")
@@ -100,22 +96,28 @@ def visao_geral(d):
         ("Banco vetorial", "ChromaDB (padrão) ou Qdrant", "Embeddings dos trechos e metadados de origem"),
         ("Embeddings", "HuggingFace, OpenAI ou Ollama", "Transformam texto em vetores para a busca semântica"),
         ("Reranking", "Cross-encoder HuggingFace ou Cohere Rerank", "Reordenam os candidatos antes de chegarem ao modelo"),
-        ("Modelo de linguagem", "Ollama (local) ou OpenAI", "Redige a resposta a partir dos trechos, seguindo as "
-         "instruções do agente"),
+        ("Modelo de linguagem", "Ollama (local), OpenAI ou serviços compatíveis (Groq, OpenRouter, Gemini, LM Studio)",
+         "Redige a resposta a partir dos trechos, seguindo as instruções do agente"),
         ("Banco relacional", "SQLAlchemy com SQLite (padrão), PostgreSQL, MySQL ou SQL Server", "Bases, documentos, "
          "agentes, conversas, mensagens, fontes, avaliações, chaves, webhooks e WhatsApp"),
         ("Contas", "Arquivo JSON com bcrypt, sessões JWT com versão", "Login pré-definido, cadastro próprio, gestão pelo "
          "administrador, encerramento de sessões e tutorial visto"),
-        ("Integrações", "Chaves nxk_ com permissão e validade, webhooks com HMAC-SHA256", "Perguntas, buscas e envios "
-         "vindos de outros sistemas e avisos de eventos, com nova tentativa automática"),
-        ("Operação", "Ajustes em data/ajustes.json, auditoria, logs JSON, Prometheus, CLI e Docker", "Configurar sem "
-         "reiniciar, diagnosticar, manter, fazer backup e acompanhar o servidor"),
+        ("Integrações", "Widget para sites, API compatível com OpenAI, chaves nxk_ com permissão e validade, webhooks com "
+         "HMAC-SHA256", "O agente no site, em ferramentas de automação e em outros sistemas, e avisos de eventos"),
+        ("Operação", "Assistente, ajustes e segredos em data/, backup automático, auditoria, logs JSON, Prometheus, CLI e "
+         "Docker", "Configurar sem reiniciar, diagnosticar, manter, fazer backup e acompanhar o servidor"),
         ("WhatsApp", "Evolution API v2, WhatsApp Cloud API da Meta ou simulador", "Receber mensagens de clientes e "
          "responder pelo agente ou por uma pessoa"),
     ], larguras=["20%", "33%", "47%"])
 
     d.secao("Funcionalidades")
     d.lista([
+        "Assistente de configuração no primeiro acesso [[novo]]: senha nova, inteligência com teste de conexão, acesso, "
+        "backup e lista de próximos passos.",
+        "Provedor de IA, modelos, endereços e chaves escolhidos pela tela, com teste de conexão e troca de embeddings com "
+        "reindexação automática [[novo]].",
+        "Widget para sites e API compatível com OpenAI para levar os agentes a qualquer site e ferramenta [[novo]].",
+        "Backup automático com rotação e download pela tela [[novo]].",
         "Bases de conhecimento com PDF, DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON e HTML, enviados por arrastar e "
         "soltar, vários de uma vez, com limite de tamanho e bloqueio de duplicados por SHA-256 dentro de cada base.",
         "Textos digitados direto na base, editáveis a qualquer hora; ao salvar, o texto é reindexado.",
@@ -179,22 +181,26 @@ def instalacao(d):
         ("Memória", "8 GB ou mais", "Rodar o llama3.1 local com folga"),
         ("WhatsApp (opcional)", "Evolution API v2 ou conta Meta", "Atender clientes pelo WhatsApp (capítulo 6)"),
     ], larguras=["23%", "26%", "51%"])
-    d.nota("Sem Ollama ou sem GPU?", "Use a OpenAI como modelo de linguagem (seção 3.1) ou o modo de teste sem modelos "
-           "para validar a instalação. Os modelos de embeddings e reranking padrão rodam bem em CPU.")
+    d.nota("Sem Ollama ou sem GPU?", "Escolha OpenAI, Groq, OpenRouter, Gemini ou outro serviço compatível no assistente "
+           "de configuração (seção 3.6), ou o modo sem modelo para validar a instalação. Os modelos de embeddings e "
+           "reranking padrão rodam bem em CPU.")
 
     d.secao("Caminho rápido")
     d.passos([
         "Baixe o repositório (botão **Code › Download ZIP** no GitHub ou `git clone`) e extraia em uma pasta.",
-        "Instale o Ollama em ollama.com e, num terminal, rode `ollama pull llama3.1`.",
+        "Para rodar tudo no seu computador, instale o Ollama em ollama.com e rode `ollama pull llama3.1`. Para usar um "
+        "serviço na nuvem, tenha a chave de API em mãos.",
         "No Windows, dê dois cliques em `iniciar.cmd`. No Linux ou macOS, rode `./iniciar.sh`.",
-        "Espere a instalação terminar. Na primeira vez ela leva alguns minutos.",
-        "Abra `http://127.0.0.1:8000` no navegador e entre com `admin` / `Nexo@2026`. O tutorial aparece na primeira entrada.",
-        "Em **Bases de conhecimento**, envie um arquivo; em **Agentes**, crie um agente com essa base; em **Chats com "
-        "agentes**, faça a primeira pergunta.",
+        "Espere a instalação terminar. Na primeira vez ela leva alguns minutos; depois o navegador abre sozinho em "
+        "`http://127.0.0.1:8000` [[novo]].",
+        "Entre com `admin` / `Nexo@2026`. O assistente de configuração pede uma senha nova e guia a escolha da "
+        "inteligência, do acesso e do backup [[novo]].",
+        "No fim do assistente, crie a base de teste ou envie os seus arquivos, crie um agente e faça a primeira pergunta.",
     ])
-    d.p("O script cria o ambiente virtual `.venv`, instala `requirements.txt`, copia `.env.example` para `.env`, compila a "
-        "interface em `frontend/dist` e sobe o servidor. Nas próximas vezes ele só sobe o servidor; quando a versão "
-        "muda, recompila a interface.")
+    d.p("O script confere se o Python é 3.11 ou mais recente, cria o ambiente virtual `.venv`, instala `requirements.txt`, "
+        "copia `.env.example` para `.env`, compila a interface em `frontend/dist`, sobe o servidor e abre o navegador. "
+        "Nas próximas vezes ele só sobe o servidor; quando `requirements.txt` muda, reinstala as dependências, e quando a "
+        "versão muda, recompila a interface. Se o Nexo já estiver rodando, ele só abre o navegador.")
 
     d.secao("Passo a passo manual")
     d.codigo("""
@@ -213,10 +219,16 @@ python -m nexo
         "de `frontend` em outro. A interface abre em `http://localhost:5173` e repassa as chamadas `/api` para a porta 8000.")
 
     d.secao("Primeiro acesso")
-    d.p("O login pré-definido é criado quando não há nenhum administrador, como na primeira execução. O aviso some da "
-        "tela de entrada (seção 4.1) assim que a senha do admin é trocada. Troque-a em Sistema e conta no primeiro acesso. "
-        "Para experimentar antes de enviar os seus arquivos, use **Criar base de teste** em Bases de conhecimento ou "
-        "`python -m nexo base-de-teste` (seção 4.6).")
+    d.p("O login pré-definido é criado quando não há nenhum administrador, como na primeira execução. Ao entrar com ele, o "
+        "Nexo exige uma senha nova antes de qualquer outra tela [[novo]]: até a troca, a API recusa as ações dessa sessão "
+        "com 403 `PASSWORD_CHANGE_REQUIRED`. Em seguida, o assistente de configuração (seção 3.6) guia o resto. Para "
+        "experimentar antes de enviar os seus arquivos, use **Criar base de teste** no último passo do assistente, em "
+        "Bases de conhecimento ou com `python -m nexo base-de-teste` (seção 4.6).")
+    d.lado(["O primeiro passo do assistente pede só a senha nova e a confirmação. A senha precisa ter de 8 a 72 caracteres, "
+            "com letras e números, sem conter o nome de usuário.",
+            "Quem prefere o terminal pode fazer o mesmo com `python -m nexo configurar`, que troca a senha padrão e escolhe "
+            "o provedor de IA com teste de conexão."],
+           "tela-assistente-senha.png", "Primeiro passo do assistente: a senha nova do administrador.")
     d.tabela(["Usuário", "Senha", "Perfil", "Pode"], [
         ("`admin`", "`Nexo@2026`", "Administrador", "Tudo: excluir conteúdo de outras pessoas, ver o painel de todos, "
          "criar e gerenciar contas, redefinir senhas, webhooks e conexões do WhatsApp"),
@@ -259,7 +271,7 @@ python -m nexo
     d.p("As sessões abertas antes da atualização continuam válidas. O arquivo `data/usuarios.json` ganha os campos "
         "`session_version` e `password_changed_at` automaticamente; não é preciso editá-lo. O `.env` também não muda.")
 
-    d.secao("Atualizando a partir da 2.2", novo=True)
+    d.secao("Atualizando a partir da 2.2")
     d.passos([
         "Baixe um backup em Sistema e conta › Manutenção ou rode `python -m nexo backup` (seção 10.5).",
         "Pare o servidor e traga os arquivos novos com `git pull`, mantendo `data` e o seu `.env`.",
@@ -273,7 +285,23 @@ python -m nexo
         "`NEXO_CORS_ORIGINS` e as de links) têm padrões seguros; o limite de 60 perguntas por minuto por conta passa a "
         "valer sem configurar nada. Chaves de API antigas ficam com permissão completa e sem validade.")
 
-    d.secao("Com Docker", novo=True)
+    d.secao("Atualizando a partir da 2.3", novo=True)
+    d.passos([
+        "Baixe um backup em Sistema e conta › Manutenção ou rode `python -m nexo backup` (seção 10.5).",
+        "Pare o servidor e traga os arquivos novos com `git pull`, mantendo `data` e o seu `.env`.",
+        "Rode o script de inicialização: ele percebe que `requirements.txt` mudou, instala o pacote novo "
+        "`llama-index-llms-openai-like` e recompila a interface.",
+        "Suba o servidor. A tabela `nx_widget` é criada sozinha, e o arquivo `data/vetores.json` passa a registrar o "
+        "modelo de embeddings dos vetores atuais; nada é reindexado.",
+        "Entre como administrador. Se a conta admin ainda usa a senha padrão, o Nexo pede a troca na hora; o assistente "
+        "de configuração aparece uma vez e pode ser pulado.",
+    ])
+    d.p("O `.env` antigo continua valendo. Os provedores e as chaves continuam podendo vir dele; o que for escolhido pela "
+        "tela fica em `data/ajustes.json` e `data/segredos.json`, por cima. As variáveis novas são "
+        "`NEXO_REQUIRE_PASSWORD_CHANGE` (padrão true), `NEXO_BACKUP_HOURS` (0, desligado), `NEXO_BACKUP_KEEP` (7) e "
+        "`NEXO_WIDGET_RATE_LIMIT` (10), e `NEXO_LLM_PROVIDER` aceita também `compativel`.")
+
+    d.secao("Com Docker")
     d.p("O `Dockerfile` compila a interface e monta uma imagem só com o Python e o Nexo, rodando como usuário sem "
         "privilégios, com a pasta de dados em `/dados` e checagem de saúde em `/api/health/ready`. O serviço `nexo` do "
         "`docker-compose.yml` fica no perfil `app`:")
@@ -288,15 +316,18 @@ docker compose exec ollama ollama pull llama3.1
 
 def configuracao(d):
     d.capitulo("Configuração",
-               "A configuração base fica no arquivo .env na raiz do projeto: altere, salve e reinicie o servidor. Os "
-               "parâmetros do dia a dia (modelo, busca, cortes, trechos, cadastro e limites) também mudam pela tela "
-               "Sistema e conta › Ajustes, sem reiniciar (seção 3.6). As conexões do WhatsApp são feitas pela tela.")
+               "Quase tudo se configura pela tela, com o servidor no ar: o assistente de configuração no primeiro acesso e "
+               "a aba Sistema e conta › Ajustes depois (seções 3.6 e 3.7). O arquivo .env na raiz do projeto continua valendo como "
+               "base, e é nele que ficam o banco, o banco vetorial e a segurança do servidor.")
     d.secao("Modos prontos")
     d.tabela(["Modo", "Linhas no .env", "Quando usar"], [
         ("Local e gratuito (padrão)", "`NEXO_LLM_PROVIDER=ollama` `NEXO_LLM_MODEL=llama3.1` "
          "`NEXO_EMBED_PROVIDER=huggingface` `NEXO_RERANKER=huggingface`", "Documentos sigilosos que não podem sair da máquina"),
         ("OpenAI", "`NEXO_LLM_PROVIDER=openai` `NEXO_LLM_MODEL=gpt-4o-mini` `OPENAI_API_KEY=sua-chave`",
          "Respostas mais elaboradas sem precisar de GPU"),
+        ("Compatível com OpenAI [[novo]]", "`NEXO_LLM_PROVIDER=compativel` `NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1` "
+         "`NEXO_LLM_MODEL=nome-do-modelo` `OPENAI_API_KEY=sua-chave`", "Groq, OpenRouter, Gemini, LM Studio, vLLM ou "
+         "LocalAI, com qualquer nome de modelo"),
         ("Embeddings da OpenAI", "`NEXO_EMBED_PROVIDER=openai` `NEXO_EMBED_MODEL=text-embedding-3-small` "
          "`NEXO_EMBED_QUERY_PREFIX=` `NEXO_EMBED_TEXT_PREFIX=`", "Acervos grandes, sem baixar modelos locais"),
         ("Reranking Cohere", "`NEXO_RERANKER=cohere` `COHERE_API_KEY=sua-chave`", "Melhor ordenação em vários idiomas sem "
@@ -306,9 +337,12 @@ def configuracao(d):
         ("Teste sem modelos", "`NEXO_EMBED_PROVIDER=hash` `NEXO_LLM_PROVIDER=extrativo` `NEXO_RERANKER=none` "
          "`NEXO_MIN_SIMILARITY=0.1`", "Validar a instalação e rodar os testes automatizados"),
     ], larguras=["20%", "50%", "30%"])
-    d.nota("Trocou o modelo de embeddings?", "Vetores de modelos diferentes não são comparáveis. Depois de mudar "
-           "`NEXO_EMBED_PROVIDER` ou `NEXO_EMBED_MODEL`, os documentos aparecem como **índice desatualizado**: use "
-           "**Reindexar desatualizados** em Sistema e conta › Manutenção ou `python -m nexo reindexar --desatualizados`.")
+    d.p("Todos esses modos também se escolhem pela tela, sem editar o arquivo: o assistente de configuração e a aba Ajustes "
+        "têm os mesmos provedores, com os endereços preenchidos e um botão para testar a conexão [[novo]].")
+    d.nota("Trocou o modelo de embeddings?", "Vetores de modelos diferentes não são comparáveis. O Nexo guarda em "
+           "`data/vetores.json` qual modelo gerou os vetores; quando ele muda, pela tela ou pelo `.env`, os vetores antigos "
+           "são apagados e o acervo inteiro volta para a fila de indexação sozinho [[novo]]. Enquanto a fila anda, as "
+           "respostas ficam incompletas, por isso faça a troca fora do horário de uso.")
 
     d.secao("Todas as variáveis")
     d.tabela(["Variável", "Padrão", "Descrição"], [
@@ -322,25 +356,28 @@ def configuracao(d):
         ("`NEXO_MAX_UPLOAD_MB`", "100", "Tamanho máximo de cada arquivo (1 a 2048)"),
         ("`NEXO_DATABASE_URL`", "vazio", "URL SQLAlchemy de outro banco relacional. Vazio: data/nexo.db"),
         ("`NEXO_WEBHOOK_TIMEOUT`", "5", "Tempo máximo de cada tentativa de entrega de webhook, em segundos (até 120)"),
-        "Operação [[novo]]",
+        "Operação",
         ("`NEXO_RATE_LIMIT`", "60", "Perguntas e buscas por minuto por conta. Acima disso, HTTP 429 com Retry-After. 0 desliga"),
         ("`NEXO_RETENTION_DAYS`", "0", "Apaga conversas não fixadas sem atividade há mais dias que isso. 0 guarda para sempre"),
         ("`NEXO_LOG_LEVEL` / `_FORMAT`", "INFO / texto", "Nível dos registros e formato: texto ou json (uma linha JSON por evento)"),
         ("`NEXO_CORS_ORIGINS`", "vazio", "Sites liberados a chamar a API pelo navegador, separados por vírgula"),
         ("`NEXO_ALLOW_PRIVATE_URLS`", "false", "Permite importar links da rede interna (localhost, 10.x, 192.168.x)"),
         ("`NEXO_LINK_TIMEOUT`", "20", "Tempo máximo para baixar um link, em segundos"),
+        ("`NEXO_REQUIRE_PASSWORD_CHANGE` [[novo]]", "true", "Exige a troca da senha padrão do admin antes de liberar a sessão"),
+        ("`NEXO_BACKUP_HOURS` / `_KEEP` [[novo]]", "0 / 7", "Backup automático a cada N horas (0 desliga) e quantos guardar em data/backups"),
+        ("`NEXO_WIDGET_RATE_LIMIT` [[novo]]", "10", "Perguntas por minuto de cada visitante em cada widget para sites"),
         "WhatsApp",
-        ("`NEXO_PUBLIC_URL`", "vazio", "Endereço público do Nexo (https://…) usado para montar a URL do webhook do WhatsApp"),
+        ("`NEXO_PUBLIC_URL`", "vazio", "Endereço público do Nexo (https://…) usado na URL do webhook do WhatsApp e no código do widget"),
         ("`NEXO_WHATSAPP_HISTORY`", "6", "Mensagens anteriores do contato usadas pelo agente para entender a pergunta"),
         ("`NEXO_WHATSAPP_TIMEOUT`", "15", "Tempo máximo de cada chamada ao provedor do WhatsApp, em segundos"),
         "Modelo de linguagem",
-        ("`NEXO_LLM_PROVIDER`", "ollama", "ollama, openai ou extrativo"),
+        ("`NEXO_LLM_PROVIDER`", "ollama", "ollama, openai, compativel [[novo]] ou extrativo"),
         ("`NEXO_LLM_MODEL`", "llama3.1", "Nome do modelo no provedor escolhido"),
         ("`NEXO_LLM_TEMPERATURE`", "0.1", "Criatividade do modelo (0 a 1). Mantenha baixa"),
         ("`NEXO_LLM_TIMEOUT`", "120", "Tempo máximo de resposta do modelo, em segundos"),
         ("`NEXO_OLLAMA_URL`", "http://localhost:11434", "Endereço do Ollama"),
         ("`OPENAI_API_KEY`", "vazio", "Chave da OpenAI (também aceita NEXO_OPENAI_API_KEY)"),
-        ("`NEXO_OPENAI_BASE_URL`", "vazio", "Endpoint compatível com a OpenAI (Azure, LM Studio, vLLM)"),
+        ("`NEXO_OPENAI_BASE_URL`", "vazio", "Endereço do serviço compatível (obrigatório com compativel) ou de um proxy da OpenAI"),
         "Embeddings e banco vetorial",
         ("`NEXO_EMBED_PROVIDER`", "huggingface", "huggingface, openai, ollama ou hash"),
         ("`NEXO_EMBED_MODEL`", "intfloat/multilingual-e5-small", "Modelo de embeddings"),
@@ -378,7 +415,7 @@ def configuracao(d):
     d.secao("Serviços externos com Docker")
     d.p("O `docker-compose.yml` traz serviços opcionais, cada um em um perfil:")
     d.codigo("""
-docker compose --profile app up -d         # o próprio Nexo em http://localhost:8000 (seção 2.9)
+docker compose --profile app up -d         # o próprio Nexo em http://localhost:8000 (seção 2.10)
 docker compose --profile chroma up -d      # ChromaDB em http://localhost:8001
 docker compose --profile qdrant up -d      # Qdrant em http://localhost:6333
 docker compose --profile ollama up -d      # Ollama em http://localhost:11434
@@ -401,24 +438,52 @@ docker compose --profile postgres up -d    # PostgreSQL em localhost:5432
         "use `GET /api/health/ready`, que devolve 503 quando o banco não responde. Atrás de um proxy, o Nexo registra o "
         "IP do cabeçalho `X-Forwarded-For` no registro de atividades.")
 
-    d.secao("Ajustes pela tela", novo=True)
-    d.p("Em **Sistema e conta › Ajustes**, o administrador muda parte da configuração com o servidor no ar. O valor vale "
-        "na próxima pergunta e fica guardado em `data/ajustes.json`, que tem prioridade sobre o `.env`. Cada campo mostra "
-        "o padrão do `.env` quando foi alterado e o link **restaurar**; **Restaurar padrões** desfaz todos.")
+    d.secao("Assistente de configuração", novo=True)
+    d.p("O assistente abre sozinho para o administrador enquanto não for concluído ou pulado, e a qualquer momento por "
+        "Sistema e conta › Visão geral › **Abrir o assistente** ou pela paleta de comandos. Ele tem até quatro passos:")
+    d.tabela(["Passo", "O que pede", "Onde fica guardado"], [
+        ("Nova senha", "Só aparece se a conta admin ainda usa Nexo@2026", "`data/usuarios.json`, com bcrypt"),
+        ("Inteligência", "Ollama (com a lista dos modelos instalados), OpenAI, Groq, OpenRouter, Google Gemini, LM Studio, "
+         "outro serviço compatível ou sem modelo; endereço, chave e modelo; **Testar conexão**", "`data/ajustes.json` e, as "
+         "chaves, `data/segredos.json`"),
+        ("Acesso e proteção", "Endereço público, backup automático todo dia e cadastro aberto", "`data/ajustes.json`"),
+        ("Tudo pronto", "A lista de primeiros passos, **Criar base de teste** e o atalho para a próxima tela", "`data/instalacao.json`"),
+    ], larguras=["18%", "52%", "30%"])
+    d.tela("tela-assistente-ia.png", "Passo Inteligência: cada provedor num cartão; ao escolher o Groq, o endereço vem "
+           "preenchido e o link mostra onde pegar a chave.", altura_max_mm=125)
+    d.p("**Testar conexão** faz uma chamada curta ao modelo com os valores do formulário, antes de salvar, e mostra a "
+        "resposta e o tempo. Nada é gravado até **Salvar e continuar**. **Pular por agora** marca o assistente como visto; "
+        "a lista de primeiros passos continua no menu e em Sistema e conta.")
+    d.tela("tela-assistente-pronto.png", "Último passo: a lista de primeiros passos, com o que já foi feito e o atalho para "
+           "cada pendência.", altura_max_mm=115)
+
+    d.secao("Ajustes pela tela")
+    d.p("Em **Sistema e conta › Ajustes**, o administrador muda a configuração com o servidor no ar. O valor vale na "
+        "próxima pergunta e fica guardado em `data/ajustes.json`, que tem prioridade sobre o `.env`; as chaves ficam em "
+        "`data/segredos.json` [[novo]]. Cada campo alterado mostra o padrão do `.env` e o link **restaurar**; "
+        "**Restaurar padrões** desfaz todos. Os campos aparecem conforme o provedor escolhido: o endereço do Ollama só com "
+        "o Ollama, a chave da Cohere só com o reranking da Cohere.")
     d.tabela(["Grupo", "Itens", "Observação"], [
-        ("Modelo", "modelo de linguagem, temperatura, tempo limite, verificação de fidelidade", "Trocar o modelo recarrega "
-         "o LLM na próxima pergunta, no mesmo provedor"),
+        ("Inteligência [[novo]]", "provedor, modelo, endereço do Ollama, endereço do serviço compatível, chave da API",
+         "**Testar o modelo** confere antes de salvar; trocar recarrega o modelo na próxima pergunta"),
+        ("Embeddings [[novo]]", "provedor e modelo de embeddings", "Trocar pede confirmação, apaga os vetores e reindexa o "
+         "acervo; **Testar os embeddings** mostra as dimensões do vetor"),
+        ("Reranking [[novo]]", "provedor, modelo do HuggingFace, modelo e chave da Cohere", "**Testar o reranking** reordena "
+         "dois trechos de exemplo"),
+        ("Modelo", "temperatura, tempo limite, verificação de fidelidade", "Valem na próxima pergunta"),
         ("Busca", "candidatos, trechos enviados ao modelo, similaridade mínima, nota mínima do reranker, turnos de histórico",
          "Trechos enviados não pode passar dos candidatos"),
         ("Indexação", "tamanho do trecho, sobreposição, tamanho máximo do arquivo", "Mudar o trecho marca os documentos "
          "como desatualizados; a tela oferece reindexar"),
-        ("Acesso", "cadastro aberto, duração da sessão, limite de perguntas por minuto", "Valem para as próximas entradas"),
-        ("Manutenção e WhatsApp", "dias de retenção das conversas, histórico lido pelo agente no WhatsApp", "A retenção "
-         "roda ao subir e a cada 6 horas"),
+        ("Acesso", "endereço público [[novo]], cadastro aberto, duração da sessão, limite de perguntas por minuto, perguntas "
+         "por minuto no widget [[novo]]", "Valem para as próximas entradas e pedidos"),
+        ("Manutenção", "backup automático a cada N horas e quantos guardar [[novo]], dias de retenção das conversas",
+         "O backup é conferido a cada 5 minutos; a retenção roda ao subir e a cada 6 horas"),
+        ("WhatsApp", "histórico lido pelo agente", "Vale na próxima mensagem"),
     ], larguras=["18%", "48%", "34%"])
-    d.p("Provedores, modelo de embeddings, banco vetorial, banco relacional, segredos e CORS continuam só no `.env`, porque "
-        "exigem reiniciar ou reindexar tudo; a mesma aba mostra esses valores em **Definidos no .env**. Toda alteração "
-        "entra no registro de atividades com o valor novo.")
+    d.p("Ficam só no `.env` o banco relacional, o banco vetorial e a coleção, o segredo das sessões, o CORS, os registros e "
+        "os links da rede interna, porque exigem reiniciar; a mesma aba mostra esses valores em **Definidos no .env**. "
+        "Toda alteração entra no registro de atividades com o valor novo, e as chaves aparecem só como \"(alterada)\".")
 
 def usando(d):
     d.capitulo("Usando o Nexo",
@@ -488,14 +553,14 @@ def usando(d):
         "Cada trecho mostra a página (ou a parte, em arquivos que não são PDF), a similaridade, a nota do reranker e o "
         "link para abrir o arquivo.",
         "Perguntas seguintes podem usar \"isso\" ou \"e depois?\": o Nexo reescreve a pergunta com o histórico antes de buscar.",
-        "**Fixar** [[novo]]: o alfinete no topo da conversa (ou na lista) leva a conversa ao grupo **Fixadas**, no alto da "
+        "**Fixar**: o alfinete no topo da conversa (ou na lista) leva a conversa ao grupo **Fixadas**, no alto da "
         "lista. Conversas fixadas não são apagadas pela retenção automática.",
-        "**Rascunho** [[novo]]: o que você digitou e não enviou fica guardado por conversa, mesmo trocando de conversa ou "
+        "**Rascunho**: o que você digitou e não enviou fica guardado por conversa, mesmo trocando de conversa ou "
         "recarregando a página.",
-        "**Imprimir** [[novo]]: o ícone de impressora gera uma versão limpa da conversa, com as fontes, para imprimir ou salvar em PDF.",
+        "**Imprimir**: o ícone de impressora gera uma versão limpa da conversa, com as fontes, para imprimir ou salvar em PDF.",
         "A tecla `/` volta o cursor para a caixa de pergunta de qualquer ponto da conversa.",
     ])
-    d.sub("Avaliando e dizendo o que faltou [[novo]]")
+    d.sub("Avaliando e dizendo o que faltou")
     d.tela("tela-avaliacao.png", "Depois de \"não ajudou\", o campo O que faltou nesta resposta? envia o comentário ao "
            "painel de qualidade.", altura_max_mm=105)
     d.p("Ao marcar **não ajudou**, abre o campo **O que faltou nesta resposta?**. O comentário é opcional e pode ser "
@@ -532,7 +597,7 @@ def usando(d):
     ])
     d.p("As abas abertas ficam guardadas no navegador. Conversas antigas de cada agente aparecem abaixo dele na lista e "
         "reabrem numa aba. Um agente cuja base ainda não tem conteúdo pronto avisa isso no lugar da caixa de pergunta.")
-    d.p("**Perguntas sugeridas** [[novo]]: numa conversa nova, as perguntas cadastradas no agente aparecem como botões "
+    d.p("**Perguntas sugeridas**: numa conversa nova, as perguntas cadastradas no agente aparecem como botões "
         "abaixo da saudação. Um clique envia a pergunta.")
 
     d.secao("Agentes", quebra=True)
@@ -549,7 +614,7 @@ def usando(d):
         ("Quando não souber", "Frase usada no lugar da resposta padrão, por exemplo \"Vou chamar alguém da equipe\""),
         ("Cor", "Destaque do selo com a inicial do agente"),
         ("Citar fontes no WhatsApp", "Acrescenta \"Fontes:\" com documento e página no fim das respostas enviadas aos clientes"),
-        ("Perguntas sugeridas [[novo]]", "Até 6 perguntas, uma por linha, mostradas como atalhos no começo de cada chat"),
+        ("Perguntas sugeridas", "Até 6 perguntas, uma por linha, mostradas como atalhos no começo de cada chat"),
     ], larguras=["27%", "73%"])
     d.tela("tela-agente-editar.png", "Painel de criação do agente: nome, base de conhecimento, instruções, saudação, "
            "frase para quando não souber e cor.", altura_max_mm=110)
@@ -560,7 +625,7 @@ def usando(d):
         "Salve. O cartão mostra **Pronto** quando a base tem conteúdo indexado. Use **Conversar** para testar e "
         "**Editar** para ajustar.",
     ])
-    d.p("**Duplicar** [[novo]] cria uma cópia do agente com o nome \"(cópia)\", a mesma base e as mesmas instruções, "
+    d.p("**Duplicar** cria uma cópia do agente com o nome \"(cópia)\", a mesma base e as mesmas instruções, "
         "pronta para editar: útil para testar outro tom sem mexer no agente que está no ar.")
     d.p("Excluir um agente apaga as conversas feitas com ele e desliga a resposta automática dos números de WhatsApp que "
         "ele atendia. Só quem criou o agente ou um administrador pode editá-lo ou excluí-lo.")
@@ -612,7 +677,7 @@ def usando(d):
            altura_max_mm=100)
     d.tela("tela-base-integrar.png", "Aba Integrar: exemplos prontos com o id da base e do agente para levar dados e "
            "perguntas de outros sistemas.", altura_max_mm=100)
-    d.sub("Importar de um link [[novo]]")
+    d.sub("Importar de um link")
     d.tela("tela-importar-link.png", "Importar de um link: o endereço da página ou do arquivo e um título opcional.",
            altura_max_mm=100)
     d.passos([
@@ -624,11 +689,11 @@ def usando(d):
     ])
     d.p("Por segurança, endereços da rede interna (localhost, 10.x, 172.16-31.x, 192.168.x e afins) são bloqueados, "
         "inclusive quando um site redireciona para eles. Para importar de uma intranet, ligue `NEXO_ALLOW_PRIVATE_URLS`.")
-    d.sub("Ver os trechos indexados [[novo]]")
+    d.sub("Ver os trechos indexados")
     d.p("O ícone de camadas em cada item abre a gaveta **Trechos indexados**: o texto exato de cada trecho, na ordem, com "
         "a página ou parte e o número de caracteres, uma busca por palavra que destaca os termos e o link para abrir o "
         "arquivo naquela página. É o jeito mais rápido de entender por que um assunto não é encontrado.")
-    d.sub("Base de teste [[novo]]")
+    d.sub("Base de teste")
     d.tela("tela-base-teste.png", "Base de teste criada com um clique: seis arquivos de exemplo e o Agente de teste.",
            altura_max_mm=105)
     d.p("Para experimentar o Nexo sem os seus documentos, clique em **Criar base de teste** no quadro \"Quer "
@@ -664,7 +729,7 @@ def usando(d):
         "**Aguardando atendente:** quando o agente não encontra a resposta na base, ou quando o cliente pede \"atendente\" "
         "ou \"humano\", o contato ganha essa marca, o agente pausa nele e sai o evento `whatsapp.handoff`.",
     ])
-    d.sub("Respostas prontas [[novo]]")
+    d.sub("Respostas prontas")
     d.tela("tela-respostas-prontas.png", "Menu de respostas prontas aberto na caixa de resposta do WhatsApp.",
            altura_max_mm=105)
     d.p("Textos que a equipe repete todo dia (boas-vindas, horário, prazo de entrega) ficam a um clique. Clique no ícone "
@@ -702,8 +767,8 @@ def usando(d):
     d.tela("tela-trechos.png", "Gaveta Trechos indexados aberta por cima da lista, com a busca por palavra.",
            altura_max_mm=105)
     d.lista([
-        "**Ver trechos** [[novo]]: o ícone de camadas abre a gaveta com os trechos do item (seção 4.6).",
-        "**Índice desatualizado** [[novo]]: um item indexado com outro modelo de embeddings ou outro tamanho de trecho "
+        "**Ver trechos**: o ícone de camadas abre a gaveta com os trechos do item (seção 4.6).",
+        "**Índice desatualizado**: um item indexado com outro modelo de embeddings ou outro tamanho de trecho "
         "ganha essa marca. A situação **Desatualizados** do filtro lista todos, e o administrador vê o aviso com o botão "
         "para reindexar só eles.",
         "Itens importados de um link mostram o endereço de origem abaixo do título.",
@@ -735,12 +800,12 @@ def usando(d):
         ("Lacunas do acervo", "As 10 perguntas sem resposta mais recentes, com Buscar e Abrir"),
         ("Respostas avaliadas como \"não ajudou\"", "As 10 respostas mais recentes marcadas como \"não ajudou\", com a "
          "pergunta e o comentário de quem avaliou"),
-        ("Por agente [[novo]]", "Perguntas, respondidas, taxa de resposta, tempo médio e \"não ajudou\" de cada agente e "
+        ("Por agente", "Perguntas, respondidas, taxa de resposta, tempo médio e \"não ajudou\" de cada agente e "
          "das conversas gerais"),
     ], larguras=["32%", "68%"])
     d.tela("tela-painel-agentes.png", "Tabela Por agente e as respostas avaliadas como \"não ajudou\" com o comentário.",
            altura_max_mm=105)
-    d.p("O filtro **Agente** [[novo]], ao lado do período, restringe o painel inteiro e o CSV a um agente ou às conversas "
+    d.p("O filtro **Agente**, ao lado do período, restringe o painel inteiro e o CSV a um agente ou às conversas "
         "gerais. Clicar numa linha da tabela Por agente aplica o mesmo filtro.")
     d.sub("Exportar CSV")
     d.p("O botão **Exportar CSV** baixa as perguntas do período escolhido, uma por linha, pela rota "
@@ -754,18 +819,28 @@ def usando(d):
         ("avaliação", "Útil, não ajudou ou vazio"),
         ("latência", "Tempo de resposta, em milissegundos"),
         ("fontes", "Documentos e páginas citados"),
-        ("comentario [[novo]]", "O que faltou, escrito por quem marcou \"não ajudou\" (última coluna, para não mudar as anteriores)"),
+        ("comentario", "O que faltou, escrito por quem marcou \"não ajudou\" (última coluna, para não mudar as anteriores)"),
     ], larguras=["22%", "78%"], cls="compacta")
     d.nota("Rotina sugerida.", "Uma vez por semana, leia as lacunas e os contatos que ficaram aguardando atendente no "
            "WhatsApp. Se o assunto é legítimo e não está na base, crie um texto ou envie o arquivo que falta na base do agente.")
 
     d.secao("Integrações", quebra=True)
-    d.tela("tela-integracoes.png", "Integrações: chaves de API do usuário, a pergunta direta com exemplos em curl, "
-           "Python e JavaScript e, para administradores, os webhooks.", altura_max_mm=112)
+    d.tela("tela-integracoes.png", "Integrações: os atalhos para cada seção, o widget para sites, a API compatível com "
+           "OpenAI, as chaves de API, a pergunta direta e, para administradores, os webhooks.", altura_max_mm=112)
+    d.sub("Colocar um agente no site [[novo]]")
+    d.passos([
+        "Em **Integrações › Widget para sites**, clique em **Novo widget** (ou no ícone de globo no cartão do agente, em Agentes).",
+        "Escolha o agente, informe os sites autorizados (um por linha, como `www.suaempresa.com.br` ou `*.suaempresa.com.br`), "
+        "o título, a cor, o canto da tela e a mensagem de boas-vindas.",
+        "Clique em **Criar widget**, depois em **Testar aqui** para ver o botão no canto desta página.",
+        "Use **Copiar código** e cole a linha antes de `</body>` no site, no rodapé do WordPress, no Wix ou numa tag do "
+        "Google Tag Manager. Pronto: o botão aparece para os visitantes.",
+    ])
+    d.p("Detalhes do widget, da segurança e da API compatível com OpenAI estão nas seções 5.9 e 5.10.")
     d.sub("Criar uma chave de API")
     d.passos([
         "Abra **Integrações** e, em **Chaves de API**, escreva um nome que diga onde a chave será usada.",
-        "Escolha a **Permissão** [[novo]]: **Completa** (tudo o que a conta pode), **Só consulta** (perguntar e buscar) "
+        "Escolha a **Permissão**: **Completa** (tudo o que a conta pode), **Só consulta** (perguntar e buscar) "
         "ou **Só alimentar bases** (enviar arquivos, textos e links). Escolha também a **Validade**: sem validade, 30, 90 ou 365 dias.",
         "Clique em **Criar chave** e copie a chave exibida. Ela começa com `nxk_` e aparece uma única vez.",
         "Guarde a chave no cofre de segredos do sistema que vai usá-la e teste com um dos exemplos de **Pergunta direta**.",
@@ -780,12 +855,16 @@ def usando(d):
     d.p("Cada webhook mostra o resultado da última entrega. Falhas passageiras são repetidas sozinhas, até três "
         "tentativas por evento (seção 5.5).")
     d.p("A tabela de chaves mostra a permissão, a validade e se a chave venceu. Para administradores, o quadro "
-        "**Monitoramento** [[novo]] traz a rota de métricas do Prometheus e o link da documentação interativa da API.")
+        "**Monitoramento** traz a rota de métricas do Prometheus e o link da documentação interativa da API.")
 
     d.secao("Sistema e conta", quebra=True)
-    d.tela("tela-sistema.png", "Sistema e conta, aba Visão geral: o pipeline de respostas com os provedores em uso, o "
-           "acervo na tampa preta e a conta com a troca de senha e Sair dos outros dispositivos.", altura_max_mm=170)
-    d.p("A tela tem abas [[novo]]. **Visão geral** fica para todos; **Ajustes**, **Diagnóstico**, **Manutenção**, "
+    d.tela("tela-sistema.png", "Sistema e conta, aba Visão geral: os primeiros passos com o progresso, o pipeline de "
+           "respostas com os provedores em uso e o acervo na tampa preta.", altura_max_mm=150)
+    d.p("Para administradores, a Visão geral começa pelos **Primeiros passos** [[novo]]: senha trocada, inteligência "
+        "escolhida, conteúdo pronto numa base, um agente, a primeira pergunta respondida, um canal para o público "
+        "(widget, WhatsApp ou chave de API) e backup ligado. Cada pendência tem o botão **Abrir**, e o mesmo progresso "
+        "aparece no topo do menu até tudo ficar pronto.")
+    d.p("A tela tem abas. **Visão geral** fica para todos; **Ajustes**, **Diagnóstico**, **Manutenção**, "
         "**Atividades** e **Contas** aparecem só para administradores. O endereço guarda a aba (`/sistema?aba=ajustes`), "
         "e a paleta de comandos leva direto a cada uma. Na Visão geral, o pipeline de respostas aparece na ordem em que a "
         "pergunta passa por ele, com os parâmetros de busca, e a tampa preta resume o acervo.")
@@ -807,12 +886,13 @@ def usando(d):
         "Promover, rebaixar e excluir contas. Ninguém rebaixa nem exclui a própria conta, e o último administrador não "
         "pode ser rebaixado.",
     ])
-    d.sub("Ajustes [[novo]]")
-    d.tela("tela-ajustes.png", "Aba Ajustes: modelo, busca, indexação, acesso e manutenção, com Salvar e Restaurar padrões.",
-           altura_max_mm=110)
-    d.p("Muda os parâmetros do pipeline e do acesso com o servidor no ar. Os campos e as regras estão na seção 3.6. "
-        "**Salvar** só fica ativo quando algo mudou; um erro de validação aparece no próprio campo.")
-    d.sub("Diagnóstico [[novo]]")
+    d.sub("Ajustes")
+    d.tela("tela-ajustes.png", "Aba Ajustes: o provedor de IA escolhido na lista, os campos que ele pede e o teste de "
+           "conexão de cada grupo.", altura_max_mm=120)
+    d.p("Muda o provedor de IA, as chaves e os parâmetros do pipeline e do acesso com o servidor no ar. Os campos e as "
+        "regras estão na seção 3.7. **Salvar** só fica ativo quando algo mudou; um erro de validação aparece no próprio "
+        "campo, e cada grupo de provedor tem o seu botão de teste [[novo]].")
+    d.sub("Diagnóstico")
     d.tela("tela-diagnostico.png", "Aba Diagnóstico: o resumo na tampa preta e cada verificação com o que fazer.",
            altura_max_mm=110)
     d.p("O **diagnóstico rápido** roda ao abrir a aba e confere, em grupos: o servidor (banco relacional, espaço em "
@@ -821,10 +901,12 @@ def usando(d):
         "ausentes e trechos no banco vetorial), as integrações (webhooks falhando, conexões do WhatsApp) e a manutenção "
         "(backup e retenção). Cada aviso traz a orientação do que fazer. O **diagnóstico completo** também carrega o modelo "
         "de embeddings e faz uma chamada de teste ao modelo de linguagem, por isso leva mais tempo.")
-    d.sub("Manutenção [[novo]]")
-    d.tela("tela-manutencao.png", "Aba Manutenção: backup, conversas antigas e as ações sobre o acervo e o banco.",
-           altura_max_mm=110)
+    d.sub("Manutenção")
+    d.tela("tela-manutencao.png", "Aba Manutenção: o backup automático com a frequência e os arquivos guardados, o backup "
+           "manual, as conversas antigas e as ações sobre o acervo.", altura_max_mm=115)
     d.tabela(["Ação", "O que faz"], [
+        ("Backup automático [[novo]]", "Frequência (6, 12 ou 24 horas, toda semana ou desligado), quantos guardar, "
+         "**Fazer um agora** e **Baixar** cada arquivo de `data/backups`"),
         ("Baixar backup", "Um .zip com o banco SQLite, as contas, os ajustes, o segredo das sessões e os arquivos enviados "
          "(seção 10.5)"),
         ("Apagar conversas antigas", "Apaga as conversas não fixadas sem atividade há mais dias que o informado"),
@@ -836,7 +918,7 @@ def usando(d):
     ], larguras=["28%", "72%"])
     d.p("As reindexações entram na fila e seguem enquanto você usa o Nexo. Cada ação mostra o resultado na tela e entra "
         "no registro de atividades.")
-    d.sub("Atividades [[novo]]")
+    d.sub("Atividades")
     d.tela("tela-atividades.png", "Aba Atividades: quem fez o quê, quando, com os detalhes e o IP de origem.",
            altura_max_mm=110)
     d.p("O registro de atividades guarda entradas e tentativas falhas, cadastros, trocas e redefinições de senha, e a "
@@ -853,10 +935,10 @@ def usando(d):
     d.tela("tela-atalhos.png", "Lista de atalhos, aberta com a tecla ? ou pelo botão Atalhos do menu.", altura_max_mm=100)
     d.tabela(["Atalho", "O que faz"], [
         ("`Ctrl + K`", "Abre a paleta de comandos"),
-        ("`?` [[novo]]", "Mostra a lista de atalhos"),
-        ("`Alt + N` / `Alt + B` [[novo]]", "Nova conversa / Busca nos trechos"),
-        ("`Alt + D` / `Alt + W` [[novo]]", "Documentos / WhatsApp"),
-        ("`/` [[novo]]", "Na conversa, volta para a caixa de pergunta; no WhatsApp, no começo da caixa, abre as respostas prontas"),
+        ("`?`", "Mostra a lista de atalhos"),
+        ("`Alt + N` / `Alt + B`", "Nova conversa / Busca nos trechos"),
+        ("`Alt + D` / `Alt + W`", "Documentos / WhatsApp"),
+        ("`/`", "Na conversa, volta para a caixa de pergunta; no WhatsApp, no começo da caixa, abre as respostas prontas"),
         ("Setas e `Enter`", "Escolhem e executam um comando da paleta; no tutorial, as setas avançam e voltam"),
         ("`Esc`", "Fecha a paleta ou o tutorial e interrompe a resposta que está sendo escrita"),
         ("`Enter`", "Envia a pergunta, a mensagem do WhatsApp e a busca"),
@@ -876,7 +958,8 @@ def integracoes(d):
     d.capitulo("Integrações",
                "Outros sistemas podem perguntar ao Nexo e aos agentes, alimentar as bases, buscar nos trechos e receber "
                "avisos. Este capítulo mostra como autenticar com uma chave de API, como usar a pergunta direta, como "
-               "receber respostas em streaming e como receber e conferir webhooks.")
+               "receber respostas em streaming, como receber e conferir webhooks, como publicar um agente num site e "
+               "como usá-lo em ferramentas compatíveis com a OpenAI.")
     d.secao("Autenticação por chave de API")
     d.p("Toda rota que aceita a sessão da interface também aceita uma chave de API. Envie a chave num destes cabeçalhos:")
     d.codigo("""
@@ -890,7 +973,7 @@ Authorization: Bearer nxk_Q2x5...        # alternativa, para clientes que só en
         "Chave inválida ou revogada recebe 401 `INVALID_API_KEY`; chave vencida, 401 `API_KEY_EXPIRED`. Encerrar as "
         "sessões da conta não afeta as chaves de API.",
     ])
-    d.sub("Permissão e validade [[novo]]")
+    d.sub("Permissão e validade")
     d.tabela(["Permissão", "`scope`", "O que a chave pode fazer"], [
         ("Completa", "`full`", "Tudo o que a conta pode fazer, inclusive as rotas de administrador se a conta for administradora"),
         ("Só consulta", "`ask`", "Perguntar (`/api/ask`, conversas e streaming), buscar nos trechos e ler bases, agentes e formatos"),
@@ -898,11 +981,11 @@ Authorization: Bearer nxk_Q2x5...        # alternativa, para clientes que só en
     ], larguras=["20%", "12%", "68%"])
     d.p("Fora do que a permissão libera, a resposta é 403 `KEY_SCOPE`. Uma chave restrita nunca age como administrador "
         "nem cria outras chaves. Na criação, `expires_days` (1 a 3650) define a validade; sem ele, a chave não vence.")
-    d.sub("Limite de perguntas [[novo]]")
+    d.sub("Limite de perguntas")
     d.p("Cada conta pode fazer até `NEXO_RATE_LIMIT` perguntas e buscas por minuto (60 por padrão), somando a interface "
         "e as chaves. Acima disso, a resposta é 429 `RATE_LIMITED` com o cabeçalho `Retry-After` dizendo quantos segundos "
         "esperar. O administrador muda o limite em Ajustes; 0 desliga.")
-    d.sub("Chamadas pelo navegador (CORS) [[novo]]")
+    d.sub("Chamadas pelo navegador (CORS)")
     d.p("Um site em outro endereço só consegue chamar a API pelo navegador se estiver em `NEXO_CORS_ORIGINS`, por exemplo "
         "`https://portal.empresa.com.br,https://intranet.empresa.com.br`. Integrações de servidor para servidor não precisam disso.")
 
@@ -986,7 +1069,7 @@ curl -X POST http://127.0.0.1:8000/api/documents/bulk \\
     d.p("Em `/api/documents/bulk`, `action` é `reindex`, `delete` ou `move` (este com `base_id`). A ação vale só para os "
         "itens que a chave pode alterar; a resposta informa os itens aplicados e os pulados.")
 
-    d.sub("Importando uma página ou arquivo por link [[novo]]")
+    d.sub("Importando uma página ou arquivo por link")
     d.codigo("""
 curl -X POST http://127.0.0.1:8000/api/bases/ID_DA_BASE/links \\
   -H "X-API-Key: nxk_..." -H "Content-Type: application/json" \\
@@ -1093,7 +1176,7 @@ def assinatura_valida(corpo: bytes, cabecalho: str, segredo: str) -> bool:
         "Use `question.unanswered` e `whatsapp.handoff` para abrir tarefas de curadoria das bases e avisar a equipe de atendimento.",
         "Registre o `X-Request-ID` de cada resposta do Nexo nos seus logs; ele localiza o pedido nos logs do servidor.",
     ])
-    d.sub("Monitorando com o Prometheus [[novo]]")
+    d.sub("Monitorando com o Prometheus")
     d.p("`GET /api/health/metrics` devolve, no formato de texto do Prometheus, pedidos e erros por rota, tempo de "
         "resposta, itens por situação, perguntas, fila de indexação e tempo no ar. A rota exige uma chave completa de um "
         "administrador:")
@@ -1142,6 +1225,73 @@ data: {"question": {...}, "answer": {...}, "conversation": {...}}
 """, rotulo="curl")
     d.p("Fechar a conexão antes do `done` cancela a resposta, como o botão Parar: nada é gravado. Para gerar de novo uma "
         "resposta já gravada, use `POST /api/messages/{id}/regenerate` com o id da resposta.")
+
+
+def widget_e_openai(d):
+    d.secao("Widget para sites", novo=True, quebra=True)
+    d.p("O widget coloca um botão de conversa no canto de qualquer site. O visitante pergunta e o agente responde só com a "
+        "base dele, mostrando as fontes. Não precisa de conta, de iframe nem de biblioteca: é uma linha de código.")
+    d.codigo('''
+<script src="https://nexo.suaempresa.com.br/widget.js" data-nexo="nxw_..." async></script>
+''', rotulo="HTML")
+    d.tela("tela-widget-site.png", "O widget num site de exemplo: título e cor do widget, a pergunta do visitante e a "
+           "resposta com as fontes.", altura_max_mm=120)
+    d.tabela(["Item", "Como funciona"], [
+        ("Chave pública", "`nxw_…`, identifica o widget e o agente. Não dá acesso a nada além de perguntar a esse agente. "
+         "**Trocar a chave** invalida o código antigo"),
+        ("Sites autorizados", "Domínios exatos (`www.loja.com.br`), com esquema (`https://loja.com.br`) ou com curinga "
+         "(`*.loja.com.br`). Vazio libera qualquer site. O próprio Nexo sempre pode, para o **Testar aqui**"),
+        ("Limite", "`NEXO_WIDGET_RATE_LIMIT` perguntas por minuto por visitante (10 por padrão) e 20 vezes isso para o "
+         "widget inteiro; acima disso, 429 com `Retry-After`"),
+        ("Conversa", "Fica no navegador do visitante (`sessionStorage`) e as últimas trocas seguem com a pergunta; o "
+         "Nexo não grava as conversas do widget, só conta perguntas e perguntas sem resposta"),
+        ("Fontes", "Documento e página dos trechos citados, quando **Mostrar as fontes** está ligado"),
+        ("Pausar", "O botão some dos sites na hora, sem tirar o código"),
+        ("Avisos", "Perguntas sem resposta disparam `question.unanswered` com `\"source\": \"widget\"`"),
+    ], larguras=["22%", "78%"])
+    d.p("O site também pode abrir o widget por um botão próprio: `window.NexoWidget.open()`, `close()`, `toggle()`, "
+        "`ask(\"pergunta\")` e `reset()`. Com `data-open=\"true\"` no script, ele já carrega aberto. No celular, o widget "
+        "ocupa a tela inteira.")
+    d.lado(["O widget roda dentro de um Shadow DOM: os estilos do site não mexem nele e os dele não mexem no site. "
+            "Todo texto vindo da resposta é tratado como texto, nunca como HTML.",
+            "As rotas públicas ficam em `/api/public/widget/{chave}/config` e `/ask`. A pergunta vai como texto simples, "
+            "sem pré-voo de CORS, e a resposta traz `Access-Control-Allow-Origin` só para os sites autorizados."],
+           "tela-widget-celular.png", "O widget no celular.", largura_mm=50, altura_max_mm=105)
+    d.nota("A lista de sites protege contra uso indevido no navegador.", "Quem chama a rota fora de um navegador consegue "
+           "imitar o cabeçalho Origin. Por isso o limite por visitante e por widget vale sempre, e o agente só responde "
+           "com a base dele.")
+
+    d.secao("API compatível com OpenAI", novo=True, quebra=True)
+    d.p("As rotas `/v1/models` e `/v1/chat/completions` seguem o formato da API da OpenAI. Qualquer ferramenta que aceita "
+        "um \"Base URL\" da OpenAI passa a usar os agentes do Nexo: n8n, Make, Typebot, Flowise, Dify, Open WebUI, "
+        "LibreChat, LangChain e os SDKs oficiais. Cada agente vira um modelo, com o nome em minúsculas e hífens "
+        "(`sofia-suporte`), e o modelo `nexo` consulta o acervo inteiro.")
+    d.tela("tela-openai.png", "Integrações › API compatível com OpenAI: o Base URL, os modelos disponíveis e os exemplos.",
+           altura_max_mm=110)
+    d.codigo('''
+from openai import OpenAI
+
+cliente = OpenAI(base_url="https://nexo.suaempresa.com.br/v1", api_key="nxk_...")
+resposta = cliente.chat.completions.create(
+    model="sofia-suporte",
+    messages=[{"role": "user", "content": "Como faço a troca do filtro?"}],
+)
+print(resposta.choices[0].message.content)
+''', rotulo="Python")
+    d.tabela(["Item", "Comportamento"], [
+        ("Autenticação", "Uma chave de API do Nexo em `Authorization: Bearer nxk_…`; a permissão **Só consulta** basta"),
+        ("Modelo", "O id da lista, o id interno do agente ou o nome dele; `nexo` usa todo o acervo"),
+        ("Mensagens", "A última mensagem `user` é a pergunta; as trocas `user` e `assistant` anteriores são o histórico. "
+         "Mensagens `system` são ignoradas: quem manda no tom é o agente, e as regras de base estrita valem sempre"),
+        ("Resposta", "`choices[0].message.content` com o texto e, quando o agente cita fontes, a lista \"Fontes:\" no fim; "
+         "`nexo.sources` traz documento, página e notas; `usage` é uma estimativa por caracteres"),
+        ("Streaming", "`stream: true` devolve `chat.completion.chunk` em Server-Sent Events e termina em `data: [DONE]`"),
+        ("Erros", "No formato da OpenAI: `{\"error\": {\"message\", \"type\", \"code\"}}`, com 401, 403, 404 "
+         "`model_not_found`, 429 e 5xx"),
+        ("Gravação", "Como a pergunta direta sem conversa: nada é gravado; perguntas sem resposta disparam o webhook"),
+    ], larguras=["20%", "80%"])
+    d.p("No n8n: **Credentials › New › OpenAI**, cole a chave e o Base URL (`https://seu-nexo/v1`) e escolha o modelo no nó "
+        "**OpenAI Chat Model**. No Open WebUI: **Configurações › Conexões › API OpenAI**, com o mesmo endereço e a chave.")
 
 
 def whatsapp(d):
@@ -1262,6 +1412,7 @@ def arquitetura(d):
     d.diagrama(f"""
 flowchart LR
   N[{no("Navegador", "React 19 + TypeScript + Vite")}] --> API
+  S[{no("Sites e automações", "widget.js · /v1 compatível com OpenAI")}] --> API
   X[{no("Sistemas externos", "X-API-Key: nxk_… · recebem webhooks")}] --> API
   Z[{no("WhatsApp", "Evolution API ou Cloud API da Meta")}] --> API
   API[{no("API FastAPI · nexo/api", "REST e SSE em /api · JWT com versão ou chave de API · X-Request-ID · webhook do WhatsApp")}]
@@ -1274,11 +1425,11 @@ flowchart LR
   API --> MG[{no("Migração", "nexo/migrations.py")}]
   R --> E[{no("Embeddings", "HuggingFace, OpenAI ou Ollama")}]
   R --> RR[{no("Reranker", "HuggingFace ou Cohere")}]
-  R --> L[{no("Modelo de linguagem", "Ollama ou OpenAI")}]
+  R --> L[{no("Modelo de linguagem", "Ollama, OpenAI ou compatíveis")}]
   R --> V[{no("Banco vetorial", "ChromaDB ou Qdrant")}]
   MG --> DB[{no("Banco relacional", "SQLite, PostgreSQL, MySQL, SQL Server")}]
   class API escuro
-  class N,X,Z,U,R,K,WA,J,WH,MG claro
+  class N,S,X,Z,U,R,K,WA,J,WH,MG claro
   class E,RR,L,V,DB cinza
 {ESTILO_FLUXO}
 """, f"Componentes do Nexo {VERSAO[:3]}. O WhatsApp entra pelo webhook público e sai pelo provedor configurado em "
@@ -1290,14 +1441,17 @@ flowchart LR
         ("`nexo/db.py`", "Modelos SQLAlchemy das tabelas, criação automática e sessões"),
         ("`nexo/migrations.py`", "Migração automática: bancos da 2.0 (base padrão e única de sha256 por base) e, desde a "
          "2.3, qualquer coluna nova que falte"),
-        ("`nexo/runtime.py` [[novo]]", "Ajustes pela tela: validação, gravação em data/ajustes.json e aplicação sobre o .env"),
-        ("`nexo/maintenance.py` [[novo]]", "Diagnóstico, ações de manutenção, retenção automática, backup e restauração"),
-        ("`nexo/audit.py` [[novo]]", "Registro de atividades com a conta, a ação, o alvo, os detalhes e o IP"),
-        ("`nexo/links.py` [[novo]]", "Download de links com bloqueio da rede interna, checagem de cada redirecionamento e limite de tamanho"),
-        ("`nexo/sample.py` [[novo]]", "Criação da Base de teste e do Agente de teste a partir de exemplos/base-de-teste"),
-        ("`nexo/cli.py` [[novo]]", "Linha de comando `python -m nexo`: servir, diagnostico, backup, restaurar, reindexar, "
-         "base-de-teste, contas e versao"),
-        ("`nexo/logs.py` / `nexo/context.py` [[novo]]", "Registros em texto ou JSON com o id do pedido, a conta e o IP"),
+        ("`nexo/runtime.py`", "Ajustes pela tela: provedores, escolhas, endereços e chaves [[novo]], validação, gravação em "
+         "data/ajustes.json e data/segredos.json e aplicação sobre o .env"),
+        ("`nexo/onboarding.py` [[novo]]", "Estado do assistente de configuração (data/instalacao.json) e a lista de primeiros passos"),
+        ("`nexo/maintenance.py`", "Diagnóstico, ações de manutenção, retenção automática, backup automático com rotação "
+         "[[novo]], troca segura de embeddings (data/vetores.json) [[novo]], backup e restauração"),
+        ("`nexo/audit.py`", "Registro de atividades com a conta, a ação, o alvo, os detalhes e o IP"),
+        ("`nexo/links.py`", "Download de links com bloqueio da rede interna, checagem de cada redirecionamento e limite de tamanho"),
+        ("`nexo/sample.py`", "Criação da Base de teste e do Agente de teste a partir de exemplos/base-de-teste"),
+        ("`nexo/cli.py`", "Linha de comando `python -m nexo`: servir (com `--abrir` e a checagem da porta), configurar e "
+         "senha [[novo]], diagnostico, backup, restaurar, reindexar, base-de-teste, contas e versao"),
+        ("`nexo/logs.py` / `nexo/context.py`", "Registros em texto ou JSON com o id do pedido, a conta e o IP"),
         ("`nexo/knowledge.py`", "Leitura de DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON, HTML e textos em partes para "
          "indexar, com o limite de 50 MB por item dos pacotes zip"),
         ("`nexo/whatsapp.py`", "Provedores Evolution, Cloud e simulador, webhook, contatos, resposta do agente e passagem "
@@ -1311,13 +1465,19 @@ flowchart LR
         ("`nexo/webhooks.py`", "Seleciona os webhooks do evento, assina com HMAC e entrega em segundo plano, com até 3 tentativas"),
         ("`nexo/rag/engine.py`", "Divisão em trechos, indexação, busca, reranking, prompt do agente e resposta, inteira "
          "ou em pedaços para o streaming"),
-        ("`nexo/rag/providers.py`", "Fábrica de LLM, embeddings, banco vetorial e reranker"),
+        ("`nexo/rag/providers.py`", "Fábrica de LLM (inclusive o compatível com OpenAI [[novo]]), embeddings, banco "
+         "vetorial e reranker, e o teste de conexão de cada um"),
         ("`nexo/api/routes.py`", "Rotas REST de autenticação, sessões, documentos e ações em lote, conversas, streaming, "
          "Refazer, busca, métricas e CSV, chaves, webhooks, contas e sistema"),
         ("`nexo/api/agents.py`", "Rotas de bases de conhecimento, textos, formatos e agentes"),
         ("`nexo/api/whatsapp.py`", "Rotas das conexões, do webhook público, dos contatos, das mensagens e das respostas "
          "prontas do WhatsApp"),
-        ("`nexo/api/system.py` [[novo]]", "Rotas de ajustes, diagnóstico, manutenção, backup, atividades e métricas do Prometheus"),
+        ("`nexo/api/system.py`", "Rotas de ajustes, teste dos provedores, assistente, diagnóstico, manutenção, backups "
+         "automáticos, atividades e métricas do Prometheus"),
+        ("`nexo/api/widgets.py` [[novo]]", "Cadastro dos widgets, rotas públicas com sites autorizados e limite por "
+         "visitante, e o arquivo widget.js"),
+        ("`nexo/api/openai_compat.py` [[novo]]", "Rotas /v1/models e /v1/chat/completions, com streaming e erros no formato da OpenAI"),
+        ("`nexo/static/widget.js` [[novo]]", "O widget para sites, em JavaScript puro e Shadow DOM, sem dependências"),
         ("`frontend/src`", "Interface React: páginas (Agents, Chats, Bases, WhatsApp e as da 2.0), componentes (Tutorial, "
          "paleta, trechos), cliente da API com leitura do streaming e temas"),
     ], larguras=["27%", "73%"])
@@ -1414,6 +1574,12 @@ flowchart TB
         "Cabeçalhos `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy` em todas as "
         "respostas; a API não é guardada em cache.",
         "Cada resposta leva `X-Request-ID`. Um id válido vindo do cliente ou do proxy é reaproveitado; sem ele, o Nexo gera um.",
+        "Troca obrigatória da senha padrão do admin antes de liberar a sessão (403 `PASSWORD_CHANGE_REQUIRED`) [[novo]].",
+        "Chaves dos provedores em `data/segredos.json`, com permissão só para o dono do arquivo, nunca devolvidas pela API "
+        "e registradas no histórico só como \"(alterada)\" [[novo]].",
+        "Widget com chave pública própria, sites autorizados, limite por visitante e por widget, corpo limitado a 32 KB e "
+        "texto sempre tratado como texto no navegador [[novo]].",
+        "Rotas `/v1` com a mesma autenticação, permissão e limite de perguntas das demais [[novo]].",
     ])
 
 
@@ -1425,7 +1591,11 @@ def banco_de_dados(d):
     d.tabela(["Camada", "Local padrão", "Conteúdo"], [
         ("Banco relacional", "`data/nexo.db`", "Bases, documentos, agentes, conversas, mensagens, fontes, avaliações, "
          "chaves, webhooks, WhatsApp, respostas prontas e o registro de atividades"),
-        ("Ajustes [[novo]]", "`data/ajustes.json`", "Valores alterados pela tela Ajustes, por cima do .env"),
+        ("Ajustes", "`data/ajustes.json`", "Valores alterados pela tela Ajustes, por cima do .env"),
+        ("Chaves dos provedores [[novo]]", "`data/segredos.json`", "Chaves da OpenAI, do serviço compatível e da Cohere salvas pela tela"),
+        ("Assistente [[novo]]", "`data/instalacao.json`", "Quando e por quem o assistente de configuração foi concluído"),
+        ("Espaço vetorial [[novo]]", "`data/vetores.json`", "Qual modelo de embeddings gerou os vetores atuais"),
+        ("Backups automáticos [[novo]]", "`data/backups/nexo-auto-*.zip`", "As cópias periódicas, das mais novas às mais antigas"),
         ("Banco vetorial", "`data/chroma/` ou `data/qdrant/`", "Trechos, embeddings e metadados de origem"),
         ("Arquivos", "`data/uploads/<id>.<extensão>`", "Arquivos originais enviados às bases"),
         ("Contas", "`data/usuarios.json`", "Usuários, perfis, hashes de senha, versão da sessão e tutorial visto"),
@@ -1434,7 +1604,7 @@ def banco_de_dados(d):
 
     d.secao("Diagrama de relacionamentos", quebra=True)
     d.diagrama(ER_DIAGRAMA, "As tabelas do Nexo. `nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` se ligam "
-               "às contas pelo nome de usuário, sem chave estrangeira.", altura_max_mm=205)
+               "às contas pelo nome de usuário, sem chave estrangeira; `nx_widget` pertence a um agente.", altura_max_mm=205)
 
     d.secao("Tabelas")
     d.tabela(["Tabela", "Uma linha por", "Ligações"], [
@@ -1446,8 +1616,8 @@ def banco_de_dados(d):
         ("`nx_message` / `nx_message_source` / `nx_feedback`", "Mensagem, trecho citado, avaliação", "Refazer troca a "
          "resposta, as fontes e apaga as avaliações dela"),
         ("`nx_api_key` / `nx_webhook`", "Chave de API (com scope e expires_at), webhook", "Pelo nome de usuário, sem chave estrangeira"),
-        ("`nx_quick_reply` [[novo]]", "Resposta pronta do WhatsApp", "created_by pelo nome de usuário; títulos repetidos recusados pela API"),
-        ("`nx_audit` [[novo]]", "Atividade registrada", "actor pelo nome de usuário; índices por data, conta e ação"),
+        ("`nx_quick_reply`", "Resposta pronta do WhatsApp", "created_by pelo nome de usuário; títulos repetidos recusados pela API"),
+        ("`nx_audit`", "Atividade registrada", "actor pelo nome de usuário; índices por data, conta e ação"),
         ("`nx_whatsapp_channel`", "Número conectado", "bot_id para nx_bot (SET NULL)"),
         ("`nx_whatsapp_contact`", "Cliente de um número", "channel_id (CASCADE); único (channel_id, phone)"),
         ("`nx_whatsapp_message`", "Mensagem recebida ou enviada", "contact_id (CASCADE)"),
@@ -1527,8 +1697,14 @@ def api(d):
         (m("POST"), "`/api/auth/sessions/revoke`", "Sair dos outros dispositivos; devolve uma sessão nova para este"),
         (m("PUT"), "`/api/auth/tutorial`", "Marcar o tutorial como visto ({\"done\": true}) ou para rever (false)"),
         (m("GET"), "`/api/system/status`", "Configuração ativa, números do acervo (com desatualizados) e operação"),
-        "Sistema (admin) [[novo]]",
-        (m("GET / PUT"), "`/api/system/settings`", "Ajustes pela tela: ler com padrões e grupos, ou alterar {\"values\": {...}}"),
+        "Sistema (admin)",
+        (m("GET / PUT"), "`/api/system/settings`", "Ajustes pela tela: ler com padrões, grupos, opções e chaves só como "
+         "configured, ou alterar {\"values\": {...}}; a resposta traz rebuilt quando os embeddings mudaram"),
+        (m("POST"), "`/api/system/providers/test` [[novo]]", "Testa {\"target\": llm | embedding | reranker, \"values\"?} sem salvar"),
+        (m("GET"), "`/api/system/providers/ollama-models?url=` [[novo]]", "Modelos instalados no Ollama"),
+        (m("GET / POST"), "`/api/system/setup` [[novo]]", "Estado do assistente e primeiros passos; POST {\"done\"} conclui ou reabre"),
+        (m("GET / POST"), "`/api/system/backups` [[novo]]", "Backups automáticos (plano e arquivos) ou fazer um agora"),
+        (m("GET"), "`/api/system/backups/{nome}` [[novo]]", "Baixa um backup automático"),
         (m("POST"), "`/api/system/settings/reset`", "Restaurar padrões do .env, todos ou só os de {\"keys\": [...]}"),
         (m("GET"), "`/api/system/diagnostics?deep=false`", "Diagnóstico rápido ou completo (deep=true)"),
         (m("POST"), "`/api/system/maintenance`", "{\"action\": reindex_failed | reindex_outdated | reindex_all | clean_orphans "
@@ -1541,8 +1717,17 @@ def api(d):
         (m("GET / PATCH / DELETE"), "`/api/bases/{id}`", "Abrir, renomear ou excluir (409 se usada por agente ou se for a padrão)"),
         (m("GET / POST"), "`/api/bases/{id}/documents`", "Listar itens ou enviar arquivos (multipart, campo files)"),
         (m("POST"), "`/api/bases/{id}/texts`", "Criar um texto {\"title\", \"content\"}"),
-        (m("POST"), "`/api/bases/{id}/links` [[novo]]", "Importar uma página ou arquivo {\"url\", \"title\"?}"),
-        (m("POST"), "`/api/bases/sample` [[novo]]", "Criar a Base de teste e o Agente de teste (não duplica)"),
+        (m("POST"), "`/api/bases/{id}/links`", "Importar uma página ou arquivo {\"url\", \"title\"?}"),
+        (m("POST"), "`/api/bases/sample`", "Criar a Base de teste e o Agente de teste (não duplica)"),
+        "Widget para sites [[novo]]",
+        (m("GET / POST"), "`/api/widgets`", "Listar e criar widgets (criar: administrador)"),
+        (m("PATCH / DELETE"), "`/api/widgets/{id}`", "Alterar (sites, cor, agente, pausar) e excluir"),
+        (m("POST"), "`/api/widgets/{id}/rotate`", "Trocar a chave pública"),
+        (m("GET"), "`/widget.js`", "O script do widget"),
+        (m("GET / POST"), "`/api/public/widget/{chave}/config` · `/ask`", "Rotas públicas do widget, sem login"),
+        "Compatível com OpenAI [[novo]]",
+        (m("GET"), "`/v1/models`", "Agentes como modelos, mais `nexo` para o acervo inteiro"),
+        (m("POST"), "`/v1/chat/completions`", "Pergunta no formato da OpenAI, com `stream` opcional"),
         (m("GET"), "`/api/formats`", "Extensões aceitas e tamanho máximo"),
         "Documentos",
         (m("GET / POST"), "`/api/documents`", "Listar todos ou enviar (campo base_id opcional)"),
@@ -1552,13 +1737,13 @@ def api(d):
         (m("GET / PUT"), "`/api/documents/{id}/text`", "Ler ou editar um texto (reindexa)"),
         (m("GET"), "`/api/documents/{id}/file`", "Baixar o arquivo original"),
         (m("POST"), "`/api/documents/{id}/reindex`", "Reindexar"),
-        (m("POST"), "`/api/documents/{id}/refetch` [[novo]]", "Baixar de novo do link de origem; changed diz se mudou"),
-        (m("GET"), "`/api/documents/{id}/chunks` [[novo]]", "Trechos indexados, com offset, limit e q"),
+        (m("POST"), "`/api/documents/{id}/refetch`", "Baixar de novo do link de origem; changed diz se mudou"),
+        (m("GET"), "`/api/documents/{id}/chunks`", "Trechos indexados, com offset, limit e q"),
         (m("DELETE"), "`/api/documents/{id}`", "Excluir arquivo, vetores e escopos"),
         "Agentes, conversas e busca",
         (m("GET / POST"), "`/api/bots`", "Listar ou criar agentes"),
         (m("GET / PATCH / DELETE"), "`/api/bots/{id}`", "Abrir, editar (inclusive suggestions) ou excluir (apaga as conversas do agente)"),
-        (m("POST"), "`/api/bots/{id}/duplicate` [[novo]]", "Criar uma cópia do agente"),
+        (m("POST"), "`/api/bots/{id}/duplicate`", "Criar uma cópia do agente"),
         (m("GET / POST"), "`/api/conversations`", "Listar (filtros only=general|bots, bot_id e q, que procura no título e "
          "nas mensagens) ou criar (bot_id opcional)"),
         (m("GET / PATCH / DELETE"), "`/api/conversations/{id}`", "Abrir; renomear, mudar escopo ou fixar (pinned); excluir"),
@@ -1585,8 +1770,8 @@ def api(d):
         (m("GET / PATCH"), "`/api/whatsapp/contacts/{id}`", "Conversa (marca como lida); ligar ou pausar o agente, nome"),
         (m("POST"), "`/api/whatsapp/contacts/{id}/messages`", "Responder como a equipe"),
         (m("POST"), "`/api/whatsapp/contacts/{id}/suggest`", "Sugestão de resposta do agente, sem enviar"),
-        (m("GET / POST"), "`/api/whatsapp/quick-replies` [[novo]]", "Respostas prontas: listar ou criar {title, body}"),
-        (m("PATCH / DELETE"), "`/api/whatsapp/quick-replies/{id}` [[novo]]", "Editar ou excluir (quem criou ou admin)"),
+        (m("GET / POST"), "`/api/whatsapp/quick-replies`", "Respostas prontas: listar ou criar {title, body}"),
+        (m("PATCH / DELETE"), "`/api/whatsapp/quick-replies/{id}`", "Editar ou excluir (quem criou ou admin)"),
         "Integrações e contas",
         (m("GET / POST / DELETE"), "`/api/keys` · `/api/keys/{id}`", "Chaves de API do usuário; POST {name, scope, expires_days}"),
         (m("GET / POST / PATCH / DELETE"), "`/api/webhooks` · `/api/webhooks/{id}`", "Webhooks (admin)"),
@@ -1630,27 +1815,27 @@ curl -X POST http://127.0.0.1:8000/api/auth/sessions/revoke -H "Authorization: B
         ("400", "`SAME_PASSWORD`", "Senha nova igual à atual"),
         ("400", "`INVALID_URL` / `INVALID_EVENTS`", "Webhook com URL inválida ou eventos desconhecidos"),
         ("400", "`NOT_A_TEXT` / `INVALID_PROVIDER`", "Editar como texto um item que é arquivo; provedor de WhatsApp desconhecido"),
-        ("400", "`NOT_A_LINK` / `INVALID_SETTINGS` / `MAINTENANCE` [[novo]]", "Atualizar do link um item que não veio de "
+        ("400", "`NOT_A_LINK` / `INVALID_SETTINGS` / `MAINTENANCE`", "Atualizar do link um item que não veio de "
          "link; ajuste fora das regras (em fields); ação de manutenção desconhecida"),
         ("401", "`UNAUTHENTICATED` / `SESSION_EXPIRED` / `INVALID_API_KEY`", "Sem credencial, token vencido ou chave inválida"),
         ("401", "`SESSION_REVOKED`", "Sessão encerrada por troca ou redefinição de senha ou por Sair dos outros dispositivos"),
-        ("401", "`API_KEY_EXPIRED` [[novo]]", "Chave de API vencida"),
+        ("401", "`API_KEY_EXPIRED`", "Chave de API vencida"),
         ("401", "`INVALID_SIGNATURE`", "Webhook do WhatsApp com assinatura ou token errado"),
         ("403", "`FORBIDDEN` / `REGISTRATION_DISABLED`", "Rota de administrador, ação sobre conteúdo de outra pessoa ou cadastro fechado"),
-        ("403", "`KEY_SCOPE` / `PRIVATE_URL` [[novo]]", "Rota fora da permissão da chave; link para a rede interna"),
-        ("404", "`NO_SAMPLE` [[novo]]", "Os arquivos de exemplos/base-de-teste não estão no servidor"),
+        ("403", "`KEY_SCOPE` / `PRIVATE_URL`", "Rota fora da permissão da chave; link para a rede interna"),
+        ("404", "`NO_SAMPLE`", "Os arquivos de exemplos/base-de-teste não estão no servidor"),
         ("404", "`NOT_FOUND` / `FILE_MISSING`", "Registro inexistente ou de outro usuário; arquivo original ausente"),
         ("409", "`DUPLICATE` / `NO_DOCUMENTS` / `BASE_EMPTY`", "Arquivo repetido na base, pergunta sem documentos prontos ou "
          "agente com base vazia"),
         ("409", "`BASE_IN_USE` / `DEFAULT_BASE`", "Excluir base usada por agente ou a base padrão"),
-        ("409", "`NAME_TAKEN` [[novo]]", "Resposta pronta com título repetido"),
+        ("409", "`NAME_TAKEN`", "Resposta pronta com título repetido"),
         ("413 / 415", "`FILE_TOO_LARGE` / `NOT_A_PDF` / `UNSUPPORTED`", "Arquivo grande demais (inclusive item de pacote zip "
          "acima de 50 MB), PDF inválido ou formato não aceito"),
         ("422", "`VALIDATION`", "Corpo fora do formato, com os campos em fields"),
         ("429", "`LOCKED`", "Cinco senhas erradas seguidas"),
-        ("429", "`RATE_LIMITED` [[novo]]", "Mais perguntas por minuto que NEXO_RATE_LIMIT; veja Retry-After"),
+        ("429", "`RATE_LIMITED`", "Mais perguntas por minuto que NEXO_RATE_LIMIT; veja Retry-After"),
         ("502 / 503", "`LLM_FAILURE` / `PROVIDER` / `WHATSAPP`", "Modelo fora do ar, provedor ausente ou WhatsApp recusou o pedido"),
-        ("502", "`UNREACHABLE` / `HTTP_ERROR` / `TOO_MANY_REDIRECTS` [[novo]]", "Link que não abre, responde erro ou "
+        ("502", "`UNREACHABLE` / `HTTP_ERROR` / `TOO_MANY_REDIRECTS`", "Link que não abre, responde erro ou "
          "redireciona demais"),
     ], larguras=["11%", "41%", "48%"])
     d.p("Na rota de streaming, um erro depois do início da resposta chega como evento `error` com os mesmos `code` e "
@@ -1698,7 +1883,11 @@ python -m pytest
         "and variables › Actions** e marque **Read and write permissions** em **Settings › Actions › General**.")
 
     d.secao("Backup")
-    d.p("Use **Baixar backup** em Sistema e conta › Manutenção ou a linha de comando, com o servidor no ar:")
+    d.p("O jeito mais simples é o **backup automático** [[novo]]: ligue em Sistema e conta › Manutenção (ou no assistente) "
+        "e o Nexo grava uma cópia em `data/backups` a cada 6, 12 ou 24 horas ou toda semana, guardando só as mais "
+        "recentes. A tela mostra o próximo horário, a última falha, se houver, e o link para baixar cada arquivo. Copie "
+        "essa pasta para outro disco ou para a nuvem de tempos em tempos.")
+    d.p("Para uma cópia na hora, use **Baixar backup** em Sistema e conta › Manutenção ou a linha de comando, com o servidor no ar:")
     d.codigo("""
 python -m nexo backup --saida backups/nexo.zip
 python -m nexo restaurar backups/nexo.zip --substituir
@@ -1709,12 +1898,18 @@ python -m nexo restaurar backups/nexo.zip --substituir
         "`--substituir` guarda a pasta de dados atual numa cópia antes de restaurar. Com bancos externos, faça o backup "
         "deles com a ferramenta do próprio banco no mesmo momento.")
     d.p("Para uma cópia completa, inclusive dos vetores, pare o servidor e copie a pasta `data` inteira.")
-    d.nota("O backup contém segredos.", "Os segredos dos webhooks, os tokens do WhatsApp e `data/.segredo` estão nele. "
+    d.nota("O backup contém segredos.", "Os segredos dos webhooks, os tokens do WhatsApp, `data/.segredo` e as chaves de "
+           "`data/segredos.json` estão nele. "
            "Guarde as cópias com o mesmo cuidado de uma senha.", alerta=True)
 
-    d.secao("Linha de comando", novo=True)
+    d.secao("Linha de comando")
     d.tabela(["Comando", "O que faz"], [
-        ("`python -m nexo`", "Sobe o servidor (o mesmo que `servir` e `scripts/servir.py`)"),
+        ("`python -m nexo`", "Sobe o servidor (o mesmo que `servir`)"),
+        ("`python -m nexo servir --abrir` [[novo]]", "Sobe o servidor e abre o navegador quando ele estiver pronto; se o "
+         "Nexo já estiver rodando, só abre o navegador"),
+        ("`python -m nexo configurar` [[novo]]", "Assistente no terminal: troca a senha padrão e escolhe o provedor de IA, "
+         "com teste de conexão"),
+        ("`python -m nexo senha <usuario>` [[novo]]", "Redefine a senha de uma conta, encerra as sessões e libera o bloqueio"),
         ("`python -m nexo diagnostico [--completo]`", "O diagnóstico da tela no terminal; termina com erro se houver falha"),
         ("`python -m nexo backup [--saida arquivo.zip]`", "Grava o backup"),
         ("`python -m nexo restaurar arquivo.zip [--substituir]`", "Restaura um backup, com o servidor parado"),
@@ -1726,7 +1921,7 @@ python -m nexo restaurar backups/nexo.zip --substituir
     ], larguras=["46%", "54%"])
     d.p("Com um valor inválido no `.env`, os comandos dizem qual variável está errada e o valor recebido, em vez de um erro técnico.")
 
-    d.secao("Registros e acompanhamento", novo=True)
+    d.secao("Registros e acompanhamento")
     d.p("Cada pedido gera uma linha de registro com o método, a rota, o status, o tempo, a conta e o `X-Request-ID`. Com "
         "`NEXO_LOG_FORMAT=json`, cada linha é um objeto JSON, pronto para Loki, Elastic ou CloudWatch; `NEXO_LOG_LEVEL` "
         "controla o detalhe. Para acompanhar o servidor, use `/api/health/ready` na checagem de saúde e "
@@ -1761,7 +1956,14 @@ cd frontend && npm update && npm run build
         ("Tutorial não aparece mais", "Já foi visto pela conta", "Use Ver tutorial na paleta ou em Sistema e conta"),
         ("Tela em branco em /", "Interface não compilada", "cd frontend, npm ci e npm run build"),
         ("Esqueci a senha do admin", "Senha trocada e perdida", "Outro administrador usa Redefinir senha; sem nenhum, rode "
-         "`python scripts/redefinir_senha.py admin`"),
+         "`python -m nexo senha admin`"),
+        ("\"A porta 8000 está ocupada\"", "Outro programa usa a porta", "Feche o programa ou defina NEXO_PORT=8001 no .env"),
+        ("Testar conexão falha com 401", "Chave errada ou vencida no provedor", "Gere outra chave no painel do provedor e cole em Ajustes"),
+        ("Testar conexão falha com 404", "Modelo ou endereço errado", "Confira o nome exato do modelo e o endereço terminado em /v1"),
+        ("Respostas incompletas depois de trocar embeddings", "O acervo está sendo reindexado", "Acompanhe a fila em Documentos"),
+        ("Widget não aparece no site", "Site fora da lista, widget pausado ou chave trocada", "Veja o console do navegador "
+         "e os sites autorizados em Integrações"),
+        ("Ferramenta diz model_not_found", "Nome do modelo diferente da lista", "Use um id de GET /v1/models"),
         ("Integração recebe 429", "Limite de perguntas por minuto atingido", "Espere o Retry-After ou aumente o limite em Ajustes"),
         ("Integração recebe 403 KEY_SCOPE", "Chave sem permissão para a rota", "Crie uma chave com a permissão certa"),
         ("Documentos \"índice desatualizado\"", "Modelo de embeddings ou tamanho do trecho mudou", "Reindexar desatualizados "
@@ -1783,6 +1985,7 @@ def montar(temp):
     configuracao(d)
     usando(d)
     integracoes(d)
+    widget_e_openai(d)
     whatsapp(d)
     arquitetura(d)
     banco_de_dados(d)

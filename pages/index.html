@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexo · Agentes de IA que respondem com os seus documentos</title>
+<meta name="description" content="Plataforma de agentes de IA em que cada agente responde só com a própria base de conhecimento, cita a página e atende pelo chat, pelo WhatsApp, pelo site e por qualquer ferramenta compatível com a OpenAI.">
+<meta property="og:title" content="Nexo · Respostas com fonte">
+<meta property="og:description" content="Agentes de IA que respondem só com os seus documentos e citam a página. Chat, WhatsApp, widget para sites e API compatível com OpenAI.">
+<meta property="og:image" content="images/tela-chats.png">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="images/logo.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: "Bricolage"; font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
+  src: url("fontes/bricolage-grotesque-latin-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Bricolage"; font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
+  src: url("fontes/bricolage-grotesque-latin-ext-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Instrument Sans"; font-weight: 400 700; font-stretch: 75% 100%; font-display: swap;
+  src: url("fontes/instrument-sans-latin-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Instrument Sans"; font-weight: 400 700; font-stretch: 75% 100%; font-display: swap;
+  src: url("fontes/instrument-sans-latin-ext-wdth-normal.woff2") format("woff2-variations");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Plex Mono"; font-weight: 400; font-display: swap; src: url("fontes/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+:root {
+  --mesa: #f5f4f4; --caixa: #ffffff; --parede: #e8e7e6; --forte: #d3d1d0; --texto: #000000; --texto-2: #4d4b4b;
+  --texto-3: #6b6969; --neutro: #bab7b6; --raio: 18px;
+  --sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --titulo: "Bricolage", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--mesa); color: var(--texto); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--caixa); border: 1px solid var(--parede); padding: 1px 6px; border-radius: 6px; }
+.fina { font-family: var(--titulo); font-weight: 300; font-variation-settings: "opsz" 96, "wdth" 80; letter-spacing: -0.015em; }
+.wrap { width: min(1160px, 100% - 48px); margin: 0 auto; }
+header.top { position: sticky; top: 0; z-index: 10; background: color-mix(in oklab, var(--mesa) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--parede); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 20px; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand__mark { width: 36px; height: 36px; border-radius: 9px; background: #000; color: #fff; display: grid; place-items: center; }
+.brand__name { font-family: var(--titulo); font-weight: 400; font-variation-settings: "opsz" 48, "wdth" 75; font-size: 1.5rem; line-height: 1; }
+nav.links { display: flex; gap: 22px; font-size: 15px; }
+nav.links a { text-decoration: none; color: var(--texto-2); }
+nav.links a:hover { color: var(--texto); }
+.botao { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 10px; background: #000; color: #fff; text-decoration: none; font-weight: 500; font-size: 15px; border: 1px solid #000; }
+.botao--claro { background: var(--caixa); color: #000; border-color: var(--forte); }
+.botao:hover { background: #333232; }
+.botao--claro:hover { background: var(--caixa); border-color: var(--texto-3); }
+.hero { padding: 80px 0 56px; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.hero__over { font-size: 15px; color: var(--texto-3); }
+.hero h1 { font-size: clamp(3rem, 6.2vw, 5.6rem); line-height: 0.92; margin: 14px 0 22px; }
+.hero p { font-size: 18px; color: var(--texto-2); max-width: 54ch; margin: 0 0 28px; }
+.hero__cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero__shot { border-radius: var(--raio); overflow: hidden; border: 1px solid var(--parede); box-shadow: 0 30px 80px rgba(0,0,0,.12); background: #fff; }
+.caixa { display: grid; gap: 1px; background: var(--parede); border: 1px solid var(--parede); border-radius: var(--raio); overflow: clip; }
+.caixa > * { background: var(--caixa); }
+.numeros { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 96px; }
+.numeros div { padding: 22px 24px 24px; display: grid; gap: 8px; }
+.numeros dt { font-size: 13px; color: var(--texto-3); }
+.numeros dd { margin: 0; font-size: 1.6rem; line-height: 1.05; }
+.numeros .tampa { background: #000; color: #fff; }
+.numeros .tampa dt { color: rgba(255,255,255,.62); }
+section.bloco { padding: 0 0 96px; }
+.bloco__head { display: grid; gap: 10px; margin-bottom: 28px; max-width: 760px; }
+.bloco__head span { color: var(--texto-3); font-size: 15px; }
+.bloco__head h2 { font-size: clamp(2.4rem, 4.4vw, 3.6rem); line-height: 0.95; margin: 0; }
+.bloco__head p { color: var(--texto-2); margin: 6px 0 0; font-size: 17px; }
+.cartoes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cartoes article { padding: 24px 26px 26px; display: grid; gap: 8px; align-content: start; }
+.cartoes h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.cartoes p { margin: 0; color: var(--texto-3); font-size: 15px; }
+.selo { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; border-radius: 999px; background: #000; color: #fff; margin-left: 6px; vertical-align: 2px; }
+.passos { grid-template-columns: repeat(4, minmax(0, 1fr)); counter-reset: passo; margin: 0; padding: 0; }
+.passos li { list-style: none; padding: 24px 24px 28px; display: grid; gap: 10px; align-content: start; }
+.passos li::before { counter-increment: passo; content: counter(passo); font-family: var(--titulo); font-weight: 300; font-variation-settings: "opsz" 96, "wdth" 80; font-size: 3rem; line-height: 1; }
+.passos b { font-weight: 600; }
+.passos span { color: var(--texto-3); font-size: 15px; }
+.galeria { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.galeria figure { margin: 0; display: grid; gap: 10px; }
+.galeria img { border-radius: 14px; border: 1px solid var(--parede); background: #fff; }
+.galeria figcaption { font-size: 14px; color: var(--texto-3); }
+.galeria figcaption b { color: var(--texto); font-weight: 600; }
+.duas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.codigo { border-radius: 14px; overflow: hidden; border: 1px solid var(--parede); background: #fff; }
+.codigo__bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--mesa); border-bottom: 1px solid var(--parede); font-size: 14px; color: var(--texto-2); }
+.codigo pre { margin: 0; padding: 18px 20px; background: #000; color: #fff; font: 13px/1.65 var(--mono); overflow-x: auto; }
+.codigo p { margin: 0; padding: 16px 20px; font-size: 15px; color: var(--texto-2); }
+.copiar { border: 1px solid var(--forte); background: #fff; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chips span { border: 1px solid var(--forte); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 14px; }
+.final { background: #000; color: #fff; border-radius: var(--raio); padding: 56px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end; margin-bottom: 80px; }
+.final h2 { font-size: clamp(2.4rem, 4.4vw, 3.8rem); line-height: 0.95; margin: 0 0 14px; }
+.final p { margin: 0; color: rgba(255,255,255,.72); max-width: 56ch; }
+.final .botao { background: #fff; color: #000; border-color: #fff; }
+.final .botao--claro { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+.final__cta { display: flex; gap: 12px; flex-wrap: wrap; }
+footer { border-top: 1px solid var(--parede); padding: 28px 0 40px; color: var(--texto-3); font-size: 14px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+@media (max-width: 900px) {
+  nav.links { display: none; }
+  .hero { grid-template-columns: 1fr; padding-top: 48px; }
+  .numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cartoes, .passos { grid-template-columns: 1fr; }
+  .galeria, .duas { grid-template-columns: 1fr; }
+  .final { grid-template-columns: 1fr; padding: 36px 28px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#inicio" aria-label="Nexo, início">
+      <span class="brand__mark"><svg width="17" height="18" viewBox="18 16 64 68" aria-hidden="true"><g fill="currentColor"><rect x="18" y="16" width="18" height="68"/><rect x="64" y="16" width="18" height="68"/></g><path d="M36 18L64 82" fill="none" stroke="currentColor" stroke-width="3.5"/></svg></span>
+      <span class="brand__name">Nexo</span>
+    </a>
+    <nav class="links" aria-label="Seções">
+      <a href="#novidades">Novidades</a>
+      <a href="#como">Como funciona</a>
+      <a href="#telas">Telas</a>
+      <a href="#integracoes">Integrações</a>
+      <a href="#instalar">Instalar</a>
+    </nav>
+    <a class="botao" href="https://github.com/ravelroot/Retrieval-Augmented-QA-System">Ver no GitHub</a>
+  </div>
+</header>
+
+<main id="inicio">
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <span class="hero__over">Versão 2.4.0 · código aberto, licença MIT</span>
+        <h1 class="fina">Respostas só com os seus documentos. Com a página.</h1>
+        <p>O Nexo cria agentes de IA, cada um preso à própria base de conhecimento. Eles conversam com a equipe, atendem clientes pelo WhatsApp e pelo site e respondem a qualquer ferramenta compatível com a OpenAI, sempre citando o trecho e a página. Se a informação não estiver lá, o Nexo diz que não encontrou.</p>
+        <div class="hero__cta">
+          <a class="botao" href="#instalar">Instalar em minutos</a>
+          <a class="botao botao--claro" href="Manual-Nexo.pdf">Ler o manual (PDF)</a>
+        </div>
+      </div>
+      <div class="hero__shot"><img src="images/tela-chats.png" alt="Chats com vários agentes lado a lado, com as fontes de cada resposta" width="1440" height="960"></div>
+    </section>
+
+    <dl class="caixa numeros">
+      <div class="tampa"><dt>Cada resposta</dt><dd class="fina">Trecho, página e nota</dd></div>
+      <div><dt>Base</dt><dd class="fina">Só os seus arquivos</dd></div>
+      <div><dt>Modelos</dt><dd class="fina">Ollama, OpenAI ou compatíveis</dd></div>
+      <div><dt>Canais</dt><dd class="fina">Chat, WhatsApp, site e API</dd></div>
+    </dl>
+
+    <section class="bloco" id="novidades">
+      <div class="bloco__head">
+        <span>Novidades da 2.4</span>
+        <h2 class="fina">Fácil de instalar, configurar, manter e integrar.</h2>
+        <p>Do primeiro acesso ao agente publicado no site, tudo pela tela, sem editar arquivos nem reiniciar o servidor.</p>
+      </div>
+      <div class="caixa cartoes">
+        <article><h3>Assistente de configuração <span class="selo">Novo</span></h3><p>Senha nova obrigatória, escolha da inteligência com teste de conexão, acesso, backup e a lista de próximos passos.</p></article>
+        <article><h3>Provedor de IA pela tela <span class="selo">Novo</span></h3><p>Ollama com a lista de modelos instalados, OpenAI, Groq, OpenRouter, Gemini, LM Studio ou outro serviço compatível.</p></article>
+        <article><h3>Widget para sites <span class="selo">Novo</span></h3><p>Um botão de conversa com o agente em qualquer site, com uma linha de código, sites autorizados e limite por visitante.</p></article>
+        <article><h3>API compatível com OpenAI <span class="selo">Novo</span></h3><p>n8n, Make, Typebot, Flowise, Dify, Open WebUI e os SDKs oficiais usam os agentes como se fossem modelos.</p></article>
+        <article><h3>Backup automático <span class="selo">Novo</span></h3><p>Cópias periódicas com rotação, um botão para fazer agora e download pela tela.</p></article>
+        <article><h3>Troca de embeddings segura <span class="selo">Novo</span></h3><p>Trocar o modelo de embeddings apaga os vetores antigos e reindexa o acervo sozinho.</p></article>
+      </div>
+    </section>
+
+    <section class="bloco" id="como">
+      <div class="bloco__head">
+        <span>Como funciona</span>
+        <h2 class="fina">Quatro passos até o agente no ar.</h2>
+      </div>
+      <ol class="caixa passos">
+        <li><b>Configure</b><span>Rode o script de inicialização. O navegador abre sozinho e o assistente guia senha, inteligência e backup.</span></li>
+        <li><b>Alimente</b><span>Envie PDF, DOCX, EPUB, PPTX, XLSX, CSV, HTML e outros, escreva textos ou importe páginas por link.</span></li>
+        <li><b>Crie o agente</b><span>Dê nome, instruções, saudação e uma base. Ele só responde com o que estiver nela.</span></li>
+        <li><b>Publique</b><span>Converse pelo chat, conecte o WhatsApp, cole o widget no site ou use a API compatível com OpenAI.</span></li>
+      </ol>
+    </section>
+
+    <section class="bloco" id="telas">
+      <div class="bloco__head">
+        <span>Telas</span>
+        <h2 class="fina">Uma caixa só, sem ruído.</h2>
+      </div>
+      <div class="galeria">
+        <figure><img src="images/tela-assistente-ia.png" alt="Assistente de configuração" loading="lazy" width="1440" height="960"><figcaption><b>Assistente de configuração.</b> Cada provedor num cartão, com o teste de conexão.</figcaption></figure>
+        <figure><img src="images/tela-widget-site.png" alt="Widget num site" loading="lazy" width="1440" height="960"><figcaption><b>Widget para sites.</b> O agente no canto da página, com as fontes.</figcaption></figure>
+        <figure><img src="images/tela-chat.png" alt="Conversa com citações" loading="lazy" width="1440" height="960"><figcaption><b>Conversas.</b> Citações clicáveis com o trecho e a página.</figcaption></figure>
+        <figure><img src="images/tela-whatsapp.png" alt="WhatsApp" loading="lazy" width="1440" height="960"><figcaption><b>WhatsApp.</b> O agente responde e passa para a equipe quando não sabe.</figcaption></figure>
+        <figure><img src="images/tela-bases.png" alt="Bases de conhecimento" loading="lazy" width="1440" height="960"><figcaption><b>Bases de conhecimento.</b> Arquivos, textos, teste da busca e integração.</figcaption></figure>
+        <figure><img src="images/tela-sistema.png" alt="Primeiros passos" loading="lazy" width="1440" height="960"><figcaption><b>Primeiros passos.</b> O que falta para o Nexo trabalhar sozinho.</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="bloco" id="integracoes">
+      <div class="bloco__head">
+        <span>Integrações</span>
+        <h2 class="fina">Leve o agente para onde as pessoas estão.</h2>
+      </div>
+      <div class="duas">
+        <div class="codigo">
+          <div class="codigo__bar"><span>Widget: cole antes de &lt;/body&gt;</span><button class="copiar" type="button" data-copiar="w">Copiar</button></div>
+          <pre id="w">&lt;script src="https://nexo.suaempresa.com.br/widget.js"
+        data-nexo="nxw_SUA_CHAVE_PUBLICA" async&gt;&lt;/script&gt;</pre>
+          <p>Funciona em qualquer site, no WordPress, no Wix e no Google Tag Manager. Só os sites autorizados mostram o botão.</p>
+        </div>
+        <div class="codigo">
+          <div class="codigo__bar"><span>API compatível com OpenAI</span><button class="copiar" type="button" data-copiar="o">Copiar</button></div>
+          <pre id="o">from openai import OpenAI
+
+cliente = OpenAI(base_url="https://seu-nexo/v1", api_key="nxk_...")
+resposta = cliente.chat.completions.create(
+    model="sofia-suporte",
+    messages=[{"role": "user", "content": "Como trocar o filtro?"}],
+)</pre>
+          <p>Cada agente vira um modelo. Também há chaves de API com permissão, pergunta direta, streaming e webhooks assinados.</p>
+        </div>
+      </div>
+      <div class="chips" aria-label="Ferramentas compatíveis">
+        <span>n8n</span><span>Make</span><span>Typebot</span><span>Flowise</span><span>Dify</span><span>Open WebUI</span><span>LibreChat</span><span>LangChain</span><span>WhatsApp</span><span>Prometheus</span>
+      </div>
+    </section>
+
+    <section class="bloco" id="instalar">
+      <div class="bloco__head">
+        <span>Instalar</span>
+        <h2 class="fina">Python 3.11 e Node.js 20. O resto o script faz.</h2>
+      </div>
+      <div class="duas">
+        <div class="codigo">
+          <div class="codigo__bar"><span>Windows</span><button class="copiar" type="button" data-copiar="win">Copiar</button></div>
+          <pre id="win">git clone https://github.com/ravelroot/Retrieval-Augmented-QA-System.git
+cd Retrieval-Augmented-QA-System
+.\iniciar.cmd</pre>
+          <p>Linux e macOS: <code>./iniciar.sh</code>. Com Docker: <code>docker compose --profile app --profile ollama up -d --build</code>.</p>
+        </div>
+        <div class="codigo">
+          <div class="codigo__bar"><span>Primeiro acesso</span></div>
+          <p>O navegador abre em <code>http://127.0.0.1:8000</code>. Entre com <code>admin</code> e <code>Nexo@2026</code>: o Nexo pede uma senha nova e o assistente guia a escolha da inteligência, do acesso e do backup. Para experimentar sem os seus arquivos, use <b>Criar base de teste</b> no último passo.</p>
+          <p>Manual completo em <a href="Manual-Nexo.pdf">Manual-Nexo.pdf</a> e estrutura dos dados em <a href="Banco-de-Dados-Nexo.pdf">Banco-de-Dados-Nexo.pdf</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="final">
+      <div>
+        <h2 class="fina">Seus documentos, respondendo por você.</h2>
+        <p>Código aberto, sem dado pessoal no repositório, pronto para rodar no seu computador ou servidor.</p>
+      </div>
+      <div class="final__cta">
+        <a class="botao" href="https://github.com/ravelroot/Retrieval-Augmented-QA-System">Baixar no GitHub</a>
+        <a class="botao botao--claro" href="Manual-Nexo.pdf">Manual (PDF)</a>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Copyright (©) 2026 Erik Pimenta. Licença MIT.</span>
+    <span>Fontes Instrument Sans, Bricolage Grotesque e IBM Plex Mono, SIL Open Font License 1.1.</span>
+  </div>
+</footer>
+<script>
+document.querySelectorAll("[data-copiar]").forEach(function (botao) {
+  botao.addEventListener("click", function () {
+    var alvo = document.getElementById(botao.getAttribute("data-copiar"));
+    if (!alvo || !navigator.clipboard) return;
+    navigator.clipboard.writeText(alvo.textContent).then(function () {
+      botao.textContent = "Copiado";
+      setTimeout(function () { botao.textContent = "Copiar"; }, 1500);
+    });
+  });
+});
+</script>
+</body>
+</html>

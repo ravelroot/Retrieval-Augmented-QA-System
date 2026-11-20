@@ -4,7 +4,7 @@ import csv
 import io
 import tempfile
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
@@ -12,9 +12,9 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nexo import __version__, audit, db, maintenance, runtime
+from nexo import __version__, audit, db, maintenance, onboarding, runtime
 from nexo.api import schemas as sc
-from nexo.api.deps import ApiError, Principal, current_user, get_users
+from nexo.api.deps import ApiError, Principal, current_user, get_users, must_change_password
 from nexo.config import Settings, get_settings
 from nexo.rag import providers
 from nexo.rag.engine import get_engine
@@ -32,9 +32,6 @@ def _admin(p: Principal) -> None:
 def _fixed(settings: Settings) -> dict[str, str]:
     info = providers.describe(settings)
     return {
-        "Provedor do modelo": settings.llm_provider,
-        "Embeddings": info["embedding"],
-        "Reranking": info["reranker"],
         "Banco vetorial": f"{info['vector_store']}, coleção {info['collection']}",
         "Banco relacional": "SQLite" if settings.sqlalchemy_url.startswith("sqlite") else settings.sqlalchemy_url.split(":")[0],
         "Formato dos registros": settings.log_format,
@@ -70,12 +67,12 @@ def write_settings(body: sc.SettingsPatch, p: Principal = Depends(current_user),
         changed = runtime.update(settings, body.values, p.username)
     except runtime.AdjustError as e:
         raise ApiError(400, "INVALID_SETTINGS", "Revise os ajustes destacados.", e.fields)
-    get_engine(settings).refresh(changed)
+    rebuilt = _apply(settings, changed, p.username)
     if changed:
-        audit.record("settings.update", "settings", None, {k: getattr(settings, k) for k in changed}, actor=p.username)
+        audit.record("settings.update", "settings", None, _visible(settings, changed), actor=p.username)
     out = _settings_out(database, settings)
     reindex = any(runtime.BY_NAME[n].reindex for n in changed)
-    return sc.SettingsChanged(**out.model_dump(), changed=changed, reindex_needed=reindex and out.outdated > 0)
+    return sc.SettingsChanged(**out.model_dump(), changed=changed, reindex_needed=reindex and out.outdated > 0, rebuilt=rebuilt)
 
 
 @router.post("/system/settings/reset", response_model=sc.SettingsChanged)
@@ -83,11 +80,116 @@ def reset_settings(body: sc.SettingsResetIn, p: Principal = Depends(current_user
                    database: Session = Depends(db.get_db)):
     _admin(p)
     changed = runtime.reset(settings, p.username, body.names)
-    get_engine(settings).refresh(changed)
+    rebuilt = _apply(settings, changed, p.username)
     audit.record("settings.reset", "settings", None, {"names": changed}, actor=p.username)
     out = _settings_out(database, settings)
     reindex = any(runtime.BY_NAME[n].reindex for n in changed)
-    return sc.SettingsChanged(**out.model_dump(), changed=changed, reindex_needed=reindex and out.outdated > 0)
+    return sc.SettingsChanged(**out.model_dump(), changed=changed, reindex_needed=reindex and out.outdated > 0, rebuilt=rebuilt)
+
+
+def _visible(settings: Settings, names: list[str]) -> dict:
+    return {k: ("(alterada)" if k in runtime.SECRETS else getattr(settings, k)) for k in names}
+
+
+def _apply(settings: Settings, changed: list[str], who: str) -> int:
+    get_engine(settings).refresh(changed)
+    if not set(changed) & set(runtime.WIPE):
+        return 0
+    queued = maintenance.sync_vector_space(settings)
+    if queued:
+        audit.record("system.rebuild", "system", None, {"documentos": queued, "embeddings": settings.embed_model}, actor=who)
+    return queued
+
+
+@router.post("/system/providers/test", response_model=sc.ProviderTestOut)
+def test_provider(body: sc.ProviderTestIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings)):
+    _admin(p)
+    try:
+        candidate, fields = runtime.trial(settings, body.values)
+    except runtime.AdjustError as e:
+        raise ApiError(400, "INVALID_SETTINGS", "Revise os ajustes destacados.", e.fields)
+    if fields:
+        raise ApiError(400, "INVALID_SETTINGS", "Revise os ajustes destacados.", fields)
+    return sc.ProviderTestOut(target=body.target, **providers.probe(body.target, candidate))
+
+
+@router.get("/system/providers/ollama-models", response_model=sc.OllamaModelsOut)
+def ollama_models(url: str = Query("", max_length=300), p: Principal = Depends(current_user),
+                  settings: Settings = Depends(get_settings)):
+    _admin(p)
+    try:
+        candidate, fields = runtime.trial(settings, {"ollama_url": url} if url.strip() else {})
+    except runtime.AdjustError as e:
+        raise ApiError(400, "INVALID_SETTINGS", "Revise o endereço do Ollama.", e.fields)
+    if fields:
+        raise ApiError(400, "INVALID_SETTINGS", "Revise o endereço do Ollama.", fields)
+    names, error = maintenance.ollama_models(candidate)
+    return sc.OllamaModelsOut(url=candidate.ollama_url, models=sorted(names or []), error=error)
+
+
+def _setup_out(settings: Settings, users: UserStore, database: Session, username: str) -> sc.SetupOut:
+    steps = onboarding.steps(settings, users, database)
+    user = users.get(username)
+    done_at = onboarding.done_at(settings)
+    return sc.SetupOut(done=bool(done_at), done_at=done_at, public_url=settings.public_url, llm_provider=settings.llm_provider,
+                       must_change_password=bool(user and must_change_password(user, users, settings)),
+                       steps=[sc.SetupStep(**x) for x in steps], completed=sum(1 for x in steps if x["done"]), total=len(steps))
+
+
+@router.get("/system/setup", response_model=sc.SetupOut)
+def setup_state(p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                users: UserStore = Depends(get_users), database: Session = Depends(db.get_db)):
+    _admin(p)
+    return _setup_out(settings, users, database, p.username)
+
+
+@router.post("/system/setup", response_model=sc.SetupOut)
+def setup_finish(body: sc.TutorialIn, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings),
+                 users: UserStore = Depends(get_users), database: Session = Depends(db.get_db)):
+    _admin(p)
+    onboarding.finish(settings, p.username, body.done)
+    if body.done:
+        audit.record("system.setup", "system", None, {"llm": settings.llm_provider}, actor=p.username)
+    return _setup_out(settings, users, database, p.username)
+
+
+def _backups_out(request: Request, settings: Settings) -> sc.BackupListOut:
+    runner = getattr(request.app.state, "auto_backup", None)
+    files = maintenance.auto_backups(settings)
+    items = [sc.BackupFileOut(name=f.name, bytes=f.stat().st_size,
+                              created_at=datetime.fromtimestamp(f.stat().st_mtime, UTC).replace(tzinfo=None)) for f in files]
+    return sc.BackupListOut(every_hours=settings.backup_hours, keep=settings.backup_keep, folder=str(settings.backups_dir),
+                            last_at=items[0].created_at if items else None, next_at=runner.next_at() if runner else None,
+                            last_error=runner.last_error if runner else None, items=items)
+
+
+@router.get("/system/backups", response_model=sc.BackupListOut)
+def list_backups(request: Request, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings)):
+    _admin(p)
+    return _backups_out(request, settings)
+
+
+@router.post("/system/backups", response_model=sc.BackupListOut, status_code=201)
+def run_backup(request: Request, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings)):
+    _admin(p)
+    runner = getattr(request.app.state, "auto_backup", None) or maintenance.AutoBackup(settings)
+    try:
+        target = runner.run_once()
+    except Exception as e:
+        raise ApiError(500, "BACKUP_FAILED", f"Não foi possível gravar o backup: {e}")
+    audit.record("system.auto_backup", "system", target.name, {"bytes": target.stat().st_size, "origem": "tela"},
+                 actor=p.username)
+    return _backups_out(request, settings)
+
+
+@router.get("/system/backups/{name}")
+def download_auto_backup(name: str, p: Principal = Depends(current_user), settings: Settings = Depends(get_settings)):
+    _admin(p)
+    found = next((f for f in maintenance.auto_backups(settings) if f.name == name), None)
+    if found is None:
+        raise ApiError(404, "NOT_FOUND", "Backup não encontrado.")
+    audit.record("system.backup", "system", name, {"bytes": found.stat().st_size, "origem": "automático"}, actor=p.username)
+    return FileResponse(found, media_type="application/zip", filename=found.name)
 
 
 @router.get("/system/diagnostics", response_model=sc.DiagnosticsOut)

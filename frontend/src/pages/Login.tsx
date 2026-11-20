@@ -79,7 +79,7 @@ export function LoginPage() {
           </div>
           <div className="login__cell login__cell--wide">
             <dt>Modelos</dt>
-            <dd>Ollama local ou OpenAI</dd>
+            <dd>Ollama, OpenAI ou compatíveis</dd>
           </div>
         </dl>
         <p className="login__legal">Copyright (©) 2026 Erik Pimenta. Licença MIT.</p>
@@ -121,7 +121,7 @@ export function LoginPage() {
           {mode === "login" && options?.default_admin && (
             <div className="note">
               <strong>Primeiro acesso</strong>
-              <p>Use o login pré-definido <code>admin</code> com a senha <code>Nexo@2026</code> e troque a senha em Sistema e conta.</p>
+              <p>Use o login pré-definido <code>admin</code> com a senha <code>Nexo@2026</code>. Logo depois o Nexo pede uma senha nova e mostra o assistente de configuração.</p>
             </div>
           )}
           {mode === "register" && (

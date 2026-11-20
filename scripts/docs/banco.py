@@ -14,6 +14,7 @@ erDiagram
   nx_message ||--o{ nx_message_source : "cita"
   nx_document |o--o{ nx_message_source : "origem · SET NULL"
   nx_message ||--o{ nx_feedback : "recebe"
+  nx_bot ||--o{ nx_widget : "publicado em · CASCADE"
   nx_knowledge_base {
     varchar(32) id PK
     varchar(120) name
@@ -110,6 +111,14 @@ erDiagram
     text body
     varchar(32) created_by
   }
+  nx_widget {
+    varchar(32) id PK
+    varchar(32) bot_id FK
+    varchar(48) public_key UK
+    text origins
+    boolean active
+    integer questions
+  }
   nx_audit {
     integer id PK
     timestamp created_at
@@ -141,6 +150,9 @@ def visao_geral(d):
          "JSON, HTML), gravados com o id interno"),
         ("Contas", "`data/usuarios.json`", "Usuários, perfis, hashes de senha, versão da sessão e quando viram o tutorial"),
         ("Segredo", "`data/.segredo`", "Chave das sessões quando NEXO_SECRET está vazio"),
+        ("Configuração [[novo]]", "`data/ajustes.json`, `data/segredos.json`, `data/instalacao.json`, `data/vetores.json`",
+         "Ajustes da tela, chaves dos provedores, estado do assistente e o modelo que gerou os vetores"),
+        ("Backups [[novo]]", "`data/backups/nexo-auto-*.zip`", "Cópias automáticas, com rotação"),
     ], larguras=["19%", "33%", "48%"])
     d.p("A pasta `data` (ou a de `NEXO_DATA_DIR`) concentra tudo o que é local. Copiar essa pasta com o servidor parado é "
         "um backup completo.")
@@ -175,23 +187,25 @@ def visao_geral(d):
         ("Conversas", "nx_conversation, nx_conversation_document"),
         ("Mensagens", "nx_message, nx_message_source"),
         ("Qualidade", "nx_feedback"),
-        ("Integrações", "nx_api_key, nx_webhook"),
+        ("Integrações", "nx_api_key, nx_webhook, nx_widget [[novo]]"),
         ("WhatsApp", "nx_whatsapp_channel, nx_whatsapp_contact, nx_whatsapp_message, nx_quick_reply"),
         ("Operação", "nx_audit"),
     ], larguras=["24%", "76%"])
 
     d.secao(f"O que mudou na {VERSAO[:3]}", novo=True)
     d.lista([
-        "Duas tabelas novas: `nx_quick_reply`, as respostas prontas do WhatsApp (seção 6.5), e `nx_audit`, o registro de "
-        "atividades (seção 7.5).",
-        "`nx_document` ganhou `index_signature`, a assinatura da configuração usada na indexação, e `source_url`, o link "
-        "de origem dos itens importados da internet.",
-        "`nx_bot.suggestions` guarda até seis perguntas sugeridas; `nx_conversation.pinned` fixa a conversa no topo.",
-        "`nx_api_key` ganhou `scope` (full, ask ou feed) e `expires_at` (validade opcional).",
-        "`nx_feedback.comment`, que já existia, passa a ser preenchido pela tela quando a resposta não ajudou.",
-        "A migração acrescenta sozinha as colunas que faltam (capítulo 12). Os ajustes feitos pela tela ficam em "
-        "`data/ajustes.json` (seção 9.4).",
+        "Uma tabela nova: `nx_widget`, os widgets que publicam um agente em sites (seção 7.6). Ela é criada sozinha na "
+        "primeira execução; nenhuma coluna das tabelas existentes muda.",
+        "Quatro arquivos novos na pasta de dados: `data/segredos.json` (chaves dos provedores salvas pela tela), "
+        "`data/instalacao.json` (assistente de configuração), `data/vetores.json` (qual modelo de embeddings gerou os "
+        "vetores) e `data/backups/` (backups automáticos). Detalhes no capítulo 9.",
+        "Trocar o modelo de embeddings, pela tela ou pelo `.env`, apaga a coleção vetorial e põe o acervo inteiro na fila "
+        "de indexação (seção 8.4). Bases, agentes e conversas não mudam.",
+        "O backup passa a levar `segredos.json` e `instalacao.json`, e a restauração aceita os dois.",
     ])
+    d.p("**Na 2.3** chegaram `nx_quick_reply` e `nx_audit`; `nx_document` ganhou `index_signature` e `source_url`, "
+        "`nx_bot` ganhou `suggestions`, `nx_conversation` ganhou `pinned` e `nx_api_key` ganhou `scope` e `expires_at`. A "
+        "migração passou a acrescentar sozinha qualquer coluna que falte.")
     d.p("**Na 2.2** nenhuma tabela mudou: o arquivo de contas ganhou `session_version` e `password_changed_at`, Refazer "
         "passou a atualizar a resposta no lugar (seção 13.6), as respostas em streaming só gravam no fim, "
         "`nx_webhook.last_status` passou a guardar a última tentativa (seção 7.4) e `extension` passou a aceitar `odt`, "
@@ -220,11 +234,12 @@ def diagrama(d):
         ("nx_message", "nx_message_source", "1 para N", "CASCADE"),
         ("nx_document", "nx_message_source", "0..1 para N", "SET NULL: o título e o trecho continuam no histórico"),
         ("nx_message", "nx_feedback", "1 para N", "CASCADE (uma avaliação por usuário)"),
+        ("nx_bot", "nx_widget [[novo]]", "1 para N", "CASCADE no banco; a aplicação também apaga os widgets ao excluir o agente"),
         ("conta (usuarios.json)", "nx_api_key, nx_webhook, criadores", "1 para N", "Sem chave estrangeira; a aplicação "
          "apaga chaves e conversas junto com a conta"),
     ], larguras=["22%", "27%", "13%", "38%"])
     d.secao("Diagrama", quebra=True)
-    d.diagrama(ER_DIAGRAMA, "As quinze tabelas do Nexo, com nx_quick_reply e nx_audit da 2.3. \"||\" indica exatamente um, \"|o\" zero ou um "
+    d.diagrama(ER_DIAGRAMA, "As dezesseis tabelas do Nexo, com nx_widget da 2.4. \"||\" indica exatamente um, \"|o\" zero ou um "
                "e \"o{\" muitos. nx_api_key, nx_webhook, nx_quick_reply e nx_audit se ligam às contas pelo nome de usuário.", altura_max_mm=215)
 
 
@@ -412,7 +427,7 @@ def whatsapp(d):
         "e não acionam o agente.",
     ])
 
-    d.secao("nx_quick_reply", novo=True)
+    d.secao("nx_quick_reply")
     d.tabela(COLS, [
         ("id", "varchar(32)", "não", "UUID4 hex", "PK"),
         ("title", "varchar(80)", "não", "—", "Título mostrado no menu; a API recusa repetidos (409 NAME_TAKEN)"),
@@ -424,17 +439,16 @@ def whatsapp(d):
 
 def integracoes(d):
     d.capitulo("Integrações",
-               "Chaves de API, webhooks e o registro de atividades. Na 2.3, as chaves ganharam permissão e validade e "
-               "chegou a tabela nx_audit.")
+               "Chaves de API, webhooks, o registro de atividades e, na 2.4, os widgets que publicam um agente em sites.")
     d.secao("nx_api_key")
     d.tabela(COLS, [
         ("id", "varchar(32)", "não", "UUID4 hex", "PK"),
         ("owner", "varchar(32)", "não", "—", "Username do dono (indexado)"),
         ("name / prefix", "varchar(80) / (16)", "não", "—", "Nome dado pelo usuário; 12 primeiros caracteres da chave"),
         ("key_hash", "varchar(64)", "não", "—", "Único. SHA-256 da chave completa"),
-        ("scope [[novo]]", "varchar(16)", "não", "full", "full (completa), ask (só consulta) ou feed (só alimentar bases)"),
+        ("scope", "varchar(16)", "não", "full", "full (completa), ask (só consulta) ou feed (só alimentar bases)"),
         ("created_at / last_used_at", "timestamp", "não / sim", "agora (UTC)", "Criação e último uso"),
-        ("expires_at [[novo]]", "timestamp", "sim", "—", "Validade; nula quando a chave não vence"),
+        ("expires_at", "timestamp", "sim", "—", "Validade; nula quando a chave não vence"),
     ], larguras=LARG)
     d.sub("Restrições e índices")
     d.lista([
@@ -503,7 +517,7 @@ flowchart TB
         "do WhatsApp seguem normalmente.",
     ])
 
-    d.secao("nx_audit", novo=True)
+    d.secao("nx_audit")
     d.p("Uma linha por ação registrada: entradas, cadastros, senhas e alterações em bases, textos, documentos, agentes, "
         "chaves, webhooks, conexões, respostas prontas, contas, ajustes, manutenções e backups.")
     d.tabela(COLS, [
@@ -517,6 +531,31 @@ flowchart TB
     ], larguras=LARG)
     d.p("Os filtros da tela usam `action` como prefixo (`bot.` traz todas as ações de agentes). A tabela só cresce; para "
         "limpar, apague por data, por exemplo `DELETE FROM nx_audit WHERE created_at < '2026-01-01'`.")
+
+
+    d.secao("nx_widget", novo=True)
+    d.p("Uma linha por widget publicado. A chave pública vai no código colado no site; as rotas públicas localizam o "
+        "widget por ela, conferem `active` e os sites autorizados e respondem com o agente de `bot_id`.")
+    d.tabela(COLS, [
+        ("id", "varchar(32)", "não", "UUID4 hex", "PK"),
+        ("name", "varchar(80)", "não", "—", "Nome interno, mostrado só na tela Integrações"),
+        ("bot_id", "varchar(32)", "não", "—", "FK nx_bot ON DELETE CASCADE (indexado)"),
+        ("public_key", "varchar(48)", "não", "nxw_ + aleatório", "Única. Identifica o widget no site; trocar invalida o código antigo"),
+        ("origins", "text", "sim", "—", "Sites autorizados, um por linha, já normalizados (host, esquema://host ou *.domínio); "
+         "nulo libera qualquer site"),
+        ("title / welcome", "varchar(80) / (500)", "sim", "—", "Título do topo e boas-vindas; nulos usam o nome e a saudação do agente"),
+        ("color / position", "varchar(16) / (8)", "não", "#000000 / right", "Cor #RRGGBB e canto da tela (right ou left)"),
+        ("show_sources / active", "boolean", "não", "true / true", "Mostrar fontes; widget no ar"),
+        ("questions / unanswered", "integer", "não", "0", "Contadores de perguntas e de perguntas sem resposta"),
+        ("last_used_at", "timestamp", "sim", "—", "Última pergunta recebida"),
+        ("created_by / created_at / updated_at", "varchar(32) / timestamp", "não", "—", "Quem criou e quando; última alteração"),
+    ], larguras=LARG)
+    d.lista([
+        "`PRIMARY KEY (id)`, `UNIQUE (public_key)` e `ix_nx_widget_bot_id` em `bot_id`.",
+        "As conversas do widget não são gravadas: o histórico fica no navegador do visitante e só os contadores mudam.",
+        "A chave pública não é segredo e por isso fica em texto, diferente de `nx_api_key`: ela só permite perguntar a um "
+        "agente, dentro do limite por visitante.",
+    ])
 
 
 def vetorial(d):
@@ -547,9 +586,18 @@ def vetorial(d):
         ("Ações em lote", "Cada item segue a regra da operação correspondente acima"),
     ], larguras=["30%", "70%"])
     d.secao("Trocar o modelo de embeddings")
-    d.p("Vetores de modelos diferentes não são comparáveis. Depois de mudar `NEXO_EMBED_PROVIDER` ou `NEXO_EMBED_MODEL`, "
-        "use uma coleção nova (`NEXO_COLLECTION`) ou reindexe todos os documentos pela tela Documentos (selecione todos e "
-        "use Reindexar). Bases, agentes e conversas não precisam de nenhum ajuste, porque guardam só os ids dos documentos.")
+    d.p("Vetores de modelos diferentes não são comparáveis, e a coleção não aceita vetores de outro tamanho. Por isso o "
+        "Nexo guarda em `data/vetores.json` uma assinatura do espaço vetorial (provedor, modelo e prefixos dos "
+        "embeddings) [[novo]]:")
+    d.passos([
+        "Na primeira execução da 2.4, o arquivo é criado com a configuração atual, sem mexer nos vetores.",
+        "Quando a assinatura muda, pela tela Ajustes ou pelo `.env` com o servidor reiniciado, a coleção é apagada.",
+        "Todos os itens voltam para PENDING e entram na fila; os que perderam o arquivo original ficam FAILED com a "
+        "orientação de enviar de novo.",
+        "O arquivo é regravado com a assinatura nova e a troca entra no registro de atividades (`system.rebuild`).",
+    ])
+    d.p("Bases, agentes e conversas não precisam de nenhum ajuste, porque guardam só os ids dos documentos. Mudar só o "
+        "tamanho do trecho não apaga a coleção: os itens aparecem como desatualizados e são reindexados um a um.")
 
 
 def contas(d):
@@ -599,7 +647,7 @@ def contas(d):
         "bloqueio por senhas erradas.",
         "Excluir uma conta (`DELETE /api/users/{username}`) remove a entrada do arquivo e apaga do banco as chaves de API e "
         "as conversas dela (com mensagens, fontes e avaliações, em cascata).",
-        "Para redefinir uma senha esquecida sem a tela: `python scripts/redefinir_senha.py nome-do-usuario`.",
+        "Para redefinir uma senha esquecida sem a tela: `python -m nexo senha nome-do-usuario`.",
     ])
     d.secao("data/uploads")
     d.p("Cada arquivo é gravado como `<id>.<extensão>` (por exemplo `<id>.pdf`, `<id>.docx` ou `<id>.epub`), com o id de "
@@ -612,9 +660,26 @@ def contas(d):
         "que mudam `session_version`. Chaves de API não dependem dele: continuam válidas porque são conferidas pelo hash. "
         "Os tokens das conexões do WhatsApp também não dependem dele.")
     d.secao("data/ajustes.json")
-    d.p("Guarda só os valores alterados na tela Sistema e conta › Ajustes, como `{\"top_k\": 12, \"rate_limit\": 30}`. "
-        "Na leitura da configuração, esses valores vão por cima do `.env`; **Restaurar padrões** apaga as chaves do "
-        "arquivo. O arquivo é regravado de forma atômica e entra no backup.")
+    d.p("Guarda só os valores alterados na tela Sistema e conta › Ajustes, como `{\"top_k\": 12, \"llm_provider\": "
+        "\"compativel\"}`. Na leitura da configuração, esses valores vão por cima do `.env`; **Restaurar padrões** apaga as "
+        "chaves do arquivo. O arquivo é regravado de forma atômica e entra no backup.")
+    d.secao("data/segredos.json", novo=True)
+    d.p("Mesmo formato do `ajustes.json`, só com as chaves salvas pela tela: `openai_api_key` (OpenAI ou serviço "
+        "compatível) e `cohere_api_key`. É gravado com permissão só para o dono do arquivo (0600 no Linux e no macOS), "
+        "nunca é devolvido pela API (a tela mostra só se a chave está configurada) e entra no backup. Apagar uma chave "
+        "pela tela volta a usar a do `.env`, se houver.")
+    d.secao("data/instalacao.json e data/vetores.json", novo=True)
+    d.tabela(["Arquivo", "Campos", "Uso"], [
+        ("instalacao.json", "versao, concluido_em, por, reaberto_por", "Se o assistente de configuração já foi concluído ou "
+         "pulado; reabrir apaga concluido_em"),
+        ("vetores.json", "versao, espaco, embeddings, gravado_em", "Assinatura do espaço vetorial da coleção atual "
+         "(seção 8.4)"),
+    ], larguras=["20%", "38%", "42%"])
+    d.secao("data/backups", novo=True)
+    d.p("Os backups automáticos, `nexo-auto-AAAA-MM-DD-HHMMSS-mmm.zip`, com o mesmo conteúdo do backup manual. A cada "
+        "5 minutos o Nexo confere se o mais novo tem mais de `NEXO_BACKUP_HOURS` horas; se tiver, grava outro (primeiro "
+        "como `.parcial`, renomeado no fim) e apaga os que passarem de `NEXO_BACKUP_KEEP`. A pasta não entra nos próprios "
+        "backups.")
 
 
 def consultas(d):
@@ -666,8 +731,9 @@ def consultas(d):
         ("uk_whatsapp_contact_channel_phone", "nx_whatsapp_contact", "channel_id, phone (único)"),
         ("ix_nx_whatsapp_message_contact_created", "nx_whatsapp_message", "contact_id, created_at"),
         ("ix_nx_whatsapp_message_external_id", "nx_whatsapp_message", "external_id"),
+        ("ix_nx_widget_bot_id e único de public_key [[novo]]", "nx_widget", "bot_id; public_key"),
     ], larguras=["46%", "24%", "30%"], cls="compacta")
-    d.p(f"A {VERSAO} cria os três índices de `nx_audit`; nenhum índice existente muda.")
+    d.p(f"A {VERSAO} cria o índice de `bot_id` e o único de `public_key` de `nx_widget`; nenhum índice existente muda.")
     d.secao("Consultas úteis da 2.1")
     d.codigo("""
 SELECT b.name AS base,
@@ -965,8 +1031,10 @@ def escala(d):
         ("nx_document", "Arquivos e textos", "Cresce pouco; o peso está em data/uploads"),
     ], larguras=["28%", "26%", "46%"])
     d.secao("Backup")
-    d.p("Pare o servidor e copie a pasta `data` inteira. Com bancos externos, faça também o backup deles no mesmo momento. "
-        "O backup contém os segredos dos webhooks e os tokens do WhatsApp: guarde-o com o mesmo cuidado de uma senha.")
+    d.p("Ligue o backup automático (seção 9.7) e copie a pasta `data/backups` para outro disco de tempos em tempos. Para "
+        "uma cópia completa, inclusive dos vetores, pare o servidor e copie a pasta `data` inteira. Com bancos externos, "
+        "faça também o backup deles no mesmo momento. O backup contém os segredos dos webhooks, os tokens do WhatsApp e "
+        "as chaves dos provedores: guarde-o com o mesmo cuidado de uma senha.")
     d.secao("DDL de referência")
     d.codigo("""
 CREATE TABLE nx_bot (
@@ -991,9 +1059,9 @@ CREATE TABLE nx_bot (
 def montar(temp):
     d = Documento("Arquitetura do banco de dados", temp)
     d.capa("Arquitetura do banco de dados",
-           "Diagrama de relacionamentos, as quinze tabelas com campos, tipos, chaves e restrições, os índices, as bases de "
-           "conhecimento, os agentes, o WhatsApp, a migração automática da 2.0, a coleção vetorial, o arquivo de contas "
-           "com as sessões, as consultas e os caminhos para trocar de banco e escalar.")
+           "Diagrama de relacionamentos, as dezesseis tabelas com campos, tipos, chaves e restrições, os índices, as bases "
+           "de conhecimento, os agentes, o WhatsApp, os widgets, a migração automática, a coleção vetorial e a troca segura "
+           "de embeddings, os arquivos de contas, ajustes e segredos, as consultas e os caminhos para trocar de banco e escalar.")
     d.lugar_do_sumario()
     visao_geral(d)
     diagrama(d)

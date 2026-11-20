@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ApiError, api, type User } from "../api";
+import { ApiError, api, type SetupState, type User } from "../api";
 import { useAuth } from "../auth";
 import { applyTheme, initialTheme, watchSystemTheme, type ThemeChoice } from "../theme";
 import { CommandPalette } from "./CommandPalette";
@@ -80,6 +80,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [shortcuts, setShortcuts] = useState(false);
   const [waiting, setWaiting] = useState(0);
   const [offline, setOffline] = useState(false);
+  const [setup, setSetup] = useState<SetupState | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -114,6 +115,11 @@ export function Shell({ children }: { children: ReactNode }) {
   }, [ping, offline]);
 
   useEffect(() => { ping(); }, [location.pathname]);
+
+  useEffect(() => {
+    if (user?.role !== "admin") return;
+    api.setup().then(setSetup).catch(() => undefined);
+  }, [user?.role, location.pathname]);
 
   useEffect(() => {
     document.title = waiting > 0 ? `(${waiting}) Nexo` : "Nexo";
@@ -181,6 +187,13 @@ export function Shell({ children }: { children: ReactNode }) {
           <span>Ir para…</span>
           <kbd>Ctrl K</kbd>
         </button>
+        {setup && setup.completed < setup.total && (
+          <NavLink to="/sistema" className="rail__progress" title="Primeiros passos">
+            <span>Primeiros passos · {setup.completed} de {setup.total}</span>
+            <span className="onboarding-bar" aria-hidden="true"><span style={{ width: `${Math.round((setup.completed / setup.total) * 100)}%` }} /></span>
+            <small>{setup.steps.find((s) => !s.done)?.label}</small>
+          </NavLink>
+        )}
         <nav className="rail__nav">
           {groups.map((group) => (
             <div key={group.title} className="rail__group">

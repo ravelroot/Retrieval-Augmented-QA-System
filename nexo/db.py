@@ -264,6 +264,34 @@ class QuickReplyRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class WidgetRow(Base):
+    __tablename__ = "nx_widget"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    name: Mapped[str] = mapped_column(String(80))
+    bot_id: Mapped[str] = mapped_column(String(32), ForeignKey("nx_bot.id", ondelete="CASCADE"), index=True)
+    public_key: Mapped[str] = mapped_column(String(48), unique=True)
+    origins: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    welcome: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    color: Mapped[str] = mapped_column(String(16), default="#000000")
+    position: Mapped[str] = mapped_column(String(8), default="right")
+    show_sources: Mapped[bool] = mapped_column(Boolean, default=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    questions: Mapped[int] = mapped_column(Integer, default=0)
+    unanswered: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    bot: Mapped[BotRow] = relationship(lazy="selectin")
+
+    @property
+    def origin_list(self) -> list[str]:
+        return [o for o in (self.origins or "").split("\n") if o]
+
+
 class AuditRow(Base):
     __tablename__ = "nx_audit"
 

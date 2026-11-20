@@ -258,3 +258,28 @@ CREATE TABLE nx_whatsapp_message (
 CREATE INDEX ix_nx_whatsapp_message_contact_created ON nx_whatsapp_message (contact_id, created_at);
 
 CREATE INDEX ix_nx_whatsapp_message_external_id ON nx_whatsapp_message (external_id);
+
+CREATE TABLE nx_widget (
+	id VARCHAR(32) NOT NULL,
+	name VARCHAR(80) NOT NULL,
+	bot_id VARCHAR(32) NOT NULL,
+	public_key VARCHAR(48) NOT NULL,
+	origins TEXT,
+	title VARCHAR(80),
+	welcome VARCHAR(500),
+	color VARCHAR(16) NOT NULL,
+	position VARCHAR(8) NOT NULL,
+	show_sources BOOLEAN NOT NULL,
+	active BOOLEAN NOT NULL,
+	questions INTEGER NOT NULL,
+	unanswered INTEGER NOT NULL,
+	last_used_at TIMESTAMP WITHOUT TIME ZONE,
+	created_by VARCHAR(32) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(bot_id) REFERENCES nx_bot (id) ON DELETE CASCADE,
+	UNIQUE (public_key)
+);
+
+CREATE INDEX ix_nx_widget_bot_id ON nx_widget (bot_id);

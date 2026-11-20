@@ -431,6 +431,8 @@ def delete_bot(bot_id: str, p: Principal = Depends(current_user), database: Sess
         database.delete(c)
     for channel in database.scalars(select(db.WhatsAppChannelRow).where(db.WhatsAppChannelRow.bot_id == row.id)).all():
         channel.bot_id = None
+    for widget in database.scalars(select(db.WidgetRow).where(db.WidgetRow.bot_id == row.id)).all():
+        database.delete(widget)
     name = row.name
     database.delete(row)
     database.commit()

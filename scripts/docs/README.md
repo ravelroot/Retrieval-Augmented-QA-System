@@ -17,7 +17,7 @@ python3 scripts/docs/gerar_pdfs.py
 
 Leva poucos segundos. Precisa de:
 
-1. Python 3 com `playwright` (Chromium já instalado), `pypdf` e `Pillow`.
+1. Python 3 com `playwright` (Chromium já instalado), `pypdf` e `Pillow`. Para usar o Chrome do sistema no lugar do Chromium do Playwright, aponte `NEXO_CHROME` para o executável.
 2. O `mermaid.min.js`, que vem com o mermaid-cli (`npm i -g @mermaid-js/mermaid-cli`). O script procura sozinho; se não achar, aponte `NEXO_MERMAID_JS` para o arquivo.
 
 ## Como funciona

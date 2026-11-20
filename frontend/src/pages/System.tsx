@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ApiError, api, downloadAudit, downloadBackup, type AuditPage, type Check, type Diagnostics, type MaintenanceAction,
-  type SettingItem, type SettingsData, type SystemStatus, type User } from "../api";
+import { Link, useSearchParams } from "react-router-dom";
+import { ApiError, api, downloadAudit, downloadAutoBackup, downloadBackup, type AuditPage, type BackupList, type Check, type Diagnostics,
+  type MaintenanceAction, type ProbeResult, type ProbeTarget, type SettingItem, type SettingsData, type SetupState, type SystemStatus,
+  type User } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../components/Field";
 import { Icon } from "../components/Icon";
 import { openTutorial } from "../components/Shell";
+import { Checklist } from "./Setup";
 import { useToast } from "../components/Toast";
 import { formatDateTime, plural } from "../format";
 
@@ -175,6 +177,25 @@ function Users({ me }: { me: string }) {
   );
 }
 
+const PROBES: Record<string, { target: ProbeTarget; label: string }> = {
+  "Inteligência": { target: "llm", label: "Testar o modelo" },
+  "Embeddings": { target: "embedding", label: "Testar os embeddings" },
+  "Reranking": { target: "reranker", label: "Testar o reranking" },
+};
+
+function visible(name: string, draft: Record<string, string | boolean>): boolean {
+  const llm = String(draft.llm_provider ?? "");
+  const embed = String(draft.embed_provider ?? "");
+  const rerank = String(draft.reranker ?? "");
+  if (name === "ollama_url") return llm === "ollama" || embed === "ollama";
+  if (name === "openai_base_url" || name === "openai_api_key") return llm === "openai" || llm === "compativel" || embed === "openai";
+  if (name === "llm_model") return llm !== "extrativo";
+  if (name === "embed_model") return embed !== "hash";
+  if (name === "rerank_model") return rerank === "huggingface";
+  if (name === "cohere_model" || name === "cohere_api_key") return rerank === "cohere";
+  return true;
+}
+
 function SettingsPanel({ onReindex }: { onReindex: () => void }) {
   const toast = useToast();
   const [data, setData] = useState<SettingsData | null>(null);
@@ -182,10 +203,12 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [reindex, setReindex] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
+  const [probes, setProbes] = useState<Record<string, ProbeResult | "busy">>({});
 
   function fill(next: SettingsData) {
     setData(next);
-    setDraft(Object.fromEntries(next.items.map((i) => [i.name, typeof i.value === "boolean" ? i.value : String(i.value)])));
+    setDraft(Object.fromEntries(next.items.map((i) => [i.name, typeof i.value === "boolean" ? i.value : String(i.value ?? "")])));
   }
 
   useEffect(() => { api.settings().then(fill).catch((e: ApiError) => toast(e.message, "error")); }, []);
@@ -205,28 +228,41 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
     if (item.kind === "bool") return !!raw;
     if (item.kind === "int") return Number.parseInt(String(raw), 10);
     if (item.kind === "float") return Number.parseFloat(String(raw).replace(",", "."));
-    return String(raw ?? "");
+    return String(raw ?? "").trim();
   }
 
   const changes = useMemo(() => {
     const out: Record<string, string | number | boolean> = {};
     for (const item of data?.items ?? []) {
       const value = parsed(item);
+      if (item.kind === "secret") {
+        if (value) out[item.name] = value;
+        continue;
+      }
       if (value !== item.value && !(typeof value === "number" && Number.isNaN(value) && item.value === "")) out[item.name] = value;
     }
     return out;
   }, [draft, data]);
 
-  async function save(e: FormEvent) {
-    e.preventDefault();
+  const wipes = (data?.items ?? []).filter((i) => i.wipe && i.name in changes);
+
+  async function save(e?: FormEvent) {
+    e?.preventDefault();
     if (!Object.keys(changes).length) return;
+    if (wipes.length && !confirmWipe) {
+      setConfirmWipe(true);
+      return;
+    }
     setBusy(true);
     setFields({});
+    setConfirmWipe(false);
     try {
       const next = await api.saveSettings(changes);
       fill(next);
+      setProbes({});
       setReindex(!!next.reindex_needed);
-      toast(next.changed?.length ? `${plural(next.changed.length, "ajuste salvo", "ajustes salvos")}. Já vale para as próximas perguntas.` : "Nada mudou.");
+      if (next.rebuilt) toast(`${plural(next.rebuilt, "documento voltou", "documentos voltaram")} para a fila com os novos embeddings.`);
+      else toast(next.changed?.length ? `${plural(next.changed.length, "ajuste salvo", "ajustes salvos")}. Já vale para as próximas perguntas.` : "Nada mudou.");
     } catch (err) {
       const apiError = err as ApiError;
       setFields(apiError.fields ?? {});
@@ -248,8 +284,46 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
     }
   }
 
+  async function probe(group: string) {
+    const target = PROBES[group].target;
+    setProbes((current) => ({ ...current, [group]: "busy" }));
+    try {
+      const out = await api.testProvider(target, changes);
+      setProbes((current) => ({ ...current, [group]: out }));
+    } catch (err) {
+      const apiError = err as ApiError;
+      setFields(apiError.fields ?? {});
+      setProbes((current) => ({ ...current, [group]: { target, ok: false, detail: apiError.message, latency_ms: 0 } }));
+    }
+  }
+
+  function input(item: SettingItem, id: string, error: string | undefined) {
+    const common = { id, "aria-invalid": !!error, "aria-describedby": `${id}-dica` };
+    if (item.kind === "choice") {
+      return (
+        <select {...common} value={String(draft[item.name] ?? "")} onChange={(e) => setDraft({ ...draft, [item.name]: e.target.value })}>
+          {(item.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      );
+    }
+    if (item.kind === "secret") {
+      return (
+        <input {...common} type="password" autoComplete="off" value={String(draft[item.name] ?? "")}
+          placeholder={item.configured ? "•••••••• configurada" : "Não configurada"}
+          onChange={(e) => setDraft({ ...draft, [item.name]: e.target.value })} />
+      );
+    }
+    return (
+      <input {...common} type={item.kind === "text" || item.kind === "url" ? "text" : "number"} inputMode={item.kind === "url" ? "url" : undefined}
+        value={String(draft[item.name] ?? "")} placeholder={item.placeholder ?? undefined}
+        step={item.kind === "float" ? "any" : 1} min={item.min ?? undefined} max={item.max ?? undefined}
+        onChange={(e) => setDraft({ ...draft, [item.name]: e.target.value })} />
+    );
+  }
+
   if (!data) return <div className="box"><section className="panel"><p className="panel__lead">Carregando os ajustes…</p></section></div>;
   const overridden = data.items.filter((i) => i.overridden).length;
+  const pending = Object.keys(changes).length;
   return (
     <>
       <div className="box">
@@ -257,62 +331,92 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
           <div className="ops-head">
             <div>
               <h2>Ajustes pela tela</h2>
-              <p className="panel__lead">Valem na hora, sem reiniciar o servidor, e ficam guardados em <code>data/ajustes.json</code> por cima do <code>.env</code>. {overridden ? `${plural(overridden, "item diferente", "itens diferentes")} do padrão.` : "Tudo no padrão do .env."}</p>
+              <p className="panel__lead">Valem na hora, sem reiniciar o servidor nem editar o <code>.env</code>. Ficam em <code>data/ajustes.json</code>, e as chaves em <code>data/segredos.json</code>. {overridden ? `${plural(overridden, "item diferente", "itens diferentes")} do padrão.` : "Tudo no padrão do .env."} Para o passo a passo guiado, abra o <Link to="/configurar">assistente de configuração</Link>.</p>
             </div>
             <span className="panel__actions">
               {overridden > 0 && <button className="ghost-button small" type="button" onClick={() => restore()}>Restaurar padrões</button>}
-              <button className="primary-button small" type="submit" disabled={busy || !Object.keys(changes).length}>
-                <Icon name="check" size={15} />{busy ? "Salvando…" : Object.keys(changes).length ? `Salvar ${plural(Object.keys(changes).length, "ajuste", "ajustes")}` : "Salvar"}
+              <button className="primary-button small" type="submit" disabled={busy || !pending}>
+                <Icon name="check" size={15} />{busy ? "Salvando…" : pending ? `Salvar ${plural(pending, "ajuste", "ajustes")}` : "Salvar"}
               </button>
             </span>
           </div>
+          {confirmWipe && (
+            <div className="ops-callout ops-wipe" role="alert">
+              <span><b>Trocar os embeddings apaga os vetores e reindexa o acervo inteiro.</b> Enquanto a fila anda, as respostas ficam incompletas. Use “Testar os embeddings” antes, se ainda não testou.</span>
+              <span className="panel__actions">
+                <button className="danger-button small" type="button" onClick={() => save()}>Trocar e reindexar</button>
+                <button className="ghost-button small" type="button" onClick={() => setConfirmWipe(false)}>Cancelar</button>
+              </span>
+            </div>
+          )}
           {(reindex || data.outdated > 0) && (
             <div className="ops-callout" role="status">
               <span><b>{plural(data.outdated, "documento indexado", "documentos indexados")} com a configuração anterior.</b> Reindexe para os trechos seguirem o novo tamanho.</span>
               <button className="ghost-button small" type="button" onClick={onReindex}><Icon name="refresh" size={15} />Reindexar desatualizados</button>
             </div>
           )}
-          {groups.map((group) => (
-            <fieldset key={group.name} className="ops-group">
-              <legend>{group.name}</legend>
-              <div className="ops-fields">
-                {group.items.map((item) => {
-                  const id = `ajuste-${item.name}`;
-                  const error = fields[item.name];
-                  const dirty = item.name in changes;
-                  return (
-                    <div key={item.name} className={`ops-field${error ? " field--error" : ""}${dirty ? " is-dirty" : ""}`}>
-                      {item.kind === "bool" ? (
-                        <label className="check ops-check" htmlFor={id}>
-                          <input id={id} type="checkbox" checked={!!draft[item.name]}
-                            onChange={(e) => setDraft({ ...draft, [item.name]: e.target.checked })} />
-                          <span><b>{item.label}</b><small>{item.hint}</small></span>
-                        </label>
-                      ) : (
-                        <>
-                          <label htmlFor={id}>{item.label}{item.reindex && <span className="ops-tag">reindexa</span>}</label>
-                          <input id={id} type={item.kind === "text" ? "text" : "number"} value={String(draft[item.name] ?? "")}
-                            step={item.kind === "float" ? "any" : 1} min={item.min ?? undefined} max={item.max ?? undefined}
-                            aria-invalid={!!error} aria-describedby={`${id}-dica`}
-                            onChange={(e) => setDraft({ ...draft, [item.name]: e.target.value })} />
-                          <p className={error ? "field__message" : "field__hint"} id={`${id}-dica`}>{error ?? item.hint}</p>
-                        </>
-                      )}
-                      {item.overridden && (
-                        <p className="ops-default">Padrão do .env: {show(item.default)} <button type="button" className="link-button" onClick={() => restore([item.name])}>restaurar</button></p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ))}
+          {groups.map((group) => {
+            const shown = group.items.filter((i) => visible(i.name, draft));
+            const test = PROBES[group.name];
+            const result = probes[group.name];
+            return (
+              <fieldset key={group.name} className="ops-group">
+                <legend>{group.name}</legend>
+                <div className="ops-fields">
+                  {shown.map((item) => {
+                    const id = `ajuste-${item.name}`;
+                    const error = fields[item.name];
+                    const dirty = item.name in changes;
+                    return (
+                      <div key={item.name} className={`ops-field${error ? " field--error" : ""}${dirty ? " is-dirty" : ""}`}>
+                        {item.kind === "bool" ? (
+                          <label className="check ops-check" htmlFor={id}>
+                            <input id={id} type="checkbox" checked={!!draft[item.name]}
+                              onChange={(e) => setDraft({ ...draft, [item.name]: e.target.checked })} />
+                            <span><b>{item.label}</b><small>{item.hint}</small></span>
+                          </label>
+                        ) : (
+                          <>
+                            <label htmlFor={id}>
+                              {item.label}
+                              {item.wipe ? <span className="ops-tag">reindexa tudo</span> : item.reindex && <span className="ops-tag">reindexa</span>}
+                              {item.kind === "secret" && item.configured && <span className="ops-secret">configurada</span>}
+                            </label>
+                            {input(item, id, error)}
+                            <p className={error ? "field__message" : "field__hint"} id={`${id}-dica`}>{error ?? item.hint}</p>
+                          </>
+                        )}
+                        {item.overridden && (
+                          <p className="ops-default">
+                            {item.kind === "secret" ? "Definida pela tela." : `Padrão do .env: ${show(item.default) || "vazio"}`}{" "}
+                            <button type="button" className="link-button" onClick={() => restore([item.name])}>{item.kind === "secret" ? "apagar" : "restaurar"}</button>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {test && (
+                  <div className="ops-probe">
+                    <button className="ghost-button small" type="button" onClick={() => probe(group.name)} disabled={result === "busy"}>
+                      <Icon name="bolt" size={15} />{result === "busy" ? "Testando…" : test.label}
+                    </button>
+                    {result && result !== "busy" && (
+                      <p className={`setup-probe ${result.ok ? "is-ok" : "is-bad"}`} role="status">
+                        <Icon name={result.ok ? "check" : "close"} size={15} /><span>{result.detail}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </fieldset>
+            );
+          })}
         </form>
       </div>
       <div className="box">
         <section className="panel">
           <h2>Definidos no .env</h2>
-          <p className="panel__lead">Trocar estes itens exige editar o <code>.env</code> e reiniciar, porque mudam o modelo de embeddings, o banco ou a segurança. O passo a passo está no <code>Manual-Nexo.pdf</code>.</p>
+          <p className="panel__lead">Trocar estes itens exige editar o <code>.env</code> e reiniciar, porque mudam o banco, o banco vetorial ou a segurança do servidor. O passo a passo está no <code>Manual-Nexo.pdf</code>.</p>
           <dl className="config">
             {Object.entries(data.fixed).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
           </dl>
@@ -400,6 +504,128 @@ function DiagnosticsPanel() {
   );
 }
 
+function Onboarding({ state }: { state: SetupState }) {
+  const percent = Math.round((state.completed / Math.max(1, state.total)) * 100);
+  return (
+    <div className="box">
+      <section className="panel">
+        <div className="onboarding-head">
+          <div>
+            <h2>Primeiros passos · {state.completed} de {state.total}</h2>
+            <p className="panel__lead">{state.completed === state.total ? "Tudo pronto. O Nexo está configurado, alimentado, publicado e protegido." : "O que falta para o Nexo trabalhar sozinho. Cada item abre a tela certa."}</p>
+          </div>
+          <Link className="ghost-button small" to="/configurar"><Icon name="sparkle" size={15} />Abrir o assistente</Link>
+        </div>
+        <div className="onboarding-bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></div>
+        <Checklist state={state} compact />
+      </section>
+    </div>
+  );
+}
+
+const FREQUENCIES: { hours: number; label: string }[] = [
+  { hours: 0, label: "Desligado" },
+  { hours: 6, label: "A cada 6 horas" },
+  { hours: 12, label: "A cada 12 horas" },
+  { hours: 24, label: "Todo dia" },
+  { hours: 168, label: "Toda semana" },
+];
+
+function size(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
+  return `${(bytes / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+}
+
+function AutoBackupPanel({ onDone }: { onDone: () => void }) {
+  const toast = useToast();
+  const [data, setData] = useState<BackupList | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = () => api.backups().then(setData).catch((e: ApiError) => toast(e.message, "error"));
+  useEffect(() => { void load(); }, []);
+
+  async function plan(values: Record<string, number>) {
+    setBusy("plan");
+    try {
+      await api.saveSettings(values);
+      toast(values.backup_hours === 0 ? "Backup automático desligado." : "Backup automático atualizado.");
+      void load();
+      onDone();
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function now() {
+    setBusy("now");
+    try {
+      setData(await api.backupNow());
+      toast("Backup gravado em data/backups.");
+      onDone();
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function get(name: string) {
+    setBusy(name);
+    try {
+      await downloadAutoBackup(name);
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!data) return null;
+  const known = FREQUENCIES.some((f) => f.hours === data.every_hours);
+  return (
+    <div className="box">
+      <section className="panel">
+        <div className="ops-head">
+          <div>
+            <h2>Backup automático</h2>
+            <p className="panel__lead">
+              {data.every_hours
+                ? `Ligado. ${data.next_at ? `Próximo por volta de ${formatDateTime(data.next_at)}.` : ""} Os ${data.keep} mais recentes ficam em ${data.folder}.`
+                : "Desligado. Ligue para o Nexo guardar cópias sozinho, sem depender de alguém lembrar."}
+            </p>
+          </div>
+          <button className="ghost-button small" onClick={now} disabled={!!busy}><Icon name="download" size={15} />{busy === "now" ? "Gravando…" : "Fazer um agora"}</button>
+        </div>
+        {data.last_error && <p className="alert" role="alert">O último backup automático falhou: {data.last_error}</p>}
+        <div className="backup-plan">
+          <label className="select"><span>Frequência</span>
+            <select value={data.every_hours} disabled={busy === "plan"} onChange={(e) => plan({ backup_hours: Number(e.target.value) })}>
+              {!known && <option value={data.every_hours}>A cada {data.every_hours} horas</option>}
+              {FREQUENCIES.map((f) => <option key={f.hours} value={f.hours}>{f.label}</option>)}
+            </select>
+          </label>
+          <label className="select"><span>Guardar</span>
+            <select value={data.keep} disabled={busy === "plan"} onChange={(e) => plan({ backup_keep: Number(e.target.value) })}>
+              {[...new Set([3, 7, 14, 30, data.keep])].sort((a, b) => a - b).map((n) => <option key={n} value={n}>Os {n} mais recentes</option>)}
+            </select>
+          </label>
+        </div>
+        {data.items.length > 0 ? (
+          <ul className="backups">
+            {data.items.map((b) => (
+              <li key={b.name}>
+                <span><code>{b.name}</code> <span className="muted">· {formatDateTime(b.created_at)} · {size(b.bytes)}</span></span>
+                <button className="link-button" onClick={() => get(b.name)} disabled={busy === b.name}>{busy === b.name ? "Baixando…" : "Baixar"}</button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="panel__lead">Nenhum backup automático gravado ainda.</p>}
+      </section>
+    </div>
+  );
+}
+
 const MAINTENANCE: { action: MaintenanceAction; title: string; text: string; confirm?: string; icon: string }[] = [
   { action: "reindex_failed", title: "Reindexar falhas", text: "Tenta de novo os documentos que falharam na indexação.", icon: "refresh" },
   { action: "reindex_outdated", title: "Reindexar desatualizados", text: "Refaz os trechos dos documentos indexados com outra configuração de embeddings ou de tamanho do trecho.", icon: "refresh" },
@@ -448,10 +674,11 @@ function MaintenancePanel({ status, onDone }: { status: SystemStatus | null; onD
   return (
     <>
       {result && <p className="alert alert--ok" role="status">{result}</p>}
+      <AutoBackupPanel onDone={onDone} />
       <div className="box box--two">
         <section className="panel ops-backup">
-          <h2>Backup</h2>
-          <p className="panel__lead">Um .zip com o banco, as contas, os ajustes, o segredo das sessões e os arquivos enviados. Os vetores não entram: depois de restaurar, o Nexo reindexa sozinho.</p>
+          <h2>Baixar backup agora</h2>
+          <p className="panel__lead">Um .zip com o banco, as contas, os ajustes, os segredos e os arquivos enviados. Os vetores não entram: depois de restaurar, o Nexo reindexa sozinho.</p>
           <button className="primary-button" onClick={backup} disabled={!!busy}><Icon name="download" size={16} />{busy === "backup" ? "Gerando o arquivo…" : "Baixar backup"}</button>
           <div className="ops-cli">
             <span>Pela linha de comando, com o servidor parado para restaurar:</span>
@@ -646,8 +873,10 @@ export function SystemPage() {
   const admin = user?.role === "admin";
   const tab = (admin ? TABS.find((t) => t.id === params.get("aba"))?.id : null) ?? "geral";
 
+  const [setup, setSetup] = useState<SetupState | null>(null);
   const loadStatus = () => api.status().then(setStatus).catch((e: ApiError) => setError(e.message));
   useEffect(() => { void loadStatus(); }, [tab]);
+  useEffect(() => { if (admin && tab === "geral") api.setup().then(setSetup).catch(() => undefined); }, [admin, tab]);
 
   function setTab(next: Tab) {
     setParams(next === "geral" ? {} : { aba: next }, { replace: true });
@@ -755,12 +984,13 @@ export function SystemPage() {
 
       {tab === "geral" && (
         <>
+          {admin && setup && <Onboarding state={setup} />}
           <div className="system box">
             <section className="panel">
               <h2>Pipeline de respostas</h2>
               <p className="panel__lead">
                 {admin
-                  ? <>Modelo, busca, cortes, tamanho do trecho, cadastro e limites mudam na aba <button className="link-button" onClick={() => setTab("ajustes")}>Ajustes</button>, sem reiniciar. Provedores e bancos ficam no <code>.env</code>.</>
+                  ? <>Provedor de IA, chaves, modelos, busca, cortes, tamanho do trecho, cadastro, limites e backup mudam na aba <button className="link-button" onClick={() => setTab("ajustes")}>Ajustes</button>, sem reiniciar. Só o banco e o banco vetorial ficam no <code>.env</code>.</>
                   : <>Para mudar qualquer item, peça a um administrador. O passo a passo está no <code>Manual-Nexo.pdf</code>.</>}
                 {op?.overrides.length ? ` ${plural(op.overrides.length, "item ajustado", "itens ajustados")} pela tela.` : ""}
               </p>

@@ -14,6 +14,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("NEXO_EMBED_PROVIDER", "hash")
     monkeypatch.setenv("NEXO_LLM_PROVIDER", "extrativo")
     monkeypatch.setenv("NEXO_RERANKER", "none")
+    monkeypatch.setenv("NEXO_REQUIRE_PASSWORD_CHANGE", "false")
     monkeypatch.setenv("NEXO_MIN_SIMILARITY", "0.1")
     monkeypatch.setenv("NEXO_SECRET", "segredo-de-teste-com-tamanho-suficiente-para-hs256")
     from nexo import db, webhooks

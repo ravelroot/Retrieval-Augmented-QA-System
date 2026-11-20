@@ -8,6 +8,7 @@ export interface User {
   last_login_at: string | null;
   tutorial_done_at: string | null;
   password_changed_at?: string | null;
+  must_change_password?: boolean;
 }
 
 export interface Session {
@@ -133,7 +134,7 @@ export interface SystemStatus {
     token_hours: number; max_upload_mb: number };
 }
 
-export type SettingKind = "text" | "int" | "float" | "bool";
+export type SettingKind = "text" | "int" | "float" | "bool" | "choice" | "url" | "secret";
 
 export interface SettingItem {
   name: string;
@@ -145,6 +146,11 @@ export interface SettingItem {
   default: string | number | boolean;
   overridden: boolean;
   reindex: boolean;
+  wipe?: boolean;
+  required?: boolean;
+  configured?: boolean | null;
+  placeholder?: string | null;
+  options?: { value: string; label: string }[] | null;
   min: number | null;
   max: number | null;
 }
@@ -155,6 +161,91 @@ export interface SettingsData {
   outdated: number;
   changed?: string[];
   reindex_needed?: boolean;
+  rebuilt?: number;
+}
+
+export type ProbeTarget = "llm" | "embedding" | "reranker";
+
+export interface ProbeResult {
+  target: ProbeTarget;
+  ok: boolean;
+  detail: string;
+  latency_ms: number;
+}
+
+export interface SetupStep {
+  id: string;
+  label: string;
+  detail: string;
+  done: boolean;
+  to: string | null;
+}
+
+export interface SetupState {
+  done: boolean;
+  done_at: string | null;
+  must_change_password: boolean;
+  public_url: string | null;
+  llm_provider: string;
+  steps: SetupStep[];
+  completed: number;
+  total: number;
+}
+
+export interface BackupFile {
+  name: string;
+  bytes: number;
+  created_at: string;
+}
+
+export interface BackupList {
+  every_hours: number;
+  keep: number;
+  folder: string;
+  last_at: string | null;
+  next_at: string | null;
+  last_error: string | null;
+  items: BackupFile[];
+}
+
+export interface Widget {
+  id: string;
+  name: string;
+  bot_id: string;
+  bot_name: string | null;
+  public_key: string;
+  origins: string[];
+  title: string | null;
+  welcome: string | null;
+  color: string;
+  position: "right" | "left";
+  show_sources: boolean;
+  active: boolean;
+  questions: number;
+  unanswered: number;
+  last_used_at: string | null;
+  created_by: string;
+  created_at: string;
+  snippet: string;
+  can_edit: boolean;
+}
+
+export interface WidgetInput {
+  name?: string;
+  bot_id?: string;
+  origins?: string[];
+  title?: string | null;
+  welcome?: string | null;
+  color?: string;
+  position?: "right" | "left";
+  show_sources?: boolean;
+  active?: boolean;
+}
+
+export interface OpenAiModel {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export type CheckStatus = "ok" | "warn" | "fail" | "info";
@@ -454,9 +545,14 @@ export function saveSession(session: Session | null): void {
 }
 
 let onUnauthorized: () => void = () => undefined;
+let onPasswordRequired: () => void = () => undefined;
 
 export function setUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
+}
+
+export function setPasswordRequiredHandler(handler: () => void): void {
+  onPasswordRequired = handler;
 }
 
 function failure(status: number, data: { code?: string; message?: string; fields?: Record<string, string> } | null,
@@ -547,6 +643,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401 && session) onUnauthorized();
+    if (response.status === 403 && data?.code === "PASSWORD_CHANGE_REQUIRED") onPasswordRequired();
     throw new ApiError(
       response.status,
       data?.code ?? "ERROR",
@@ -684,6 +781,26 @@ export const api = {
     request<QuickReply>("PATCH", `/whatsapp/quick-replies/${id}`, patch),
   deleteQuickReply: (id: string) => request<void>("DELETE", `/whatsapp/quick-replies/${id}`),
   health: () => request<{ status: string; version: string }>("GET", "/health"),
+  setup: () => request<SetupState>("GET", "/system/setup"),
+  finishSetup: (done = true) => request<SetupState>("POST", "/system/setup", { done }),
+  testProvider: (target: ProbeTarget, values: Record<string, string | number | boolean> = {}) =>
+    request<ProbeResult>("POST", "/system/providers/test", { target, values }),
+  ollamaModels: (url = "") =>
+    request<{ url: string; models: string[]; error: string | null }>("GET", `/system/providers/ollama-models?url=${encodeURIComponent(url)}`),
+  backups: () => request<BackupList>("GET", "/system/backups"),
+  backupNow: () => request<BackupList>("POST", "/system/backups"),
+  widgets: () => request<Widget[]>("GET", "/widgets"),
+  createWidget: (input: WidgetInput) => request<Widget>("POST", "/widgets", input),
+  updateWidget: (id: string, input: WidgetInput) => request<Widget>("PATCH", `/widgets/${id}`, input),
+  rotateWidget: (id: string) => request<Widget>("POST", `/widgets/${id}/rotate`),
+  deleteWidget: (id: string) => request<void>("DELETE", `/widgets/${id}`),
+  openaiModels: async (): Promise<OpenAiModel[]> => {
+    const session = loadSession();
+    const response = await fetch("/v1/models", { headers: session ? { Authorization: `Bearer ${session.token}` } : {} });
+    if (!response.ok) throw new ApiError(response.status, "ERROR", "Não foi possível listar os modelos.");
+    const data = await response.json() as { data: OpenAiModel[] };
+    return data.data;
+  },
 };
 
 async function download(path: string, fallbackName: string, fallbackError: string): Promise<void> {
@@ -721,6 +838,10 @@ export function downloadMetrics(days: number, bot_id = ""): Promise<void> {
 
 export function downloadBackup(): Promise<void> {
   return download("/system/backup", "nexo-backup.zip", "Não foi possível gerar o backup.");
+}
+
+export function downloadAutoBackup(name: string): Promise<void> {
+  return download(`/system/backups/${encodeURIComponent(name)}`, name, "Não foi possível baixar o backup.");
 }
 
 export function downloadAudit(params: { actor?: string; action?: string; days?: number }): Promise<void> {

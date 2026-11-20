@@ -1,7 +1,7 @@
 services:
   nexo:
     build: .
-    image: nexo:2.3.0
+    image: nexo:2.4.0
     ports:
       - "8000:8000"
     env_file:

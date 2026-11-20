@@ -24,7 +24,8 @@ from nexo.rag.engine import get_engine
 log = logging.getLogger("nexo.maintenance")
 
 ACTIONS = ("reindex_failed", "reindex_outdated", "reindex_all", "clean_orphans", "purge_conversations", "vacuum")
-BACKUP_FILES = ("usuarios.json", "ajustes.json", ".segredo")
+BACKUP_FILES = ("usuarios.json", "ajustes.json", ".segredo", "segredos.json", "instalacao.json")
+AUTO_PREFIX = "nexo-auto-"
 
 
 class MaintenanceError(RuntimeError):
@@ -79,7 +80,7 @@ def outdated_ids(s, signature: str) -> list[str]:
                                                          db.DocumentRow.index_signature != signature)))
 
 
-def _ollama_models(settings: Settings) -> tuple[list[str] | None, str | None]:
+def ollama_models(settings: Settings) -> tuple[list[str] | None, str | None]:
     request = urllib.request.Request(settings.ollama_url.rstrip("/") + "/api/tags", headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=3) as response:
@@ -97,6 +98,22 @@ def _has_model(names: list[str], wanted: str) -> bool:
 
 def _last_backup(s) -> datetime | None:
     return s.scalar(select(func.max(db.AuditRow.created_at)).where(db.AuditRow.action == "system.backup"))
+
+
+def auto_backups(settings: Settings) -> list[Path]:
+    folder = settings.backups_dir
+    if not folder.exists():
+        return []
+    return sorted((f for f in folder.glob(f"{AUTO_PREFIX}*.zip") if f.is_file()), key=lambda f: f.name, reverse=True)
+
+
+def _last_backup_any(settings: Settings, s) -> datetime | None:
+    last = _last_backup(s)
+    files = auto_backups(settings)
+    if files:
+        newest = datetime.fromtimestamp(files[0].stat().st_mtime, UTC).replace(tzinfo=None)
+        last = max(last, newest) if last else newest
+    return last
 
 
 def diagnose(settings: Settings, users, deep: bool = False) -> dict:
@@ -128,7 +145,8 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
 
     if users.default_admin_active():
         add(Check("default_admin", "Segurança", "Senha padrão do administrador", "fail",
-                  "A conta admin ainda usa a senha pré-definida Nexo@2026.", "Troque a senha em Sistema e conta > Visão geral."))
+                  "A conta admin ainda usa a senha pré-definida Nexo@2026.",
+                  "Entre com a conta admin: o Nexo pede a troca da senha na hora."))
     else:
         add(Check("default_admin", "Segurança", "Senha padrão do administrador", "ok", "A senha pré-definida não está mais em uso."))
     if settings.secret and len(settings.secret) < 32:
@@ -145,25 +163,30 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
 
     if settings.llm_provider == "extrativo":
         add(Check("llm", "Modelos", "Modelo de linguagem", "warn", "Modo extrativo: as respostas são frases dos trechos, sem LLM.",
-                  "Configure NEXO_LLM_PROVIDER=ollama ou openai para respostas redigidas."))
+                  "Escolha Ollama, OpenAI ou um serviço compatível em Sistema e conta > Ajustes > Inteligência."))
     elif settings.llm_provider == "ollama":
-        names, error = _ollama_models(settings)
+        names, error = ollama_models(settings)
         if error:
             add(Check("llm", "Modelos", "Modelo de linguagem", "fail", error,
-                      "Inicie o Ollama (ollama serve) ou confira NEXO_OLLAMA_URL."))
+                      "Inicie o Ollama (ollama serve) ou confira o endereço em Ajustes > Inteligência."))
         elif not _has_model(names or [], settings.llm_model):
             add(Check("llm", "Modelos", "Modelo de linguagem", "fail",
                       f"O Ollama está no ar, mas não tem o modelo {settings.llm_model}.", f"Rode: ollama pull {settings.llm_model}"))
         else:
             add(Check("llm", "Modelos", "Modelo de linguagem", "ok", f"Ollama no ar com {settings.llm_model}."))
     else:
-        if not settings.openai_api_key and not settings.openai_base_url:
-            add(Check("llm", "Modelos", "Modelo de linguagem", "fail", "OPENAI_API_KEY não está definida.",
-                      "Coloque a chave no .env e reinicie o servidor."))
+        compatible = settings.llm_provider == "compativel"
+        if compatible and not settings.openai_base_url:
+            add(Check("llm", "Modelos", "Modelo de linguagem", "fail", "O endereço do serviço compatível está vazio.",
+                      "Informe o endereço em Ajustes > Inteligência e use Testar conexão."))
+        elif not compatible and not settings.openai_api_key and not settings.openai_base_url:
+            add(Check("llm", "Modelos", "Modelo de linguagem", "fail", "A chave da OpenAI não está definida.",
+                      "Cole a chave em Ajustes > Inteligência e use Testar conexão."))
         else:
             later = "" if deep else " A conexão é testada no diagnóstico completo."
+            name = "Serviço compatível" if compatible else "OpenAI"
             add(Check("llm", "Modelos", "Modelo de linguagem", "ok" if deep else "info",
-                      f"OpenAI configurada com {settings.llm_model}.{later}"))
+                      f"{name} configurado com {settings.llm_model}.{later}"))
     if deep and settings.llm_provider != "extrativo" and checks[-1].status != "fail":
         try:
             t0 = time.perf_counter()
@@ -175,9 +198,9 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
 
     if settings.embed_provider == "hash":
         add(Check("embedding", "Modelos", "Embeddings", "warn", "Embedding léxico de teste: a busca não entende sinônimos.",
-                  "Use NEXO_EMBED_PROVIDER=huggingface para uso real."))
+                  "Escolha HuggingFace em Ajustes > Embeddings para uso real."))
     elif settings.embed_provider == "ollama" and settings.llm_provider != "ollama":
-        names, error = _ollama_models(settings)
+        names, error = ollama_models(settings)
         ok = not error and _has_model(names or [], settings.embed_model)
         add(Check("embedding", "Modelos", "Embeddings", "ok" if ok else "fail",
                   f"Ollama com {settings.embed_model}." if ok else (error or f"Falta o modelo {settings.embed_model} no Ollama."),
@@ -197,9 +220,10 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
 
     if settings.reranker == "none":
         add(Check("reranker", "Modelos", "Reranking", "warn", "Desligado: a ordem dos trechos vem só da busca vetorial.",
-                  "Ligue NEXO_RERANKER=huggingface para respostas mais precisas."))
+                  "Ligue o reranking do HuggingFace em Ajustes > Reranking para respostas mais precisas."))
     elif settings.reranker == "cohere" and not settings.cohere_api_key:
-        add(Check("reranker", "Modelos", "Reranking", "fail", "COHERE_API_KEY não está definida."))
+        add(Check("reranker", "Modelos", "Reranking", "fail", "A chave da Cohere não está definida.",
+                  "Cole a chave em Ajustes > Reranking."))
     elif deep:
         try:
             engine.reranker()
@@ -218,7 +242,7 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
         outdated = outdated_ids(s, providers.index_signature(settings))
         channels = s.scalars(select(db.WhatsAppChannelRow)).all()
         hooks = s.scalars(select(db.WebhookRow).where(db.WebhookRow.active.is_(True))).all()
-        last_backup = _last_backup(s)
+        last_backup = _last_backup_any(settings, s)
 
     if engine.loaded or deep:
         found = engine.count()
@@ -274,12 +298,18 @@ def diagnose(settings: Settings, users, deep: bool = False) -> dict:
         add(Check("cors", "Integrações", "CORS", "info", "Origens liberadas: " + ", ".join(settings.cors_list)))
 
     if last_backup is None:
-        add(Check("backup", "Manutenção", "Backup", "warn", "Nenhum backup baixado pela tela ainda.",
-                  "Baixe um backup em Manutenção ou rode python -m nexo backup."))
+        add(Check("backup", "Manutenção", "Backup", "warn", "Nenhum backup feito ainda.",
+                  "Ligue o backup automático em Ajustes > Manutenção ou baixe um em Manutenção."))
     else:
         age = db.utcnow() - last_backup
         add(Check("backup", "Manutenção", "Backup", "warn" if age > timedelta(days=30) else "ok",
-                  f"Último backup baixado em {last_backup.strftime('%d/%m/%Y %H:%M')} (UTC)."))
+                  f"Último backup em {last_backup.strftime('%d/%m/%Y %H:%M')} (UTC)."))
+    if settings.backup_hours:
+        add(Check("auto_backup", "Manutenção", "Backup automático", "ok",
+                  f"A cada {settings.backup_hours} h, guardando os {settings.backup_keep} mais recentes em data/backups."))
+    else:
+        add(Check("auto_backup", "Manutenção", "Backup automático", "warn", "Desligado.",
+                  "Defina Backup automático a cada (por exemplo, 24 horas) em Ajustes > Manutenção."))
     add(Check("retention", "Manutenção", "Retenção de conversas", "info",
               f"Conversas não fixadas com mais de {settings.retention_days} dias são apagadas." if settings.retention_days
               else "As conversas ficam guardadas para sempre."))
@@ -383,6 +413,105 @@ class Retention:
                 except Exception:
                     log.exception("Falha na retenção de conversas")
             self._stop.wait(self.every)
+
+
+class AutoBackup:
+    def __init__(self, settings: Settings, tick: float = 300.0):
+        self.settings = settings
+        self.tick = tick
+        self.last_error: str | None = None
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._loop, name="nexo-backup", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def due(self) -> bool:
+        hours = self.settings.backup_hours
+        if not hours:
+            return False
+        files = auto_backups(self.settings)
+        if not files:
+            return True
+        return time.time() - files[0].stat().st_mtime >= hours * 3600
+
+    def next_at(self) -> datetime | None:
+        hours = self.settings.backup_hours
+        if not hours:
+            return None
+        files = auto_backups(self.settings)
+        if not files:
+            return db.utcnow()
+        return datetime.fromtimestamp(files[0].stat().st_mtime + hours * 3600, UTC).replace(tzinfo=None)
+
+    def run_once(self) -> Path:
+        folder = self.settings.backups_dir
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / f"{AUTO_PREFIX}{datetime.now().strftime('%Y-%m-%d-%H%M%S-%f')[:-3]}.zip"
+        partial = target.with_suffix(".parcial")
+        try:
+            manifest = create_backup(self.settings, partial)
+            partial.replace(target)
+        finally:
+            partial.unlink(missing_ok=True)
+        for old in auto_backups(self.settings)[self.settings.backup_keep:]:
+            old.unlink(missing_ok=True)
+        log.info("Backup automático gravado em %s (%d documento(s)).", target.name, manifest["documentos"])
+        return target
+
+    def _loop(self) -> None:
+        delay = 30.0
+        while not self._stop.wait(delay):
+            delay = self.tick
+            if not self.due():
+                continue
+            try:
+                self.run_once()
+                self.last_error = None
+            except Exception as e:
+                self.last_error = str(e)[:300]
+                log.exception("Falha no backup automático")
+
+
+def sync_vector_space(settings: Settings, enqueue: bool = True) -> int:
+    current = providers.embedding_space(settings)
+    path = settings.vectors_file
+    stored = None
+    if path.exists():
+        try:
+            stored = json.loads(path.read_text(encoding="utf-8")).get("espaco")
+        except (OSError, json.JSONDecodeError, AttributeError):
+            stored = None
+    payload = {"versao": 1, "espaco": current, "embeddings": f"{settings.embed_provider} · {settings.embed_model}",
+               "gravado_em": datetime.now(UTC).replace(microsecond=0).isoformat()}
+    if stored == current:
+        return 0
+    if stored is None:
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return 0
+    log.warning("O modelo de embeddings mudou: apagando os vetores e reindexando o acervo.")
+    get_engine(settings).wipe()
+    with db.session() as s:
+        rows = s.scalars(select(db.DocumentRow)).all()
+        queued: list[str] = []
+        for row in rows:
+            if row.kind != "note" and not jobs.stored_file(row).exists():
+                row.status = "FAILED"
+                row.error = "O arquivo original não está em data/uploads. Envie de novo para indexar com o novo modelo."
+                continue
+            row.status = "PENDING"
+            row.error = None
+            queued.append(row.id)
+        s.commit()
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    if enqueue:
+        for document_id in queued:
+            jobs.enqueue(document_id)
+    return len(queued)
 
 
 def create_backup(settings: Settings, dest: Path) -> dict:

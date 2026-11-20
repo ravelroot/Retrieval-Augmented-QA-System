@@ -1,0 +1,44 @@
+name: Página do projeto
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pages/**'
+      - 'docs/images/**'
+      - 'Manual-Nexo.pdf'
+      - 'Banco-de-Dados-Nexo.pdf'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Montar a página
+        run: |
+          mkdir -p _site/images _site/fontes
+          cp pages/index.html _site/
+          cp docs/images/*.png docs/images/logo.svg _site/images/
+          cp scripts/docs/fontes/*.woff2 _site/fontes/
+          cp Manual-Nexo.pdf Banco-de-Dados-Nexo.pdf _site/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

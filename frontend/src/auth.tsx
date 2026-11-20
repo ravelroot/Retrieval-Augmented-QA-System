@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { loadSession, saveSession, setUnauthorizedHandler, type Session, type User } from "./api";
+import { loadSession, saveSession, setPasswordRequiredHandler, setUnauthorizedHandler, type Session, type User } from "./api";
 
 interface AuthValue {
   user: User | null;
@@ -34,6 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(signOut);
+    setPasswordRequiredHandler(() => setSession((current) => {
+      if (!current || current.user.must_change_password) return current;
+      const next = { ...current, user: { ...current.user, must_change_password: true } };
+      saveSession(next);
+      return next;
+    }));
   }, [signOut]);
 
   useEffect(() => {

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexo"
-version = "2.3.0"
+version = "2.4.0"
 description = "Chatbot RAG que responde dúvidas com base estrita em manuais técnicos e livros em PDF."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,9 @@ license = "MIT"
 
 [tool.setuptools.packages.find]
 include = ["nexo*"]
+
+[tool.setuptools.package-data]
+nexo = ["static/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

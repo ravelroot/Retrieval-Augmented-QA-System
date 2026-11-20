@@ -48,6 +48,13 @@ ACTIONS = {
     "settings.reset": "Restaurou os ajustes padrão",
     "maintenance.run": "Rodou uma manutenção",
     "system.backup": "Baixou um backup",
+    "system.auto_backup": "Gravou um backup automático",
+    "system.rebuild": "Reindexou o acervo com novos embeddings",
+    "system.setup": "Concluiu o assistente de configuração",
+    "widget.create": "Criou um widget para sites",
+    "widget.update": "Alterou um widget para sites",
+    "widget.rotate": "Trocou a chave de um widget",
+    "widget.delete": "Excluiu um widget para sites",
 }
 
 

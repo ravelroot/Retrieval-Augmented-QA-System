@@ -45,7 +45,10 @@ export function CommandPalette({ onClose, onTheme, onTutorial, onShortcuts }: {
       { id: "tutorial", group: "Ações", label: "Ver tutorial", icon: "help", run: () => { onTutorial(); } },
       { id: "shortcuts", group: "Ações", label: "Atalhos de teclado", hint: "?", icon: "command", run: () => { onShortcuts(); } },
       ...(admin ? [
-        { id: "settings", group: "Administração", label: "Ajustes do pipeline", icon: "system", run: go("/sistema?aba=ajustes") },
+        { id: "setup", group: "Administração", label: "Assistente de configuração", hint: "senha, IA e backup", icon: "sparkle", run: go("/configurar") },
+        { id: "settings", group: "Administração", label: "Ajustes: provedor de IA, chaves e pipeline", icon: "system", run: go("/sistema?aba=ajustes") },
+        { id: "widget", group: "Administração", label: "Colocar um agente no site", icon: "globe", run: go("/integracoes#widget") },
+        { id: "openai", group: "Administração", label: "Usar os agentes no n8n e em apps compatíveis com OpenAI", icon: "plug", run: go("/integracoes#openai") },
         { id: "doctor", group: "Administração", label: "Rodar o diagnóstico", icon: "bolt", run: go("/sistema?aba=diagnostico") },
         { id: "backup", group: "Administração", label: "Backup e manutenção", icon: "download", run: go("/sistema?aba=manutencao") },
         { id: "audit", group: "Administração", label: "Registro de atividades", icon: "user2", run: go("/sistema?aba=atividades") },

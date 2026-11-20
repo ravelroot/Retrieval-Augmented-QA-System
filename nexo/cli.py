@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import getpass
+import os
+import socket
 import sys
+import threading
+import time
+import urllib.request
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 
@@ -24,13 +31,154 @@ def _settings():
         sys.exit("O arquivo .env tem valores inválidos:\n" + "\n".join(lines) + "\nCorrija e rode de novo.")
 
 
-def serve(_: argparse.Namespace) -> None:
+def _local_url(settings) -> str:
+    host = "127.0.0.1" if settings.host in ("0.0.0.0", "::", "") else settings.host
+    return f"http://{host}:{settings.port}"
+
+
+def _port_free(host: str, port: int) -> bool:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    with socket.socket(family, socket.SOCK_STREAM) as sock:
+        if os.name != "nt":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            return False
+    return True
+
+
+def _nexo_answers(url: str, timeout: float = 2.0) -> bool:
+    try:
+        with urllib.request.urlopen(f"{url}/api/health", timeout=timeout) as r:
+            return r.status == 200 and b"version" in r.read(200)
+    except (OSError, ValueError):
+        return False
+
+
+def _open_when_ready(url: str) -> None:
+    def wait() -> None:
+        for _ in range(120):
+            if _nexo_answers(url, 1.0):
+                webbrowser.open(url)
+                return
+            time.sleep(0.5)
+    threading.Thread(target=wait, name="nexo-navegador", daemon=True).start()
+
+
+def serve(args: argparse.Namespace) -> None:
     import uvicorn
     from nexo import logs
     settings = _settings()
     logs.setup(settings)
-    print(f"\n  Nexo {__version__} rodando em http://{settings.host}:{settings.port}\n")
+    url = _local_url(settings)
+    if not _port_free(settings.host, settings.port):
+        if _nexo_answers(url):
+            print(f"\n  O Nexo já está rodando em {url}\n")
+            if getattr(args, "abrir", False):
+                webbrowser.open(url)
+            return
+        sys.exit(f"A porta {settings.port} está ocupada por outro programa. Feche-o ou defina outra porta no .env "
+                 f"(NEXO_PORT={settings.port + 1}) e rode de novo.")
+    print(f"\n  Nexo {__version__} rodando em {url}\n")
+    if getattr(args, "abrir", False):
+        _open_when_ready(url)
     uvicorn.run("nexo.api.app:app", host=settings.host, port=settings.port, log_config=None, access_log=False)
+
+
+PRESETS = (
+    ("ollama", "Ollama no seu computador (gratuito, roda local)", None, "llama3.1"),
+    ("openai", "OpenAI (precisa de uma chave de API)", None, "gpt-4o-mini"),
+    ("compativel", "Groq", "https://api.groq.com/openai/v1", None),
+    ("compativel", "OpenRouter", "https://openrouter.ai/api/v1", None),
+    ("compativel", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", None),
+    ("compativel", "LM Studio no seu computador", "http://localhost:1234/v1", None),
+    ("compativel", "Outro serviço compatível com a OpenAI", None, None),
+    ("extrativo", "Sem modelo, só para testar a instalação", None, None),
+)
+
+
+def _ask(label: str, default: str | None = None, secret: bool = False) -> str:
+    suffix = f" [{default}]" if default else ""
+    try:
+        value = getpass.getpass(f"  {label}: ") if secret else input(f"  {label}{suffix}: ")
+    except EOFError:
+        value = ""
+    return value.strip() or (default or "")
+
+
+def configure(_: argparse.Namespace) -> None:
+    from nexo import db, runtime
+    from nexo.rag import providers
+    from nexo.users import DEFAULT_ADMIN_USERNAME, UserError, UserStore
+    settings = _settings()
+    db.engine()
+    users = UserStore(settings.users_file)
+    print(f"\nAssistente de configuração do Nexo {__version__}. Enter mantém o valor entre colchetes.\n")
+    if users.default_admin_active():
+        print("A conta admin ainda usa a senha padrão. Escolha uma nova (8 a 72 caracteres, letras e números).")
+        while True:
+            new = _ask("Nova senha do admin", secret=True)
+            if new == _ask("Repita a nova senha", secret=True):
+                try:
+                    users.reset_password(DEFAULT_ADMIN_USERNAME, new)
+                    print("  Senha trocada.\n")
+                    break
+                except UserError as e:
+                    print(f"  {e.message}")
+            else:
+                print("  As senhas não conferem.")
+    print("Quem escreve as respostas?")
+    for i, (_, label, _, _) in enumerate(PRESETS, start=1):
+        print(f"  {i}. {label}")
+    current = next((i for i, p in enumerate(PRESETS, start=1) if p[0] == settings.llm_provider), 1)
+    choice = _ask("Opção", str(current))
+    index = int(choice) - 1 if choice.isdigit() and 1 <= int(choice) <= len(PRESETS) else current - 1
+    provider, label, url, model = PRESETS[index]
+    values: dict = {"llm_provider": provider}
+    if provider == "ollama":
+        values["ollama_url"] = _ask("Endereço do Ollama", settings.ollama_url)
+        values["llm_model"] = _ask("Modelo", settings.llm_model if settings.llm_provider == "ollama" else model)
+    elif provider in ("openai", "compativel"):
+        if provider == "compativel":
+            values["openai_base_url"] = _ask("Endereço do serviço", url or settings.openai_base_url)
+        keep = " (Enter mantém a atual)" if settings.openai_api_key else ""
+        key = _ask(f"Chave da API{keep}", secret=True)
+        if key:
+            values["openai_api_key"] = key
+        values["llm_model"] = _ask("Modelo", model or (settings.llm_model if settings.llm_provider == provider else None))
+    try:
+        candidate, fields = runtime.trial(settings, values)
+    except runtime.AdjustError as e:
+        fields = e.fields
+    if fields:
+        sys.exit("Revise: " + "; ".join(f"{k}: {v}" for k, v in fields.items()))
+    if provider != "extrativo":
+        print(f"\nTestando {label}…")
+        result = providers.probe("llm", candidate)
+        print(f"  {'ok' if result['ok'] else 'falhou'}: {result['detail']}")
+        if not result["ok"] and _ask("Salvar mesmo assim? (s/n)", "n").lower() != "s":
+            sys.exit("Nada foi salvo.")
+    changed = runtime.update(settings, values, "linha de comando")
+    print(f"\nPronto: {len(changed)} ajuste(s) salvo(s) em {settings.overrides_file}. Já valem na próxima vez que o Nexo subir.")
+    print("Confira tudo com: python -m nexo diagnostico")
+
+
+def password(args: argparse.Namespace) -> None:
+    from nexo.users import UserError, UserStore
+    settings = _settings()
+    users = UserStore(settings.users_file)
+    if users.get(args.usuario) is None:
+        sys.exit(f"Conta '{args.usuario}' não encontrada. Veja as contas com: python -m nexo contas")
+    new = getpass.getpass(f"Nova senha para {args.usuario}: ")
+    if new != getpass.getpass("Repita a nova senha: "):
+        sys.exit("As senhas não conferem.")
+    try:
+        users.reset_password(args.usuario, new)
+    except UserError as e:
+        sys.exit(e.message)
+    users.unlock(args.usuario)
+    print("Senha redefinida. As sessões abertas dessa conta foram encerradas.")
 
 
 def doctor(args: argparse.Namespace) -> None:
@@ -149,7 +297,13 @@ def version(_: argparse.Namespace) -> None:
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="python -m nexo", description="Servidor e ferramentas de manutenção do Nexo.")
     sub = root.add_subparsers(dest="comando", metavar="comando")
-    sub.add_parser("servir", help="sobe o servidor (padrão)").set_defaults(func=serve)
+    p = sub.add_parser("servir", help="sobe o servidor (padrão)")
+    p.add_argument("--abrir", action="store_true", help="abre o navegador quando o servidor estiver pronto")
+    p.set_defaults(func=serve)
+    sub.add_parser("configurar", help="assistente no terminal: senha do admin e provedor de IA").set_defaults(func=configure)
+    p = sub.add_parser("senha", help="redefine a senha de uma conta")
+    p.add_argument("usuario", help="nome de usuário da conta")
+    p.set_defaults(func=password)
     p = sub.add_parser("diagnostico", help="confere banco, modelos, acervo, segurança e integrações")
     p.add_argument("--completo", action="store_true", help="também carrega os modelos e faz uma chamada de teste")
     p.set_defaults(func=doctor)

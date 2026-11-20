@@ -1,3 +1,4 @@
+import os
 import sys
 import tempfile
 import time
@@ -23,17 +24,19 @@ def main():
     css = (AQUI / "estilo.css").read_text(encoding="utf-8")
     trabalhos = [
         (manual, "Manual-Nexo.pdf", "Nexo · Manual técnico",
-         "Instalação, configuração, uso de cada tela, agentes, bases de conhecimento, WhatsApp, integrações, "
+         "Instalação, assistente de configuração, uso de cada tela, agentes, bases de conhecimento, WhatsApp, widget para "
+         "sites, API compatível com OpenAI, integrações, "
          f"arquitetura, banco de dados, API e manutenção do Nexo {VERSAO}, a plataforma de agentes que responde "
          "com base em documentos citando a página.",
-         "Nexo, RAG, agentes, bases de conhecimento, WhatsApp, FastAPI, React, manual"),
+         "Nexo, RAG, agentes, bases de conhecimento, WhatsApp, widget, OpenAI, FastAPI, React, manual"),
         (banco, "Banco-de-Dados-Nexo.pdf", "Nexo · Arquitetura do banco de dados",
-         "Tabelas, relacionamentos, índices, banco vetorial, contas, bases de conhecimento, agentes, WhatsApp, "
+         "Tabelas, relacionamentos, índices, banco vetorial, contas, bases de conhecimento, agentes, WhatsApp, widgets, "
          f"migração automática e consultas do Nexo {VERSAO}.",
          "Nexo, banco de dados, SQLAlchemy, ChromaDB, Qdrant, diagrama de relacionamentos"),
     ]
     with tempfile.TemporaryDirectory(prefix="nexo-pdf-") as temp, sync_playwright() as p:
-        navegador = p.chromium.launch()
+        chrome = os.environ.get("NEXO_CHROME")
+        navegador = p.chromium.launch(executable_path=chrome) if chrome else p.chromium.launch()
         for modulo, nome, titulo, assunto, chaves in trabalhos:
             doc = modulo.montar(temp)
             pdf, _ = gerar_pdf(navegador, doc, css, mermaid_js, temp)

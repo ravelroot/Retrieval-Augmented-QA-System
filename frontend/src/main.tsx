@@ -13,6 +13,7 @@ import "./styles.css";
 import "./agentes.css";
 import "./atendimento.css";
 import "./operacao.css";
+import "./configuracao.css";
 
 applyTheme(initialTheme());
 

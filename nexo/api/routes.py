@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from nexo import __version__, audit, db, jobs, knowledge, runtime, webhooks
 from nexo.api import schemas as sc
-from nexo.api.deps import ApiError, Principal, current_user, get_users, question_quota
+from nexo.api.deps import ApiError, Principal, current_user, get_users, must_change_password, question_quota
 from nexo.config import Settings, get_settings
 from nexo.rag import providers
 from nexo.migrations import ensure_default_base
@@ -42,9 +42,13 @@ def _user_error(e: UserError) -> ApiError:
     return ApiError(status, e.code, e.message, {e.field: e.message} if e.field else None)
 
 
+def user_out(user, settings: Settings) -> sc.UserOut:
+    return sc.UserOut(**user.public(), must_change_password=must_change_password(user, get_users(), settings))
+
+
 def _session(settings: Settings, user) -> sc.SessionOut:
     token, expires = issue_token(settings, user.username, user.role, user.session_version)
-    return sc.SessionOut(token=token, expires_at=expires, user=sc.UserOut(**user.public()))
+    return sc.SessionOut(token=token, expires_at=expires, user=user_out(user, settings))
 
 
 def _require_admin(p: Principal, message: str) -> None:
@@ -106,8 +110,8 @@ def register(body: sc.RegisterIn, settings: Settings = Depends(get_settings), us
 
 
 @router.get("/auth/me", response_model=sc.UserOut)
-def me(p: Principal = Depends(current_user), users: UserStore = Depends(get_users)):
-    return sc.UserOut(**users.get(p.username).public())
+def me(p: Principal = Depends(current_user), users: UserStore = Depends(get_users), settings: Settings = Depends(get_settings)):
+    return user_out(users.get(p.username), settings)
 
 
 @router.patch("/auth/me", response_model=sc.UserOut)

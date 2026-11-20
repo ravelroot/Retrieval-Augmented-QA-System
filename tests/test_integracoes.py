@@ -473,7 +473,7 @@ def test_account_management(client):
     listed = client.get("/api/users", headers=admin).json()
     assert [u["username"] for u in listed] == ["admin", "maria"]
     assert set(listed[0]) == {"username", "name", "role", "created_at", "last_login_at", "tutorial_done_at",
-                            "password_changed_at"}
+                            "password_changed_at", "must_change_password"}
     assert client.patch("/api/users/maria", headers=maria, json={"role": "admin"}).status_code == 403
 
     r = client.patch("/api/users/admin", headers=admin, json={"role": "user"})

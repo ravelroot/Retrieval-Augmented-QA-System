@@ -32,6 +32,10 @@ def split_sentences(text: str) -> list[str]:
 
 NOT_FOUND = "Não encontrei essa informação nos documentos selecionados."
 
+LLM_FIELDS = {"ollama_url", "openai_base_url", "openai_api_key"}
+RERANK_FIELDS = {"reranker", "rerank_model", "cohere_model", "cohere_api_key"}
+EMBED_FIELDS = {"embed_provider", "embed_model", "embed_query_prefix", "embed_text_prefix"}
+
 ANSWER_PROMPT = """Você é o Nexo, um assistente que responde dúvidas sobre manuais técnicos e livros.
 Regras obrigatórias:
 1. Use somente as informações dos trechos numerados abaixo. Não use conhecimento próprio.
@@ -226,13 +230,42 @@ class RagEngine:
         return providers.index_signature(self.s)
 
     def refresh(self, changed: list[str]) -> None:
+        names = set(changed)
         with self._lock:
-            if any(name.startswith("llm_") for name in changed):
+            if any(name.startswith("llm_") for name in names) or names & LLM_FIELDS:
                 self._llm = None
                 self._llm_loaded = False
-            if {"chunk_size", "chunk_overlap"} & set(changed):
+            if names & RERANK_FIELDS:
+                self._reranker = None
+                self._reranker_loaded = False
+            if self._embedding_touched(names):
+                self._index = None
+                self._embed = None
+                self._vector_store = None
+                self._handles = {}
+            if {"chunk_size", "chunk_overlap"} & names:
                 self.splitter = SentenceSplitter(chunk_size=self.s.chunk_size, chunk_overlap=self.s.chunk_overlap,
                                                  chunking_tokenizer_fn=split_sentences)
+
+    def _embedding_touched(self, names: set[str]) -> bool:
+        if names & EMBED_FIELDS:
+            return True
+        if self.s.embed_provider == "ollama" and "ollama_url" in names:
+            return True
+        return self.s.embed_provider == "openai" and bool(names & {"openai_base_url", "openai_api_key"})
+
+    def wipe(self) -> None:
+        with self._lock:
+            _, handles = providers.build_vector_store(self.s)
+            client = handles["client"]
+            try:
+                client.delete_collection(self.s.collection)
+            except Exception as e:
+                log.info("Coleção %s não existia para apagar: %s", self.s.collection, e)
+            self._index = None
+            self._embed = None
+            self._vector_store = None
+            self._handles = {}
 
     @staticmethod
     def _payload_text(payload: dict) -> str:

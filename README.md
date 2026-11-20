@@ -10,19 +10,38 @@
 </p>
 
 <p align="center">
-  <b>Versão 2.3.0</b><br>
-  Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama ou OpenAI · WhatsApp (Evolution API ou Cloud API) · React 19 · TypeScript
+  <b>Versão 2.4.0</b><br>
+  Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama, OpenAI ou compatíveis (Groq, OpenRouter, Gemini, LM Studio) · WhatsApp (Evolution API ou Cloud API) · Widget para sites · API compatível com OpenAI · React 19 · TypeScript
 </p>
 
 ---
 
-> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica instalação, configuração, cada tela, os agentes, as bases de conhecimento, o WhatsApp, as integrações, a arquitetura, a API, a avaliação da recuperação e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Nexo.pdf)).
+> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica instalação, o assistente de configuração, cada tela, os agentes, as bases de conhecimento, o WhatsApp, o widget para sites, a API compatível com OpenAI, as integrações, a arquitetura, a API, a avaliação da recuperação e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Nexo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) traz o diagrama de relacionamentos, todas as tabelas com campos, tipos, chaves e restrições (inclusive bases, agentes e WhatsApp), os índices, a migração automática, o banco vetorial, o arquivo de contas, as consultas do painel de qualidade e como trocar o SQLite por outro banco (cópia em [`docs/`](docs/Banco-de-Dados-Nexo.pdf)).
+> **Banco de dados:** [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) traz o diagrama de relacionamentos, todas as tabelas com campos, tipos, chaves e restrições (inclusive bases, agentes, WhatsApp e widgets), os índices, a migração automática, o banco vetorial e a troca segura de embeddings, os arquivos de contas, ajustes e segredos, as consultas do painel de qualidade e como trocar o SQLite por outro banco (cópia em [`docs/`](docs/Banco-de-Dados-Nexo.pdf)).
 
 <p align="center">
   <img src="docs/images/tela-chats.png" alt="Chats com vários agentes lado a lado">
 </p>
+
+## Novidades da 2.4
+
+A 2.4.0 deixa o Nexo fácil de instalar, configurar, manter e integrar. Um assistente guia o primeiro acesso, o provedor de IA e as chaves passam a ser escolhidos pela tela, com teste de conexão, os agentes chegam a qualquer site com uma linha de código e a qualquer ferramenta que fale com a API da OpenAI, e o backup fica automático. A identidade visual continua a mesma, e o banco da 2.3 é migrado sozinho na primeira execução.
+
+| | O que mudou |
+|---|---|
+| **Assistente de configuração** | No primeiro acesso, o admin troca a senha padrão (obrigatório), escolhe a inteligência com **Testar conexão**, define o endereço público, liga o backup e vê a lista de próximos passos. Também por `python -m nexo configurar`. |
+| **Provedor de IA pela tela** | Ollama (com a lista dos modelos instalados), OpenAI, Groq, OpenRouter, Google Gemini, LM Studio ou qualquer serviço compatível com a OpenAI, além de embeddings e reranking, em **Sistema e conta → Ajustes**, sem editar o `.env` nem reiniciar. |
+| **Chaves protegidas** | As chaves dos provedores ficam em `data/segredos.json` (permissão 0600), nunca voltam para a tela e entram no registro de atividades só como "(alterada)". |
+| **Troca de embeddings segura** | O Nexo guarda qual modelo gerou os vetores; ao trocar, pela tela ou pelo `.env`, apaga a coleção e reindexa o acervo sozinho, sem misturar vetores incompatíveis. |
+| **Widget para sites** | Um botão de conversa com o agente em qualquer site com uma linha `<script>`, sites autorizados, limite por visitante, cor, posição, boas-vindas, fontes, pausa e troca da chave. |
+| **API compatível com OpenAI** | `GET /v1/models` e `POST /v1/chat/completions` (com streaming): n8n, Make, Typebot, Flowise, Dify, Open WebUI, LibreChat, LangChain e os SDKs oficiais usam os agentes como modelos. |
+| **Backup automático** | A cada 6, 12 ou 24 horas ou toda semana, guardando os mais recentes em `data/backups`, com **Fazer um agora** e download pela tela. |
+| **Primeiros passos** | O que falta para o Nexo trabalhar sozinho, com o progresso no topo do menu e o atalho para cada tela. |
+| **Instalador mais esperto** | `iniciar.cmd` e `iniciar.sh` conferem o Python 3.11+, reinstalam as dependências quando `requirements.txt` muda e abrem o navegador quando o servidor está pronto. |
+| **Porta ocupada** | Se o Nexo já estiver rodando, o script só abre o navegador; se outro programa usar a porta, diz como trocar. |
+| **Linha de comando** | `python -m nexo configurar` (assistente no terminal) e `python -m nexo senha <usuario>`. |
+| **Interface mais leve** | As telas carregam sob demanda: o arquivo principal da interface caiu de cerca de 500 KB para 270 KB. |
 
 ## Novidades da 2.3
 
@@ -125,7 +144,9 @@ Pré-requisitos: **Python 3.11 ou mais recente** e **Node.js 20.19 ou mais recen
 **Windows:** dê dois cliques em `iniciar.cmd`.
 **Linux / macOS:** `./iniciar.sh`
 
-Os scripts criam o ambiente virtual, instalam as dependências, copiam `.env.example` para `.env`, compilam a interface e sobem o servidor em **http://127.0.0.1:8000**.
+Os scripts conferem o Python, criam o ambiente virtual, instalam as dependências (e reinstalam quando `requirements.txt` muda), copiam `.env.example` para `.env`, compilam a interface, sobem o servidor em **http://127.0.0.1:8000** e abrem o navegador. Entre com `admin` / `Nexo@2026`: o assistente de configuração pede uma senha nova e guia o resto.
+
+> Atualizando da 2.3? Rode o script de novo: ele instala o pacote novo e recompila a interface. Na primeira execução, a tabela `nx_widget` é criada e o Nexo registra o modelo de embeddings atual, sem reindexar nada. Se a conta admin ainda usa a senha padrão, a troca passa a ser obrigatória.
 
 > Atualizando da 2.2 ou da 2.1? Baixe um backup (**Sistema e conta → Manutenção** ou `python -m nexo backup`), traga a versão nova e rode o script de novo. Na primeira execução, o banco ganha sozinho as colunas e tabelas novas, os documentos prontos recebem a assinatura da configuração atual (nada é reindexado) e o `.env` antigo continua valendo. Depois, confira com `python -m nexo diagnostico`.
 
@@ -158,6 +179,9 @@ Para experimentar sem os seus arquivos, clique em **Criar base de teste** em **B
 | Comando | Função |
 |---|---|
 | `python -m nexo` | Sobe o servidor |
+| `python -m nexo servir --abrir` | Sobe o servidor e abre o navegador quando ele estiver pronto |
+| `python -m nexo configurar` | Assistente no terminal: senha do admin e provedor de IA, com teste de conexão |
+| `python -m nexo senha <usuario>` | Redefine a senha de uma conta e encerra as sessões dela |
 | `python -m nexo diagnostico [--completo]` | Confere banco, modelos, acervo, segurança e integrações |
 | `python -m nexo backup [--saida arquivo.zip]` | Grava o backup |
 | `python -m nexo restaurar arquivo.zip [--substituir]` | Restaura um backup (servidor parado) |
@@ -167,10 +191,13 @@ Para experimentar sem os seus arquivos, clique em **Criar base de teste** em **B
 
 ### Escolha um modo
 
+Tudo isso também se escolhe pela tela, no assistente de configuração ou em **Sistema e conta → Ajustes**, com um botão para testar a conexão antes de salvar.
+
 | Modo | O que instalar | `.env` |
 |---|---|---|
 | **Local e gratuito** (padrão) | [Ollama](https://ollama.com) e `ollama pull llama3.1` | já vem configurado |
 | **OpenAI** | uma chave de API | `NEXO_LLM_PROVIDER=openai`, `NEXO_LLM_MODEL=gpt-4o-mini`, `OPENAI_API_KEY=...` |
+| **Compatível com OpenAI** | uma chave do serviço (Groq, OpenRouter, Gemini) ou o LM Studio aberto | `NEXO_LLM_PROVIDER=compativel`, `NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1`, `NEXO_LLM_MODEL=...`, `OPENAI_API_KEY=...` |
 | **Reranking Cohere** | uma chave de API | `NEXO_RERANKER=cohere`, `COHERE_API_KEY=...` |
 | **Qdrant** | Qdrant local ou em nuvem | `NEXO_VECTOR_STORE=qdrant` e, para servidor, `NEXO_QDRANT_URL=...` |
 | **Teste sem modelos** | nada | `NEXO_EMBED_PROVIDER=hash`, `NEXO_LLM_PROVIDER=extrativo`, `NEXO_RERANKER=none` |
@@ -185,12 +212,18 @@ O modo de teste usa um embedding léxico e devolve as frases mais relevantes dos
 |---|---|---|
 | `admin` | `Nexo@2026` | Administrador |
 
-Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Troque a senha em **Sistema e conta** logo no primeiro acesso. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`); com o cadastro fechado, um administrador cria as contas em **Sistema e conta → Contas**. Esqueceu a senha? Um administrador redefine na mesma tela, ou rode `python scripts/redefinir_senha.py <usuario>` no servidor.
+Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. Ao entrar com ele, o Nexo exige uma senha nova antes de qualquer outra tela (a API responde 403 `PASSWORD_CHANGE_REQUIRED` até a troca) e abre o assistente de configuração. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`); com o cadastro fechado, um administrador cria as contas em **Sistema e conta → Contas**. Esqueceu a senha? Um administrador redefine na mesma tela, ou rode `python -m nexo senha <usuario>` no servidor.
 
 ## Telas
 
 | | |
 |---|---|
+| <img src="docs/images/tela-assistente-ia.png" alt="Assistente de configuração"> | <img src="docs/images/tela-assistente-pronto.png" alt="Primeiros passos"> |
+| **Assistente de configuração**: a inteligência escolhida num cartão, com teste de conexão | **Tudo pronto**: a lista de primeiros passos |
+| <img src="docs/images/tela-widget-site.png" alt="Widget num site"> | <img src="docs/images/tela-widget.png" alt="Widget para sites"> |
+| **Widget** num site, com as fontes | **Widget para sites**: o código para colar, os sites autorizados e o uso |
+| <img src="docs/images/tela-openai.png" alt="API compatível com OpenAI"> | <img src="docs/images/tela-widget-celular.png" alt="Widget no celular" width="240"> |
+| **API compatível com OpenAI**: Base URL, modelos e exemplos | **Widget no celular** |
 | <img src="docs/images/tela-tutorial.png" alt="Tutorial"> | <img src="docs/images/tela-agentes.png" alt="Agentes"> |
 | **Tutorial** de primeiro acesso | **Agentes**: cor, base, conversas e situação de cada agente |
 | <img src="docs/images/tela-chats.png" alt="Chats com agentes"> | <img src="docs/images/tela-bases.png" alt="Bases de conhecimento"> |
@@ -204,13 +237,13 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 | <img src="docs/images/tela-busca.png" alt="Busca nos trechos"> | <img src="docs/images/tela-painel.png" alt="Painel de qualidade"> |
 | **Busca nos trechos** com os termos destacados | **Painel de qualidade** com as lacunas do acervo e exportação em CSV |
 | <img src="docs/images/tela-integracoes.png" alt="Integrações"> | <img src="docs/images/tela-sistema.png" alt="Sistema e conta"> |
-| **Integrações**: chaves de API, exemplos e webhooks | **Sistema e conta**: pipeline de respostas, acervo, sessões e gestão das contas |
+| **Integrações**: widget, API compatível com OpenAI, chaves de API, exemplos e webhooks | **Sistema e conta**: primeiros passos, pipeline de respostas, acervo e contas |
 | <img src="docs/images/tela-nao-encontrado.png" alt="Pergunta sem resposta nos documentos"> | <img src="docs/images/tela-comandos.png" alt="Paleta de comandos"> |
 | **Sem base nos PDFs**: o Nexo diz que não encontrou e sugere o próximo passo | **Paleta de comandos** (`Ctrl + K`) |
 | <img src="docs/images/tela-ajustes.png" alt="Ajustes"> | <img src="docs/images/tela-diagnostico.png" alt="Diagnóstico"> |
-| **Ajustes pela tela** | **Diagnóstico** |
+| **Ajustes pela tela**, com o provedor de IA e o teste de conexão | **Diagnóstico** |
 | <img src="docs/images/tela-manutencao.png" alt="Manutenção"> | <img src="docs/images/tela-atividades.png" alt="Registro de atividades"> |
-| **Manutenção e backup** | **Registro de atividades** |
+| **Manutenção** com o backup automático | **Registro de atividades** |
 | <img src="docs/images/tela-base-teste.png" alt="Base de teste"> | <img src="docs/images/tela-importar-link.png" alt="Importar de um link"> |
 | **Base de teste** | **Importar de um link** |
 | <img src="docs/images/tela-trechos.png" alt="Trechos indexados"> | <img src="docs/images/tela-avaliacao.png" alt="Comentário no não ajudou"> |
@@ -237,6 +270,39 @@ Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. N
 | `←` `→` `Esc` | Voltam, avançam e fecham o tutorial |
 
 ## Integrações
+
+### Widget para sites
+
+Em **Integrações → Widget para sites** (ou pelo ícone de globo no cartão do agente), escolha o agente, os sites autorizados, o título, a cor e o canto da tela. Copie a linha e cole antes de `</body>` no site, no rodapé do WordPress, no Wix ou numa tag do Google Tag Manager:
+
+```html
+<script src="https://nexo.suaempresa.com.br/widget.js" data-nexo="nxw_SUA_CHAVE_PUBLICA" async></script>
+```
+
+| Item | Como funciona |
+|---|---|
+| Sites autorizados | Um por linha: `www.loja.com.br`, `https://loja.com.br` ou `*.loja.com.br`. Vazio libera qualquer site. O próprio Nexo sempre pode, para o botão **Testar aqui**. |
+| Limite | `NEXO_WIDGET_RATE_LIMIT` perguntas por minuto por visitante (10) e 20 vezes isso para o widget inteiro (429 com `Retry-After`). |
+| Conversa | Fica no navegador do visitante; o Nexo conta perguntas e perguntas sem resposta, sem gravar a conversa. |
+| Segurança | Shadow DOM, texto sempre tratado como texto, corpo limitado a 32 KB, chave pública própria (`nxw_`) que só pergunta a um agente; **Trocar a chave** invalida o código antigo. |
+| Controle pelo site | `window.NexoWidget.open()`, `close()`, `toggle()`, `ask("pergunta")` e `reset()`; `data-open="true"` carrega aberto. |
+
+### API compatível com OpenAI
+
+Qualquer ferramenta que aceita um "Base URL" da OpenAI usa os agentes do Nexo: n8n, Make, Typebot, Flowise, Dify, Open WebUI, LibreChat, LangChain e os SDKs oficiais. Cada agente vira um modelo (`sofia-suporte`), e `nexo` consulta o acervo inteiro. Use uma chave de API com permissão **Só consulta**.
+
+```python
+from openai import OpenAI
+
+cliente = OpenAI(base_url="http://127.0.0.1:8000/v1", api_key="nxk_SUA_CHAVE")
+resposta = cliente.chat.completions.create(
+    model="sofia-suporte",
+    messages=[{"role": "user", "content": "Como faço a troca do filtro?"}],
+)
+print(resposta.choices[0].message.content)
+```
+
+A última mensagem `user` é a pergunta e as anteriores são o histórico; mensagens `system` são ignoradas, porque quem manda no tom é o agente e as regras de base estrita valem sempre. A resposta traz as fontes no fim do texto (quando o agente cita fontes) e em `nexo.sources`. `stream: true` devolve `chat.completion.chunk` e termina em `data: [DONE]`; os erros seguem o formato `{"error": {...}}` da OpenAI. No n8n: **Credentials → New → OpenAI**, com a chave e o Base URL `https://seu-nexo/v1`.
 
 ### Chaves de API
 
@@ -323,7 +389,7 @@ Administradores cadastram webhooks em **Integrações → Webhooks** e escolhem 
 |---|---|
 | `document.ready` | Um PDF terminou de indexar |
 | `document.failed` | A indexação de um PDF falhou |
-| `question.unanswered` | Uma pergunta não teve base nos documentos |
+| `question.unanswered` | Uma pergunta não teve base nos documentos (com `source: widget` ou `openai` quando veio de lá) |
 | `feedback.negative` | Alguém marcou uma resposta como "não ajudou" |
 | `whatsapp.message` | Chegou uma mensagem de cliente no WhatsApp |
 | `whatsapp.handoff` | Um contato do WhatsApp passou a aguardar atendente |
@@ -364,11 +430,11 @@ Na **caixa de entrada**, o agente responde sozinho com a base dele. Quando não 
 
 ## Configuração
 
-A configuração base fica no `.env` (modelo em [`.env.example`](.env.example)); parte dela também muda pela tela **Sistema e conta → Ajustes**, sem reiniciar. As principais:
+A configuração base fica no `.env` (modelo em [`.env.example`](.env.example)). Quase tudo também muda pela tela **Sistema e conta → Ajustes**, sem reiniciar: provedor de IA, modelos, endereços e chaves, busca, trechos, acesso, backup e retenção. Os valores da tela ficam em `data/ajustes.json` e as chaves em `data/segredos.json`, por cima do `.env`. As principais variáveis:
 
 | Variável | Padrão | Função |
 |---|---|---|
-| `NEXO_LLM_PROVIDER` | `ollama` | `ollama`, `openai` ou `extrativo` |
+| `NEXO_LLM_PROVIDER` | `ollama` | `ollama`, `openai`, `compativel` ou `extrativo` |
 | `NEXO_LLM_MODEL` | `llama3.1` | Modelo de linguagem |
 | `NEXO_EMBED_PROVIDER` | `huggingface` | `huggingface`, `openai`, `ollama` ou `hash` |
 | `NEXO_EMBED_MODEL` | `intfloat/multilingual-e5-small` | Modelo de embeddings |
@@ -380,7 +446,8 @@ A configuração base fica no `.env` (modelo em [`.env.example`](.env.example));
 | `NEXO_MIN_RERANK_SCORE` | `0.1` | Nota mínima do reranker |
 | `NEXO_VERIFY_ANSWERS` | `false` | Verificação de fidelidade com uma segunda chamada ao LLM |
 | `NEXO_WEBHOOK_TIMEOUT` | `5` | Segundos de espera por entrega de webhook |
-| `NEXO_PUBLIC_URL` | vazio | Endereço público do Nexo, usado na URL do webhook do WhatsApp |
+| `NEXO_OPENAI_BASE_URL` | vazio | Endereço do serviço compatível com a OpenAI (obrigatório com `compativel`) |
+| `NEXO_PUBLIC_URL` | vazio | Endereço público do Nexo, usado na URL do webhook do WhatsApp e no código do widget |
 | `NEXO_WHATSAPP_HISTORY` | `6` | Mensagens anteriores do contato usadas pelo agente no WhatsApp |
 | `NEXO_WHATSAPP_TIMEOUT` | `15` | Segundos de espera por chamada ao provedor do WhatsApp |
 | `NEXO_MAX_UPLOAD_MB` | `100` | Tamanho máximo de cada arquivo |
@@ -392,12 +459,15 @@ A configuração base fica no `.env` (modelo em [`.env.example`](.env.example));
 | `NEXO_CORS_ORIGINS` | vazio | Sites liberados a chamar a API pelo navegador, separados por vírgula |
 | `NEXO_ALLOW_PRIVATE_URLS` | `false` | Permite importar links da rede interna |
 | `NEXO_LINK_TIMEOUT` | `20` | Segundos de espera ao baixar um link |
+| `NEXO_REQUIRE_PASSWORD_CHANGE` | `true` | Exige a troca da senha padrão do admin antes de liberar a sessão |
+| `NEXO_BACKUP_HOURS` / `NEXO_BACKUP_KEEP` | `0` / `7` | Backup automático a cada N horas (0 desliga) e quantos guardar em `data/backups` |
+| `NEXO_WIDGET_RATE_LIMIT` | `10` | Perguntas por minuto de cada visitante em cada widget |
 
-A tela **Sistema e conta** mostra a configuração ativa, e a aba **Ajustes** indica o que foi alterado em relação ao `.env`.
+A tela **Sistema e conta** mostra a configuração ativa e os primeiros passos, e a aba **Ajustes** indica o que foi alterado em relação ao `.env`. Trocar o modelo de embeddings apaga os vetores e reindexa o acervo sozinho: o Nexo guarda em `data/vetores.json` qual modelo gerou os vetores atuais.
 
 ## Banco de dados
 
-O Nexo cria tudo sozinho na primeira execução e migra bancos antigos sem passo manual (na 2.3, acrescenta as colunas que faltam e cria `nx_quick_reply` e `nx_audit`). Quem for popular ou administrar os dados encontra em [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) (e no resumo em [`docs/banco-de-dados.md`](docs/banco-de-dados.md)) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
+O Nexo cria tudo sozinho na primeira execução e migra bancos antigos sem passo manual (na 2.4, cria `nx_widget`; na 2.3, acrescentou as colunas que faltavam e criou `nx_quick_reply` e `nx_audit`). Quem for popular ou administrar os dados encontra em [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) (e no resumo em [`docs/banco-de-dados.md`](docs/banco-de-dados.md)) o diagrama de relacionamentos, a função de cada tabela, o formato do banco vetorial e do arquivo de usuários, e como trocar o SQLite por PostgreSQL, MySQL ou SQL Server. O DDL está em [`docs/schema-postgresql.sql`](docs/schema-postgresql.sql) e [`docs/schema-sqlite.sql`](docs/schema-sqlite.sql).
 
 ```mermaid
 erDiagram
@@ -413,6 +483,7 @@ erDiagram
     nx_message ||--o{ nx_message_source : cita
     nx_document |o--o{ nx_message_source : origem
     nx_message ||--o{ nx_feedback : recebe
+    nx_bot ||--o{ nx_widget : "publicado em"
     nx_api_key {
         string id PK
         string owner
@@ -434,9 +505,14 @@ erDiagram
         string actor
         string action
     }
+    nx_widget {
+        string id PK
+        string bot_id FK
+        string public_key UK
+    }
 ```
 
-`nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` ligam-se às contas pelo nome de usuário (as contas ficam em `data/usuarios.json`, fora do banco). Os agentes não têm coleção vetorial própria: a busca filtra pelos documentos da base de cada um, por isso mover itens entre bases não exige reindexar.
+`nx_api_key`, `nx_webhook`, `nx_quick_reply` e `nx_audit` ligam-se às contas pelo nome de usuário (as contas ficam em `data/usuarios.json`, fora do banco); `nx_widget` pertence a um agente e some junto com ele. Fora do banco ficam também `data/ajustes.json`, `data/segredos.json`, `data/instalacao.json`, `data/vetores.json` e os backups automáticos em `data/backups/`. Os agentes não têm coleção vetorial própria: a busca filtra pelos documentos da base de cada um, por isso mover itens entre bases não exige reindexar.
 
 ## Estrutura
 
@@ -445,12 +521,13 @@ nexo/
   config.py          configuração lida do .env
   db.py              tabelas SQLAlchemy
   migrations.py      migração automática (bancos da 2.0 e colunas novas)
-  runtime.py         ajustes pela tela, gravados em data/ajustes.json
-  maintenance.py     diagnóstico, manutenção, retenção, backup e restauração
+  runtime.py         ajustes pela tela (provedores, chaves e pipeline), em data/ajustes.json e data/segredos.json
+  onboarding.py      assistente de configuração e primeiros passos
+  maintenance.py     diagnóstico, manutenção, retenção, backup automático, troca de embeddings, backup e restauração
   audit.py           registro de atividades
   links.py           importação de links com bloqueio da rede interna
   sample.py          base de teste
-  cli.py             linha de comando python -m nexo
+  cli.py             linha de comando python -m nexo (servir --abrir, configurar, senha e manutenção)
   logs.py            registros em texto ou JSON
   knowledge.py       leitura de DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML e textos
   whatsapp.py        provedores, webhook, contatos e respostas do agente no WhatsApp
@@ -460,11 +537,13 @@ nexo/
   webhooks.py        entrega assinada dos eventos
   rag/
     engine.py        leitura dos PDFs, indexação, busca, reranking, prompt do agente e resposta
-    providers.py     LLM, embeddings, banco vetorial e reranker configuráveis
+    providers.py     LLM (inclusive compatível com OpenAI), embeddings, banco vetorial, reranker e teste de conexão
     hash_embedding.py  embedding léxico para testes
-  api/               rotas FastAPI, esquemas e autenticação (agents.py: bases e agentes; whatsapp.py: WhatsApp; system.py: operação)
+  api/               rotas FastAPI, esquemas e autenticação (agents.py: bases e agentes; whatsapp.py: WhatsApp; system.py: operação;
+                     widgets.py: widget para sites; openai_compat.py: rotas /v1 compatíveis com OpenAI)
+  static/widget.js   widget para sites, em JavaScript puro e Shadow DOM
 frontend/            interface React + TypeScript (Vite)
-  src/pages/         Entrada, Conversas, Chats, Agents, Bases, WhatsApp, Busca, Documentos, Painel, Integrações, Sistema
+  src/pages/         Entrada, Assistente, Conversas, Chats, Agents, Bases, WhatsApp, Busca, Documentos, Painel, Integrações, Sistema
   src/components/    menu, Tutorial, paleta de comandos, atalhos, trechos indexados e termos destacados
 scripts/             avaliação da recuperação, PDF de exemplo, redefinição de senha
   docs/              gerador do Manual e do PDF do banco de dados
@@ -476,7 +555,7 @@ Dockerfile           imagem do Nexo (interface compilada, usuário sem privilég
 
 ## API
 
-Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas, exceto entrada, cadastro e o webhook público do WhatsApp, exigem `Authorization: Bearer <token>` ou uma chave de API.
+Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas, exceto entrada, cadastro, o webhook público do WhatsApp e as rotas públicas do widget, exigem `Authorization: Bearer <token>` ou uma chave de API.
 
 | Método | Rota | Função |
 |---|---|---|
@@ -526,7 +605,14 @@ Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas,
 | GET / PATCH | `/api/whatsapp/contacts/{id}` | Conversa com o cliente; ligar ou pausar o agente |
 | POST | `/api/whatsapp/contacts/{id}/messages` · `/suggest` | Responder como a equipe e pedir sugestão ao agente |
 | GET / POST / PATCH / DELETE | `/api/whatsapp/quick-replies` · `/{id}` | Respostas prontas |
-| GET / PUT | `/api/system/settings` · `POST /reset` | Ajustes pela tela (administrador) |
+| GET / PUT | `/api/system/settings` · `POST /reset` | Ajustes pela tela, inclusive provedores e chaves (administrador) |
+| POST | `/api/system/providers/test` | Testa o modelo, os embeddings ou o reranking sem salvar (administrador) |
+| GET | `/api/system/providers/ollama-models` | Modelos instalados no Ollama (administrador) |
+| GET / POST | `/api/system/setup` | Assistente de configuração e primeiros passos (administrador) |
+| GET / POST | `/api/system/backups` · `GET /api/system/backups/{nome}` | Backups automáticos: plano, fazer um agora e baixar (administrador) |
+| GET / POST / PATCH / DELETE | `/api/widgets` · `/api/widgets/{id}` · `POST /rotate` | Widgets para sites (administrador para alterar) |
+| GET / POST | `/api/public/widget/{chave}/config` · `/ask` · `GET /widget.js` | Rotas públicas do widget |
+| GET / POST | `/v1/models` · `/v1/chat/completions` | API compatível com OpenAI (chave de API) |
 | GET | `/api/system/diagnostics?deep=` | Diagnóstico rápido ou completo (administrador) |
 | POST | `/api/system/maintenance` | Ações de manutenção (administrador) |
 | GET | `/api/system/backup` | Baixar o backup (administrador) |
@@ -558,7 +644,7 @@ python -m pytest
 ruff check .
 ```
 
-Os testes usam o modo sem modelos e cobrem ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+Os testes usam o modo sem modelos e cobrem a troca obrigatória da senha padrão, os provedores e as chaves pela tela (com `data/segredos.json` em 0600), o teste de conexão, a troca de embeddings com reindexação automática, o assistente e os primeiros passos, o backup automático com rotação e download, o widget para sites (sites autorizados, pré-voo, limite por visitante, corpo grande, pausa, troca de chave e exclusão em cascata), a API compatível com OpenAI (modelos, resposta, streaming, erros e permissão), a linha de comando `configurar` e `senha`, a checagem da porta, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
 
 ## Documentação em PDF
 
@@ -570,7 +656,11 @@ npm i -g @mermaid-js/mermaid-cli
 python scripts/docs/gerar_pdfs.py
 ```
 
-Os dois PDFs saem na raiz e em `docs/`, com sumário, diagramas em vetor e metadados.
+Os dois PDFs saem na raiz e em `docs/`, com sumário, diagramas em vetor e metadados. Para usar o Chrome instalado no lugar do Chromium do Playwright, defina `NEXO_CHROME` com o caminho do executável.
+
+## Página do projeto
+
+A página de apresentação fica em [`pages/`](pages/index.html) e é publicada no GitHub Pages pelo workflow [`pages.yml`](.github/workflows/pages.yml), junto com as capturas e os dois PDFs. Para ativar, em **Settings → Pages** do repositório escolha **Source: GitHub Actions**.
 
 ## Licença
 

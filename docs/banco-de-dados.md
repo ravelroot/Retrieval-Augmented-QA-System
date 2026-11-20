@@ -8,7 +8,7 @@ O Nexo guarda informações em **três lugares**, cada um com um papel:
 | Banco vetorial | `data/chroma/` (ChromaDB) ou Qdrant | Trechos dos arquivos com os embeddings e os metadados de origem |
 | Arquivos | `data/usuarios.json`, `data/ajustes.json` e `data/uploads/` | Contas de acesso (com o tutorial visto e a versão das sessões), os ajustes feitos pela tela e os arquivos originais (`<id>.<extensão>`) |
 
-As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). Na 2.3, a migração acrescenta sozinha as colunas novas e cria `nx_quick_reply` e `nx_audit`. Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
+As tabelas são criadas automaticamente na primeira execução, e bancos da 2.0 são migrados sozinhos por `nexo/migrations.py` (veja [Migração automática](#migração-automática)). Na 2.3, a migração acrescenta sozinha as colunas novas e cria `nx_quick_reply` e `nx_audit`; na 2.4, cria `nx_widget`. Os arquivos `schema-postgresql.sql` e `schema-sqlite.sql` desta pasta trazem o DDL equivalente para quem prefere criar o banco manualmente.
 
 ## Diagrama de relacionamentos
 
@@ -175,6 +175,18 @@ erDiagram
         varchar32 created_by
         timestamp created_at
         timestamp updated_at
+    }
+    nx_widget {
+        varchar32 id PK
+        varchar80 name
+        varchar32 bot_id FK
+        varchar48 public_key UK
+        text origins
+        varchar16 color
+        boolean active
+        int questions
+        int unanswered
+        timestamp last_used_at
     }
     nx_audit {
         int id PK
@@ -351,8 +363,21 @@ Cada mensagem recebida ou enviada.
 ### nx_quick_reply
 Respostas prontas do WhatsApp. `body` aceita `{nome}` e `{telefone}`, trocados pelos dados do contato. A API recusa títulos repetidos (409 `NAME_TAKEN`); só quem criou ou um administrador altera.
 
+### nx_widget
+Widgets que publicam um agente em sites. `bot_id` aponta para `nx_bot` com `ON DELETE CASCADE`; `public_key` (`nxw_…`, única) vai no código colado no site; `origins` guarda os sites autorizados, um por linha (nulo libera qualquer site); `title`, `welcome`, `color`, `position` e `show_sources` definem a aparência; `active` pausa o widget; `questions`, `unanswered` e `last_used_at` contam o uso. As conversas do widget não são gravadas.
+
 ### nx_audit
 Registro de atividades. `id` é inteiro autoincremental; `actor` é a conta (ou `sistema`), `action` o código da ação (como `auth.login`, `bot.update`, `settings.update`), `target_type`/`target_id` o alvo, `detail` um JSON com o que mudou, sem senhas nem chaves, e `ip` o endereço de origem. Índices em `created_at`, `actor` e `action` atendem os filtros da tela Atividades.
+
+## Arquivos de configuração
+
+| Arquivo | Conteúdo |
+|---|---|
+| `data/ajustes.json` | Valores alterados em Sistema e conta › Ajustes, por cima do `.env` |
+| `data/segredos.json` | Chaves dos provedores salvas pela tela (permissão 0600), nunca devolvidas pela API |
+| `data/instalacao.json` | Quando o assistente de configuração foi concluído |
+| `data/vetores.json` | Assinatura do modelo de embeddings que gerou os vetores; quando muda, a coleção é apagada e o acervo reindexado |
+| `data/backups/` | Backups automáticos `nexo-auto-*.zip`, com rotação |
 
 ## Banco vetorial
 

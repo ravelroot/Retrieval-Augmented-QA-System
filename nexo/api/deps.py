@@ -14,7 +14,7 @@ from sqlalchemy import select
 from nexo import db
 from nexo.config import Settings, get_settings
 from nexo.security import API_KEY_PREFIX, hash_api_key, read_token
-from nexo.users import User, UserStore
+from nexo.users import DEFAULT_ADMIN_USERNAME, User, UserStore
 
 
 class ApiError(Exception):
@@ -47,6 +47,8 @@ SCOPE_ROUTES: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
         ("GET", r"^/api/conversations/[^/]+/export$"),
         ("POST", r"^/api/messages/[^/]+/feedback$"),
         ("GET", r"^/api/auth/me$"),
+        ("GET", r"^/v1/models$"),
+        ("POST", r"^/v1/chat/completions$"),
     )),
     "feed": tuple((m, re.compile(p)) for m, p in (
         ("GET", r"^/api/bases(/[^/]+)?$"),
@@ -60,6 +62,19 @@ SCOPE_ROUTES: dict[str, tuple[tuple[str, re.Pattern[str]], ...]] = {
         ("GET", r"^/api/auth/me$"),
     )),
 }
+
+
+PASSWORD_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = tuple((m, re.compile(p)) for m, p in (
+    ("GET", r"^/api/auth/me$"),
+    ("PUT", r"^/api/auth/password$"),
+    ("GET", r"^/api/system/setup$"),
+    ("GET", r"^/api/system/status$"),
+    ("GET", r"^/api/whatsapp/summary$"),
+))
+
+
+def must_change_password(user: User, users: UserStore, settings: Settings) -> bool:
+    return bool(settings.require_password_change and user.username == DEFAULT_ADMIN_USERNAME and users.default_admin_active())
 
 
 @dataclass
@@ -114,20 +129,31 @@ def current_user(request: Request, authorization: str | None = Header(None), x_a
         raise ApiError(401, "UNAUTHENTICATED", "Usuário não encontrado.")
     if int(claims.get("ver", 0) or 0) != user.session_version:
         raise ApiError(401, "SESSION_REVOKED", "Sua sessão foi encerrada. Entre novamente.")
+    if must_change_password(user, users, settings) and not any(
+            m == request.method and p.match(request.url.path) for m, p in PASSWORD_ROUTES):
+        raise ApiError(403, "PASSWORD_CHANGE_REQUIRED", "Troque a senha padrão do administrador para continuar.")
     return Principal(user.username, user.name, user.role)
 
 
 class RateLimiter:
-    def __init__(self, window: float = 60.0):
+    def __init__(self, window: float = 60.0, max_keys: int = 5000):
         self.window = window
+        self.max_keys = max_keys
         self._hits: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
+
+    def _prune(self, now: float) -> None:
+        stale = [k for k, hits in self._hits.items() if not hits or now - hits[-1] >= self.window]
+        for k in stale:
+            del self._hits[k]
 
     def hit(self, key: str, limit: int) -> int | None:
         if limit <= 0:
             return None
         now = time.monotonic()
         with self._lock:
+            if len(self._hits) > self.max_keys:
+                self._prune(now)
             hits = self._hits.setdefault(key, deque())
             while hits and now - hits[0] >= self.window:
                 hits.popleft()

@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import re
+import time
 from typing import Any
 
 from nexo.config import Settings
+
+
+CONTEXT_WINDOW = 32768
+
+LLM_PROVIDERS = {"ollama": "Ollama", "openai": "OpenAI", "compativel": "Compatível com OpenAI", "extrativo": "Extrativo"}
 
 
 class ProviderError(RuntimeError):
@@ -62,6 +69,16 @@ def build_llm(s: Settings):
             raise ProviderError("Defina OPENAI_API_KEY para usar a OpenAI.")
         return OpenAI(model=s.llm_model, api_key=s.openai_api_key, api_base=s.openai_base_url,
                       temperature=s.llm_temperature, timeout=s.llm_timeout)
+    if s.llm_provider == "compativel":
+        try:
+            from llama_index.llms.openai_like import OpenAILike
+        except ImportError as e:
+            raise _need("llama-index-llms-openai-like", "um serviço compatível com a OpenAI") from e
+        if not s.openai_base_url:
+            raise ProviderError("Informe o endereço do serviço compatível com a OpenAI (NEXO_OPENAI_BASE_URL).")
+        return OpenAILike(model=s.llm_model, api_base=s.openai_base_url, api_key=s.openai_api_key or "sem-chave",
+                          temperature=s.llm_temperature, timeout=s.llm_timeout, is_chat_model=True,
+                          context_window=CONTEXT_WINDOW, max_retries=1)
     raise ProviderError(f"Provedor de LLM desconhecido: {s.llm_provider}")
 
 
@@ -113,6 +130,56 @@ def build_reranker(s: Settings) -> Any:
     raise ProviderError(f"Reranker desconhecido: {s.reranker}")
 
 
+def cited(text: str, sources: list) -> list:
+    ranks = {int(n) for n in re.findall(r"\[(\d{1,2})\]", text or "")}
+    picked = [x for x in sources if getattr(x, "rank", None) in ranks]
+    return picked or list(sources)
+
+
+def embedding_space(s: Settings) -> str:
+    parts = [s.embed_provider, s.embed_model, s.embed_query_prefix, s.embed_text_prefix]
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def _short(error: Exception) -> str:
+    text = str(error).strip().splitlines()[0] if str(error).strip() else error.__class__.__name__
+    return text[:300]
+
+
+def probe(target: str, s: Settings) -> dict:
+    started = time.perf_counter()
+    try:
+        if target == "llm":
+            llm = build_llm(s)
+            if llm is None:
+                return {"ok": True, "detail": "Modo extrativo: as respostas são montadas com frases dos trechos, sem modelo.",
+                        "latency_ms": 0}
+            text = llm.complete("Responda apenas com a palavra: ok").text.strip()
+            detail = f"{LLM_PROVIDERS.get(s.llm_provider, s.llm_provider)} respondeu com {s.llm_model}"
+            if text:
+                detail += f": “{text[:60]}”"
+        elif target == "embedding":
+            vector = build_embedding(s).get_text_embedding("teste de conexão do Nexo")
+            name = "o embedding léxico de teste" if s.embed_provider == "hash" else s.embed_model
+            detail = f"Embeddings funcionando: vetores de {len(vector)} dimensões com {name}."
+        elif target == "reranker":
+            reranker = build_reranker(s)
+            if reranker is None:
+                return {"ok": True, "detail": "Reranking desligado: a ordem da busca vetorial é mantida.", "latency_ms": 0}
+            from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
+            nodes = [NodeWithScore(node=TextNode(text="O filtro deve ser trocado a cada seis meses."), score=0.5),
+                     NodeWithScore(node=TextNode(text="A garantia cobre defeitos de fabricação."), score=0.5)]
+            ranked = reranker.postprocess_nodes(nodes, query_bundle=QueryBundle("Quando trocar o filtro?"))
+            detail = f"Reranking funcionando: {len(ranked)} trecho(s) reordenado(s)."
+        else:
+            raise ProviderError("Teste desconhecido.")
+    except ProviderError as e:
+        return {"ok": False, "detail": str(e), "latency_ms": int((time.perf_counter() - started) * 1000)}
+    except Exception as e:
+        return {"ok": False, "detail": f"Falhou: {_short(e)}", "latency_ms": int((time.perf_counter() - started) * 1000)}
+    return {"ok": True, "detail": detail, "latency_ms": int((time.perf_counter() - started) * 1000)}
+
+
 def index_signature(s: Settings) -> str:
     parts = [s.embed_provider, s.embed_model, s.embed_query_prefix, s.embed_text_prefix, str(s.chunk_size),
              str(s.chunk_overlap), s.vector_store, s.collection]
@@ -120,7 +187,12 @@ def index_signature(s: Settings) -> str:
 
 
 def describe(s: Settings) -> dict:
-    llm = "Extrativo (sem LLM)" if s.llm_provider == "extrativo" else f"{s.llm_provider} · {s.llm_model}"
+    if s.llm_provider == "extrativo":
+        llm = "Extrativo (sem LLM)"
+    elif s.llm_provider == "compativel":
+        llm = f"compatível · {s.llm_model} em {s.openai_base_url or 'endereço não informado'}"
+    else:
+        llm = f"{s.llm_provider} · {s.llm_model}"
     embed = "Hash léxico (testes)" if s.embed_provider == "hash" else f"{s.embed_provider} · {s.embed_model}"
     if s.reranker == "none":
         rerank = "Desligado"
