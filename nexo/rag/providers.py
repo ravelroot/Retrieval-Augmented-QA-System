@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import math
 import re
 import time
 from typing import Any
@@ -50,6 +51,13 @@ def build_embedding(s: Settings):
     raise ProviderError(f"Provedor de embeddings desconhecido: {s.embed_provider}")
 
 
+def ollama_context(s: Settings) -> int:
+    if s.ollama_context:
+        return s.ollama_context
+    needed = s.top_n * s.chunk_size * 1.3 + 3072
+    return min(32768, max(8192, math.ceil(needed / 1024) * 1024))
+
+
 def build_llm(s: Settings):
     if s.llm_provider == "extrativo":
         return None
@@ -59,7 +67,7 @@ def build_llm(s: Settings):
         except ImportError as e:
             raise _need("llama-index-llms-ollama", "o Ollama") from e
         return Ollama(model=s.llm_model, base_url=s.ollama_url, temperature=s.llm_temperature,
-                      request_timeout=s.llm_timeout)
+                      request_timeout=s.llm_timeout, context_window=ollama_context(s))
     if s.llm_provider == "openai":
         try:
             from llama_index.llms.openai import OpenAI

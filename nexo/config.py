@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(0.1, ge=0.0, le=1.0)
     llm_timeout: float = 120.0
     ollama_url: str = "http://localhost:11434"
+    ollama_context: int | None = Field(None, ge=2048, le=131072)
     openai_base_url: str | None = None
     openai_api_key: str | None = Field(None, validation_alias=AliasChoices("NEXO_OPENAI_API_KEY", "OPENAI_API_KEY"))
     cohere_api_key: str | None = Field(None, validation_alias=AliasChoices("NEXO_COHERE_API_KEY", "COHERE_API_KEY"))
@@ -69,7 +70,7 @@ class Settings(BaseSettings):
     verify_answers: bool = False
 
     @field_validator("database_url", "secret", "public_url", "openai_base_url", "openai_api_key", "cohere_api_key", "chroma_host",
-                     "qdrant_url", "qdrant_api_key", "cors_origins", mode="before")
+                     "qdrant_url", "qdrant_api_key", "cors_origins", "ollama_context", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value

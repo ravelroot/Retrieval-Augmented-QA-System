@@ -195,3 +195,13 @@ def test_rate_limiter_prunes_idle_keys():
     limiter.hit("novo", 5)
     assert len(limiter._hits) <= 11
     assert limiter.hit("x", 1) is None and limiter.hit("x", 1) is not None
+
+
+def test_ollama_context_fits_memory():
+    from nexo.config import Settings
+    from nexo.rag.providers import ollama_context
+    assert ollama_context(Settings(top_n=4, chunk_size=512)) == 8192
+    assert ollama_context(Settings(top_n=8, chunk_size=1024)) == 14336
+    assert ollama_context(Settings(top_n=20, chunk_size=4096)) == 32768
+    assert ollama_context(Settings(ollama_context=65536)) == 65536
+    assert Settings(ollama_context="").ollama_context is None

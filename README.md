@@ -479,6 +479,7 @@ A configuração base fica no `.env` (modelo em [`.env.example`](.env.example));
 |---|---|---|
 | `NEXO_LLM_PROVIDER` | `ollama` | `ollama`, `openai`, `compativel` ou `extrativo` |
 | `NEXO_LLM_MODEL` | `llama3.1` | Modelo de linguagem |
+| `NEXO_OLLAMA_CONTEXT` | automático (8192 a 32768) | Contexto do Ollama em tokens (`num_ctx`). Vazio calcula pelo tamanho e pela quantidade de trechos; valores altos pedem muita memória |
 | `NEXO_EMBED_PROVIDER` | `huggingface` | `huggingface`, `openai`, `ollama` ou `hash` |
 | `NEXO_EMBED_MODEL` | `intfloat/multilingual-e5-small` | Modelo de embeddings |
 | `NEXO_VECTOR_STORE` | `chroma` | `chroma` ou `qdrant` |

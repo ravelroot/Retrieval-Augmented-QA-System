@@ -355,6 +355,8 @@ def configuracao(d):
         ("`NEXO_LLM_TEMPERATURE`", "0.1", "Criatividade do modelo (0 a 1). Mantenha baixa"),
         ("`NEXO_LLM_TIMEOUT`", "120", "Tempo máximo de resposta do modelo, em segundos"),
         ("`NEXO_OLLAMA_URL`", "http://localhost:11434", "Endereço do Ollama"),
+        ("`NEXO_OLLAMA_CONTEXT`", "automático", "Contexto do Ollama em tokens (num_ctx). Vazio usa de 8192 a 32768, conforme "
+         "o tamanho e a quantidade de trechos; o máximo do modelo pede muita memória"),
         ("`OPENAI_API_KEY`", "vazio", "Chave da OpenAI (também aceita NEXO_OPENAI_API_KEY)"),
         ("`NEXO_OPENAI_BASE_URL`", "vazio", "Endereço do serviço compatível (obrigatório com compativel) ou de um proxy da OpenAI"),
         "Embeddings e banco vetorial",
@@ -1967,6 +1969,8 @@ cd frontend && npm update && npm run build
         ("\"O painel do Nexo abre só pelo aplicativo\"", "Endereço aberto num navegador", "Abra pelo menu Iniciar ou pela "
          "pesquisa do Windows"),
         ("\"O modelo não respondeu\"", "Ollama desligado ou modelo não baixado", "Abra o Ollama e rode `ollama pull llama3.1`"),
+        ("\"llama-server reported out-of-memory\"", "Contexto do Ollama maior que a memória livre", "Deixe NEXO_OLLAMA_CONTEXT "
+         "vazio (8192 por padrão) ou use um valor menor"),
         ("\"Instale o pacote ...\"", "Provedor sem a biblioteca", "pip install do pacote indicado"),
         ("Item em Falhou: sem texto", "PDF digitalizado ou arquivo vazio", "Aplique OCR (OCRmyPDF) ou envie o texto pela aba Textos"),
         ("Formato não aceito (415)", "Extensão fora da lista", "Converta para PDF, DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON ou HTML"),
