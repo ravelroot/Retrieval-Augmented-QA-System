@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { syncWindowTheme } from "./desktop";
+
 export type ThemeChoice = "light" | "dark" | "auto";
 
 const KEY = "nexo.tema";
@@ -18,8 +21,14 @@ export function resolveTheme(choice: ThemeChoice): "light" | "dark" {
   return media()?.matches ? "dark" : "light";
 }
 
+export function toggleTheme(choice: ThemeChoice): ThemeChoice {
+  return resolveTheme(choice) === "dark" ? "light" : "dark";
+}
+
 export function applyTheme(choice: ThemeChoice): void {
-  document.documentElement.dataset.theme = resolveTheme(choice);
+  const resolved = resolveTheme(choice);
+  document.documentElement.dataset.theme = resolved;
+  syncWindowTheme(resolved);
   try {
     localStorage.setItem(KEY, choice);
   } catch {
@@ -32,4 +41,11 @@ export function watchSystemTheme(onChange: () => void): () => void {
   if (!query) return () => undefined;
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
+}
+
+export function useTheme(): [ThemeChoice, (choice: ThemeChoice) => void] {
+  const [theme, setTheme] = useState<ThemeChoice>(initialTheme);
+  useEffect(() => applyTheme(theme), [theme]);
+  useEffect(() => (theme === "auto" ? watchSystemTheme(() => applyTheme("auto")) : undefined), [theme]);
+  return [theme, setTheme];
 }

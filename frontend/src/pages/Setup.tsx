@@ -5,6 +5,8 @@ import { useAuth } from "../auth";
 import { Field } from "../components/Field";
 import { Icon } from "../components/Icon";
 import { Brand } from "../components/Logo";
+import { ThemeSwitch } from "../components/ThemeSwitch";
+import { useTheme } from "../theme";
 import { useToast } from "../components/Toast";
 import { PRESETS, presetFor, type Preset } from "../providers";
 
@@ -350,6 +352,7 @@ function ReadyStep({ state, onFinish, onReload }: { state: SetupState; onFinish:
 }
 
 export function SetupPage() {
+  const [theme, setTheme] = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -405,6 +408,7 @@ export function SetupPage() {
   const label = step ? LABELS[step] : null;
   return (
     <div className="setup">
+      <ThemeSwitch theme={theme} onChange={setTheme} />
       <aside className="setup__side">
         <Brand subtitle="Configuração" inverted />
         <ol className="setup__steps">

@@ -64,6 +64,12 @@ def visao_geral(d):
          "Banco, contas, arquivos, vetores, modelos e registros ficam fora da pasta do programa e sobrevivem às atualizações."),
         ("Release automática", "desktop.yml",
          "Publicar uma release no GitHub gera, verifica e anexa o Nexo-Setup da versão."),
+        ("Janela centralizada", "qualquer tela",
+         "Abre no centro do monitor, do tamanho que cabe na área útil, inclusive em telas pequenas ou com escala de 125% e 150%."),
+        ("Tema claro e escuro", "todas as telas",
+         "Botão na entrada, no assistente e no menu; a barra de título do Windows acompanha o tema."),
+        ("Zoom de 75%", "janela do Nexo",
+         "A interface abre no equivalente a 75% de um navegador; Ctrl + roda do mouse ajusta na hora."),
     ])
     d.p("**Na 2.4.0**, vieram o assistente de configuração, o provedor de IA e as chaves pela tela com teste de conexão, a "
         "troca segura de embeddings, o widget para sites, a API compatível com OpenAI, o backup automático e a lista de "
@@ -138,7 +144,7 @@ def visao_geral(d):
         "eventos do WhatsApp e nova tentativa automática.",
         "Contas com troca de senha que encerra as outras sessões, Sair dos outros dispositivos, nome editável e, para "
         "administradores, criação de contas e redefinição de senha.",
-        "Tutorial no primeiro acesso, paleta de comandos `Ctrl + K`, tema claro, escuro ou automático e layout para celular.",
+        "Tutorial no primeiro acesso, paleta de comandos `Ctrl + K`, tema claro ou escuro em todas as telas e layout para celular.",
         "Ajustes do pipeline pela tela, diagnóstico, manutenção, backup e registro de atividades para administradores, "
         "também pela linha de comando `python -m nexo`.",
         "Importação de páginas e arquivos por link, visualização dos trechos indexados e uma base de teste pronta.",
@@ -162,7 +168,7 @@ def visao_geral(d):
          "preto e branco"),
         ("Status", "Um ponto de cor e o texto neutro: verde para Pronto, azul para Indexando, cinza para Na fila, "
          "vermelho para Falhou"),
-        ("Temas", "Claro, escuro ou automático; o escuro usa os mesmos materiais em tons escuros"),
+        ("Temas", "Claro ou escuro, com o botão em todas as telas (inclusive a entrada); sem escolha, segue o Windows. O escuro usa os mesmos materiais em tons escuros"),
         ("Paleta", "#FFFFFF, #4D4B4B, #000000, #333232 e #BAB7B6; a logo é sempre em preto e branco"),
     ], larguras=["20%", "80%"])
 
@@ -210,7 +216,8 @@ def instalacao(d):
         ("`%LOCALAPPDATA%\\Nexo\\modelos`", "Modelos baixados do HuggingFace"),
         ("`%LOCALAPPDATA%\\Nexo\\logs`", "`nexo.log`, com os registros do aplicativo e do servidor interno"),
         ("`%LOCALAPPDATA%\\Nexo\\.env`", "Opcional: variáveis avançadas, no formato do `.env.example`"),
-        ("`%LOCALAPPDATA%\\Nexo\\janela`", "Dados da janela (WebView2): tema e cache da interface"),
+        ("`%LOCALAPPDATA%\\Nexo\\janela`", "Dados da janela (WebView2): preferências e cache da interface"),
+        ("`%LOCALAPPDATA%\\Nexo\\janela.json`", "Tema escolhido, usado na tela de abertura e na barra de título"),
     ], larguras=["40%", "60%"])
     d.p("Desinstalar, em Configurações › Aplicativos, remove o programa e pergunta se os dados também devem ser apagados; "
         "a resposta padrão é manter.")
@@ -917,7 +924,9 @@ def usando(d):
 
     d.secao("Tema e celular", quebra=True)
     d.tela("tela-escuro.png", "Tema escuro: os mesmos materiais da caixa única em tons escuros.", altura_max_mm=110)
-    d.lado(["O botão de tema no rodapé do menu alterna **Tema claro**, **Tema escuro** e **Tema automático**. No celular, "
+    d.lado(["O botão de tema alterna entre **Tema claro** e **Tema escuro**: fica no rodapé do menu, no canto da tela de "
+            "entrada e no assistente, e também na paleta de comandos. Até a primeira troca, o Nexo segue o tema do Windows. "
+            "A barra de título da janela, a tela de abertura e as janelas de PDF acompanham a escolha. No celular, "
             "o menu recolhe para o botão no topo, as listas abrem por botões e as colunas viram uma só. Na tela Chats com "
             "agentes, o modo lado a lado vira abas; na caixa do WhatsApp, a lista de contatos e a conversa se alternam.",
             "As respostas ao vivo e os botões Parar e Refazer funcionam igual no celular."],
@@ -1583,7 +1592,8 @@ flowchart LR
         ("Restauração pendente", "Se houver um backup escolhido em Restaurar backup, ele é aplicado antes de tudo"),
         ("Primeira abertura", "Sem `instalacao.json`, cria a Base de teste e o Agente de teste na fila e conclui o assistente"),
         ("Servidor interno", "Escolhe uma porta livre a partir de `NEXO_PORT`, gera a chave da janela e sobe o FastAPI"),
-        ("Janela", "Entra por `/janela?chave=…`, recebe o cookie e carrega o painel"),
+        ("Janela", "Abre centralizada no monitor, no tamanho que cabe na área útil, com a barra de título no tema "
+         "escolhido; entra por `/janela?chave=…`, recebe o cookie e carrega o painel com zoom de 75%"),
         ("Fechamento", "Com documentos na fila, pede confirmação; para o servidor, encerra a fila e limpa os arquivos "
          "temporários. O que ficou na fila volta na próxima abertura"),
     ], larguras=["24%", "76%"])

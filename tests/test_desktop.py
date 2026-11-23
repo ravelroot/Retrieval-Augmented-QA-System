@@ -226,3 +226,33 @@ def test_primeira_abertura_respeita_dados_existentes(client):
     settings = get_settings()
     assert desktop.primeira_abertura(settings) == 0
     assert onboarding.done_at(settings)
+
+
+def test_geometria_centraliza_e_cabe_na_tela():
+    from nexo.desktop import geometria
+    assert geometria((0, 0, 1920, 1040), 1.0) == (320, 110, 1280, 820)
+    x, y, w, h = geometria((0, 0, 1920, 1032), 1.5)
+    assert (w, h) == (1804, 970) and x == (1920 - w) // 2 and y == (1032 - h) // 2
+    x, y, w, h = geometria((0, 0, 1366, 728), 1.0)
+    assert w == 1280 and h == 684 and x == 43 and y == 22
+    assert geometria((1920, 0, 2560, 1400), 1.0)[0] == 1920 + (2560 - 1280) // 2
+
+
+def test_geometria_inicial_fora_do_windows():
+    from nexo.desktop import LARGURA, ALTURA, geometria_inicial
+    g = geometria_inicial()
+    assert g["width"] == LARGURA and g["height"] == ALTURA and "x" not in g
+    assert geometria_inicial(600, 400)["min_size"] == (600, 400)
+
+
+def test_tema_da_janela(tmp_path):
+    from nexo import desktop
+    ponte = desktop.Ponte(tmp_path, "light")
+    assert ponte.definir_tema("roxo")["status"] == 400
+    assert ponte.definir_tema("dark") == {"ok": True}
+    assert desktop.preferencias(tmp_path) == {"tema": "dark"}
+    (tmp_path / desktop.PREFERENCIAS).write_text("{quebrado", encoding="utf-8")
+    assert desktop.preferencias(tmp_path) == {}
+    assert desktop.Ponte(tmp_path, "azul")._tema == "light"
+    pagina = desktop.tela("Abrindo", "texto", tema="dark")
+    assert 'data-tema="dark"' in pagina and 'data-tema="light"' in desktop.tela("a", "b", tema="x")

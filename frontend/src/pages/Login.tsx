@@ -4,6 +4,8 @@ import { ApiError, api, type AuthOptions } from "../api";
 import { useAuth } from "../auth";
 import { Field } from "../components/Field";
 import { Brand } from "../components/Logo";
+import { ThemeSwitch } from "../components/ThemeSwitch";
+import { useTheme } from "../theme";
 
 type Mode = "login" | "register";
 
@@ -17,6 +19,7 @@ export function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [theme, setTheme] = useTheme();
 
   useEffect(() => {
     api.options().then(setOptions).catch((e: ApiError) => setMessage(e.message));
@@ -58,6 +61,7 @@ export function LoginPage() {
 
   return (
     <div className="login">
+      <ThemeSwitch theme={theme} onChange={setTheme} />
       <section className="login__brand">
         <Brand subtitle="Respostas com fonte" inverted />
         <div className="login__pitch">

@@ -12,6 +12,7 @@ interface Bridge {
   abrir_documento(id: string, pagina: number | null, token: string): Promise<BridgeResult>;
   abrir_pagina(caminho: string): Promise<BridgeResult>;
   restaurar_backup(token: string): Promise<BridgeResult>;
+  definir_tema(tema: "light" | "dark"): Promise<BridgeResult>;
 }
 
 declare global {
@@ -60,4 +61,9 @@ export function installLinkHandler(): void {
     event.preventDefault();
     void bridge().then((api) => api?.abrir_pagina(url.pathname));
   }, true);
+}
+
+export function syncWindowTheme(theme: "light" | "dark"): void {
+  const api = ready();
+  if (api) void api.definir_tema(theme).catch(() => undefined);
 }

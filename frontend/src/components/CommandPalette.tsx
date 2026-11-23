@@ -41,7 +41,7 @@ export function CommandPalette({ onClose, onTheme, onTutorial, onShortcuts }: {
       { id: "new-base", group: "Ações", label: "Criar base de conhecimento", icon: "base", run: go("/bases") },
       { id: "search", group: "Ações", label: "Buscar nos trechos", icon: "search", run: go("/busca") },
       { id: "upload", group: "Ações", label: "Enviar PDFs", icon: "upload", run: go("/documentos") },
-      { id: "theme", group: "Ações", label: "Trocar o tema", icon: "auto", run: () => { onTheme(); onClose(); } },
+      { id: "theme", group: "Ações", label: "Alternar entre tema claro e escuro", icon: "moon", run: () => { onTheme(); onClose(); } },
       { id: "tutorial", group: "Ações", label: "Ver tutorial", icon: "help", run: () => { onTutorial(); } },
       { id: "shortcuts", group: "Ações", label: "Atalhos de teclado", hint: "?", icon: "command", run: () => { onShortcuts(); } },
       ...(admin ? [

@@ -18,6 +18,7 @@ import "./configuracao.css";
 
 applyTheme(initialTheme());
 installLinkHandler();
+window.addEventListener("pywebviewready", () => applyTheme(initialTheme()), { once: true });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

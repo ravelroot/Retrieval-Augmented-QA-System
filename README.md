@@ -37,6 +37,9 @@ A 3.0.0 transforma o Nexo num aplicativo para Windows. Ele é instalado pelo `Ne
 | **Restaurar pela tela** | **Sistema e conta → Manutenção → Restaurar backup** escolhe o `.zip`, fecha o Nexo, guarda os dados atuais numa cópia e abre de novo com o backup. |
 | **Instância única** | Abrir o Nexo de novo traz a janela que já está aberta para a frente. Fechar com documentos na fila pede confirmação; a indexação continua na próxima abertura. |
 | **Dados do usuário** | Tudo fica em `%LOCALAPPDATA%\Nexo` (`data`, `modelos`, `logs`). Atualizar o aplicativo não mexe nos dados; desinstalar pergunta se deve apagá-los. |
+| **Janela centralizada** | Abre no centro do monitor, no tamanho que cabe na área útil, inclusive em telas pequenas ou com escala de 125% e 150%. |
+| **Tema claro e escuro** | Botão de tema na entrada, no assistente, no menu e na paleta de comandos. Até a primeira troca, segue o Windows; a barra de título da janela acompanha. |
+| **Zoom de 75%** | A interface abre no equivalente a 75% de um navegador. `Ctrl` + roda do mouse ajusta na hora. |
 | **Ícone** | Quadrado preto com bordas levemente arredondadas e o N branco, em todos os tamanhos do Windows. |
 | **Release automática** | Publicar uma release no GitHub dispara o workflow `desktop.yml`, que compila, verifica o pacote e anexa o `Nexo-Setup-<versão>.exe` à release. |
 
@@ -122,7 +125,7 @@ A 2.1.0 transformou o Nexo numa plataforma de agentes, com a identidade visual "
 - **Contas de acesso** com login pré-definido, cadastro próprio e gestão por administradores (criar, promover, redefinir senha e excluir), gravadas em `data/usuarios.json` com senhas em bcrypt. Trocar a senha encerra as outras sessões.
 - **Avaliação** de cada resposta (útil / não ajudou) e script de medição de acerto da recuperação.
 - **Identidade "caixa única"**, a mesma do [Bento](https://github.com/ravelroot/Data-Driven-Admin-Panel): fundo, menu e cabeçalhos impressos na mesa em `#F5F4F4`, conversa e trechos dividindo paredes finas dentro de uma só caixa branca, resumos na tampa preta, títulos e números em Bricolage Grotesque fina e condensada, textos em Instrument Sans e status como um ponto de cor. Paleta `#FFFFFF`, `#4D4B4B`, `#000000`, `#333232` e `#BAB7B6`.
-- **Tema claro, escuro ou automático**, layout responsivo para celular e atalhos de teclado. A logo é sempre em preto e branco.
+- **Tema claro ou escuro** em todas as telas (segue o Windows até a primeira troca), layout responsivo para celular e atalhos de teclado. A logo é sempre em preto e branco.
 
 ## Como o Nexo evita alucinações
 
@@ -175,6 +178,7 @@ A primeira abertura já deixa a **Base de teste** e o **Agente de teste** pronto
 | `%LOCALAPPDATA%\Nexo\data` | Banco, contas, ajustes, segredos, arquivos enviados, vetores e backups |
 | `%LOCALAPPDATA%\Nexo\modelos` | Modelos baixados do HuggingFace |
 | `%LOCALAPPDATA%\Nexo\logs` | `nexo.log`, com os registros do aplicativo |
+| `%LOCALAPPDATA%\Nexo\janela.json` | Tema escolhido para a janela, a tela de abertura e a barra de título |
 | `%LOCALAPPDATA%\Nexo\.env` | Opcional: variáveis avançadas (modelo em [`.env.example`](.env.example)) |
 
 > Integrações: enquanto o Nexo está aberto, a API, o widget e os webhooks respondem no servidor interno (`http://127.0.0.1:8000` ou a próxima porta livre). Para o WhatsApp ou um widget em site público, deixe esse servidor alcançável (`NEXO_HOST` no `.env` e um túnel ou proxy) e defina `NEXO_PUBLIC_URL`. O painel continua só na janela do aplicativo.

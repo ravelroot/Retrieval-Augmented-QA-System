@@ -2118,3 +2118,36 @@ select:focus-visible { outline: none; border-color: var(--texto); box-shadow: 0 
     justify-content: flex-start;
   }
 }
+
+.theme-switch {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--parede-forte);
+  border-radius: var(--raio-controle);
+  background: var(--caixa);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.theme-switch:hover {
+  border-color: var(--texto-3);
+}
+
+.theme-switch:focus-visible {
+  outline: 2px solid var(--tinta);
+  outline-offset: 2px;
+}
+
+.theme-switch svg {
+  width: 16px;
+  height: 16px;
+}

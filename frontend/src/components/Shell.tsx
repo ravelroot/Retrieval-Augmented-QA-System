@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, type SetupState, type User } from "../api";
 import { useAuth } from "../auth";
-import { applyTheme, initialTheme, watchSystemTheme, type ThemeChoice } from "../theme";
+import { toggleTheme, useTheme } from "../theme";
+import { ThemeSwitch } from "./ThemeSwitch";
 import { CommandPalette } from "./CommandPalette";
 import { Icon } from "./Icon";
 import { Brand } from "./Logo";
@@ -63,17 +64,9 @@ const groups = [
   },
 ];
 
-const themeLabel: Record<ThemeChoice, { label: string; icon: string }> = {
-  light: { label: "Tema claro", icon: "sun" },
-  dark: { label: "Tema escuro", icon: "moon" },
-  auto: { label: "Tema automático", icon: "auto" },
-};
-
-const nextTheme: Record<ThemeChoice, ThemeChoice> = { light: "dark", dark: "auto", auto: "light" };
-
 export function Shell({ children }: { children: ReactNode }) {
   const { user, signOut, updateUser } = useAuth();
-  const [theme, setTheme] = useState<ThemeChoice>(initialTheme);
+  const [theme, setTheme] = useTheme();
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(false);
   const [tutorial, setTutorial] = useState(() => !!user && !user.tutorial_done_at);
@@ -133,8 +126,6 @@ export function Shell({ children }: { children: ReactNode }) {
     }
   }
 
-  useEffect(() => applyTheme(theme), [theme]);
-  useEffect(() => (theme === "auto" ? watchSystemTheme(() => applyTheme("auto")) : undefined), [theme]);
   useEffect(() => { setOpen(false); setPalette(false); }, [location.pathname, location.search]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -220,10 +211,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <Icon name="command" />
               <span>Atalhos</span>
             </button>
-            <button className="rail__link" onClick={() => setTheme(nextTheme[theme])} title="Alternar entre claro, escuro e automático">
-              <Icon name={themeLabel[theme].icon} />
-              <span>{themeLabel[theme].label}</span>
-            </button>
+            <ThemeSwitch theme={theme} onChange={setTheme} className="rail__link" />
             <button className="rail__link" onClick={signOut}>
               <Icon name="logout" />
               <span>Sair</span>
@@ -248,7 +236,7 @@ export function Shell({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
-      {palette && <CommandPalette onClose={() => setPalette(false)} onTheme={() => setTheme(nextTheme[theme])}
+      {palette && <CommandPalette onClose={() => setPalette(false)} onTheme={() => setTheme(toggleTheme(theme))}
         onTutorial={() => { setPalette(false); setTutorial(true); }}
         onShortcuts={() => { setPalette(false); setShortcuts(true); }} />}
       {tutorial && <Tutorial name={user?.name ?? ""} onDone={finishTutorial} />}
