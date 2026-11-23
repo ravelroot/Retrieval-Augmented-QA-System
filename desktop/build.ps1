@@ -25,12 +25,12 @@ function Localizar-Python {
     foreach ($Alvo in @("3.12", "3.13", "3.11")) {
         if (Get-Command py -ErrorAction SilentlyContinue) {
             & py "-$Alvo" -c "import sys" 2>$null
-            if ($LASTEXITCODE -eq 0) { return @("py", "-$Alvo") }
+            if ($LASTEXITCODE -eq 0) { return @{ Exe = "py"; Args = @("-$Alvo") } }
         }
     }
     if (Get-Command python -ErrorAction SilentlyContinue) {
         & python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" 2>$null
-        if ($LASTEXITCODE -eq 0) { return @("python") }
+        if ($LASTEXITCODE -eq 0) { return @{ Exe = "python"; Args = @() } }
     }
     throw "Instale o Python 3.12 (https://www.python.org/downloads/) e rode de novo."
 }
@@ -50,9 +50,7 @@ Etapa "Nexo $Versao para Windows"
 if (-not (Test-Path $Python)) {
     Etapa "Criando o ambiente de build"
     $Base = Localizar-Python
-    $Argumentos = @()
-    if ($Base.Length -gt 1) { $Argumentos += $Base[1..($Base.Length - 1)] }
-    Executar $Base[0] ($Argumentos + @("-m", "venv", $Venv))
+    Executar $Base.Exe (@($Base.Args) + @("-m", "venv", $Venv))
 }
 
 Etapa "Instalando as dependencias do Python"
