@@ -66,7 +66,7 @@ export function LoginPage() {
         <Brand subtitle="Respostas com fonte" inverted />
         <div className="login__pitch">
           <h1>Pergunte aos seus manuais. A resposta vem com a página.</h1>
-          <p>O Nexo lê os PDFs que você envia e responde só com o que está neles, citando o trecho e a página de cada afirmação. Se a informação não estiver lá, ele diz que não encontrou.</p>
+          <p>O Nexo lê os documentos que você envia (PDF, Word, Excel, PowerPoint, EPUB, textos e páginas da web) e responde só com o que está neles, citando o trecho e a página de cada afirmação. Se a informação não estiver lá, ele diz que não encontrou.</p>
         </div>
         <dl className="login__box">
           <div className="login__cell login__cell--wide">
@@ -75,7 +75,7 @@ export function LoginPage() {
           </div>
           <div className="login__cell">
             <dt>Base</dt>
-            <dd>Só os seus PDFs</dd>
+            <dd>PDF, Word, Excel, EPUB e mais</dd>
           </div>
           <div className="login__cell">
             <dt>Busca</dt>

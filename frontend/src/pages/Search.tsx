@@ -93,7 +93,7 @@ export function SearchPage() {
       {!ready.length && (
         <div className="empty empty--compact">
           <h2>Nenhum documento pronto</h2>
-          <p>A busca percorre os trechos dos PDFs indexados.</p>
+          <p>A busca percorre os trechos dos documentos indexados.</p>
           <Link className="primary-button" to="/documentos">Ir para Documentos</Link>
         </div>
       )}

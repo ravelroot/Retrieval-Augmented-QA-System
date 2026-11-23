@@ -24,7 +24,7 @@ export function SourcesPanel({ sources, query, active, onSelect, onClose, onErro
       <header className="sources__head">
         <div>
           <h2>Trechos usados</h2>
-          <p>O que o Nexo leu nos PDFs para responder. Os termos da pergunta aparecem destacados.</p>
+          <p>O que o Nexo leu nos documentos para responder. Os termos da pergunta aparecem destacados.</p>
         </div>
         <button className="icon-button" onClick={onClose} aria-label="Fechar trechos">
           <Icon name="close" />

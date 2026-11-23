@@ -191,7 +191,7 @@ export function DocumentsPage() {
           <span className="lid__label">Trechos indexados</span>
           <strong className="lid__number">{docs === null ? "—" : chunks.toLocaleString("pt-BR")}</strong>
           <p className="lid__sub">
-            {docs === null ? "Carregando…" : docs.length === 0 ? "Nenhum PDF enviado ainda."
+            {docs === null ? "Carregando…" : docs.length === 0 ? "Nenhum documento enviado ainda."
               : `${plural(ready.length, "documento pronto", "documentos prontos")} e ${plural(pages, "página lida", "páginas lidas")}.`}
           </p>
           <dl className="lid__stats">
@@ -355,7 +355,7 @@ export function DocumentsPage() {
               <div className="doc__actions">
                 {confirming === doc.id ? (
                   <>
-                    <span className="doc__confirm">Excluir o PDF e os trechos?</span>
+                    <span className="doc__confirm">Excluir o arquivo e os trechos?</span>
                     <button className="danger-button small" onClick={() => { setConfirming(null); void act(() => api.deleteDocument(doc.id), "Documento excluído."); }}>
                       Excluir
                     </button>

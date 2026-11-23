@@ -447,7 +447,7 @@ export function ChatPage() {
           {scopeOpen && (
             <div className="scope__picker">
               {ready.length === 0 ? (
-                <p>Nenhum documento pronto. <Link to="/documentos">Envie PDFs</Link> para começar.</p>
+                <p>Nenhum documento pronto. <Link to="/documentos">Envie documentos</Link> para começar.</p>
               ) : (
                 <>
                   <label className="check">
@@ -473,7 +473,7 @@ export function ChatPage() {
             <div className="empty">
               {ready.length === 0 ? (
                 <>
-                  <h2>Envie um PDF para começar</h2>
+                  <h2>Envie um documento para começar</h2>
                   <p>O Nexo só responde com o que estiver nos documentos indexados.</p>
                   <Link className="primary-button" to="/documentos">Ir para Documentos</Link>
                 </>
@@ -493,7 +493,7 @@ export function ChatPage() {
                 {m.answered === false ? (
                   <div className="missing">
                     <strong>{m.content}</strong>
-                    <p>Tente outras palavras, amplie os documentos consultados ou envie o PDF que trata do assunto.</p>
+                    <p>Tente outras palavras, amplie os documentos consultados ou envie o documento que trata do assunto.</p>
                     <div className="missing__actions">
                       <Link className="ghost-button small" to={`/busca?q=${encodeURIComponent(items[index - 1]?.content ?? "")}`}>
                         <Icon name="search" size={15} />Ver trechos parecidos
@@ -501,7 +501,7 @@ export function ChatPage() {
                       {scope.length > 0 && (
                         <button className="ghost-button small" onClick={() => setScope([])}>Consultar todos os documentos</button>
                       )}
-                      <Link className="ghost-button small" to="/documentos"><Icon name="upload" size={15} />Enviar outro PDF</Link>
+                      <Link className="ghost-button small" to="/documentos"><Icon name="upload" size={15} />Enviar outro documento</Link>
                     </div>
                   </div>
                 ) : (
@@ -581,7 +581,7 @@ export function ChatPage() {
 
         <form className="composer" onSubmit={submit}>
           <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
-            placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie um PDF em Documentos para perguntar"}
+            placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie arquivos em Documentos para perguntar"}
             aria-label="Pergunta" rows={2} maxLength={4000} disabled={!!pending} />
           {pending ? (
             <button className="send" type="button" onClick={stop} aria-label="Parar a resposta" title="Parar a resposta">

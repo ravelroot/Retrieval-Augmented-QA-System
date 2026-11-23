@@ -141,7 +141,7 @@ export function MetricsPage() {
           <div className="box box--two">
             <section className="panel">
               <h2>Lacunas do acervo</h2>
-              <p className="panel__lead">Perguntas que nenhum documento respondeu. Cada uma indica um PDF que falta ou um termo diferente do usado no manual.</p>
+              <p className="panel__lead">Perguntas que nenhum documento respondeu. Cada uma indica um documento que falta ou um termo diferente do usado nele.</p>
               {m.unanswered_recent.length === 0 ? (
                 <p className="panel__lead">Nenhuma lacuna no período.</p>
               ) : (
@@ -161,7 +161,7 @@ export function MetricsPage() {
             </section>
             <section className="panel">
               <h2>Documentos mais citados</h2>
-              <p className="panel__lead">Quantas vezes cada PDF apareceu como fonte de uma resposta.</p>
+              <p className="panel__lead">Quantas vezes cada documento apareceu como fonte de uma resposta.</p>
               {m.top_documents.length === 0 ? (
                 <p className="panel__lead">Nenhuma citação no período.</p>
               ) : (

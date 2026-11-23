@@ -872,7 +872,7 @@ export async function openDocument(id: string, page?: number): Promise<void> {
   if (!response.ok) {
     target?.close();
     const data = await response.json().catch(() => null);
-    throw new ApiError(response.status, data?.code ?? "ERROR", data?.message ?? "Não foi possível abrir o PDF.");
+    throw new ApiError(response.status, data?.code ?? "ERROR", data?.message ?? "Não foi possível abrir o arquivo.");
   }
   const url = URL.createObjectURL(await response.blob());
   const href = page ? `${url}#page=${page}` : url;
