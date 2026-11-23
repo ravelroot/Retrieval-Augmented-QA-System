@@ -24,7 +24,7 @@ def no(titulo, detalhe=""):
 
 def visao_geral(d):
     d.capitulo("Visão geral",
-               "O Nexo é uma aplicação web em que você cria agentes de IA, cada um com a própria base de "
+               "O Nexo é um aplicativo para Windows em que você cria agentes de IA, cada um com a própria base de "
                "conhecimento, e conversa com eles ou deixa que atendam clientes pelo WhatsApp. As respostas usam "
                "só o que está nos documentos, textos e arquivos da base. Cada resposta mostra os trechos usados, "
                "com documento e página. Quando a informação não está na base, o Nexo diz isso em vez de inventar.")
@@ -41,36 +41,33 @@ def visao_geral(d):
     ])
 
     d.secao(f"O que há de novo na {VERSAO}")
-    d.p(f"A versão {VERSAO} deixa o Nexo fácil de instalar, configurar, manter e integrar. Um assistente guia o primeiro "
-        "acesso, o provedor de IA e as chaves passam a ser escolhidos pela tela, com teste de conexão, os agentes chegam a "
-        "qualquer site com uma linha de código e a qualquer ferramenta que fale com a API da OpenAI, e o backup passa a "
-        "ser automático. A identidade \"caixa única\" continua igual, e o banco da 2.3 é migrado sozinho.")
+    d.p(f"A versão {VERSAO} transforma o Nexo num aplicativo para Windows. Ele é instalado pelo `Nexo-Setup.exe`, aparece "
+        "na pesquisa do Windows e no menu Iniciar e abre numa janela própria, sem navegador. A versão web que abria no "
+        "navegador, os scripts `iniciar.cmd` e `iniciar.sh` e o Docker saíram. Bases, agentes, conversas, WhatsApp, "
+        "widget, API e integrações continuam iguais.")
     d.cartoes([
-        ("Assistente de configuração", "primeiro acesso",
-         "Troca obrigatória da senha padrão, escolha da inteligência com teste de conexão, acesso, backup e a lista de próximos passos."),
-        ("Provedor de IA pela tela", "Sistema e conta › Ajustes",
-         "Ollama, OpenAI, Groq, OpenRouter, Gemini, LM Studio ou outro serviço compatível, sem editar o .env nem reiniciar."),
-        ("Chaves guardadas no servidor", "data/segredos.json",
-         "As chaves dos provedores ficam num arquivo próprio, com permissão restrita, e nunca voltam para a tela."),
-        ("Testar conexão", "modelo, embeddings e reranking",
-         "Cada provedor é testado com os valores do formulário antes de salvar, com o tempo da resposta."),
-        ("Troca de embeddings segura", "reindexação automática",
-         "Trocar o modelo de embeddings apaga os vetores antigos e reindexa o acervo sozinho, pela tela ou pelo .env."),
-        ("Widget para sites", "Integrações",
-         "Um botão de conversa com o agente em qualquer site, com uma linha de código, sites autorizados e limite por visitante."),
-        ("API compatível com OpenAI", "/v1/chat/completions",
-         "n8n, Make, Typebot, Flowise, Dify, Open WebUI e os SDKs oficiais usam os agentes como se fossem modelos."),
-        ("Backup automático", "Sistema e conta › Manutenção",
-         "Cópias periódicas em data/backups, com quantas guardar, botão para fazer uma agora e download pela tela."),
-        ("Primeiros passos", "menu e Visão geral",
-         "Uma lista com o que falta para o Nexo trabalhar sozinho, com o progresso no menu e o atalho para cada tela."),
-        ("Instalador mais esperto", "iniciar.cmd e iniciar.sh",
-         "Confere a versão do Python, reinstala as dependências quando mudam e abre o navegador quando o servidor está pronto."),
-        ("Linha de comando", "configurar e senha",
-         "python -m nexo configurar faz o assistente no terminal; python -m nexo senha redefine a senha de qualquer conta."),
-        ("Porta ocupada", "servidor",
-         "Se o Nexo já estiver rodando, o script só abre o navegador; se outro programa usar a porta, diz como trocar."),
+        ("Instalador para Windows", "Nexo-Setup.exe",
+         "Instala por usuário, sem administrador, com atalho no menu Iniciar, pesquisa do Windows, Win + R › nexo e desinstalador."),
+        ("Janela própria", "WebView2",
+         "O painel abre numa janela do Windows. O servidor interno ouve só em 127.0.0.1, numa porta livre."),
+        ("Painel só na janela", "cookie da janela",
+         "Aberto num navegador, o endereço do Nexo responde que o painel abre só pelo aplicativo."),
+        ("Já vem configurado", "primeira abertura",
+         "Base de teste e Agente de teste prontos e indexados, com o Llama 3.1 pelo Ollama como modelo."),
+        ("Arquivos na janela", "PDF na página citada",
+         "PDFs abrem numa janela do Nexo, na página da fonte; os outros formatos, no programa padrão do Windows."),
+        ("Restaurar pela tela", "Sistema e conta › Manutenção",
+         "Escolha o .zip: o Nexo fecha, guarda os dados atuais numa cópia e abre de novo com o backup."),
+        ("Instância única", "um Nexo por vez",
+         "Abrir de novo traz a janela aberta para a frente; fechar com a fila cheia pede confirmação."),
+        ("Dados do usuário", "%LOCALAPPDATA%\\Nexo",
+         "Banco, contas, arquivos, vetores, modelos e registros ficam fora da pasta do programa e sobrevivem às atualizações."),
+        ("Release automática", "desktop.yml",
+         "Publicar uma release no GitHub gera, verifica e anexa o Nexo-Setup da versão."),
     ])
+    d.p("**Na 2.4.0**, vieram o assistente de configuração, o provedor de IA e as chaves pela tela com teste de conexão, a "
+        "troca segura de embeddings, o widget para sites, a API compatível com OpenAI, o backup automático e a lista de "
+        "primeiros passos.")
     d.p("**Na 2.3.0**, vieram os ajustes pela tela, o diagnóstico, a manutenção e o backup, o registro de atividades, a "
         "base de teste, a importação por link, os trechos indexados, as conversas fixadas, as perguntas sugeridas, as "
         "respostas prontas do WhatsApp, o painel por agente, as chaves com permissão e validade, o limite de perguntas, "
@@ -88,6 +85,8 @@ def visao_geral(d):
         "decide quais arquivos enviar, quais modelos usar, qual número de WhatsApp conectar e onde hospedar. Nenhum "
         "documento real ou dado pessoal vem no repositório; o único PDF incluído é um manual fictício para testes.")
     d.tabela(["Camada", "Tecnologia", "Papel"], [
+        ("Aplicativo", "pywebview sobre o WebView2, PyInstaller, Inno Setup", "Janela do Windows, servidor interno em "
+         "127.0.0.1, instância única, instalador com menu Iniciar, pesquisa do Windows e desinstalador"),
         ("Interface", "React 19, TypeScript, Vite", "Telas de entrada, tutorial, conversas, chats com agentes, agentes, "
          "bases, WhatsApp, busca, documentos, painel, integrações e sistema"),
         ("API", "Python 3.11+, FastAPI, Uvicorn", "Rotas REST, respostas em streaming (SSE), autenticação por sessão ou "
@@ -104,8 +103,8 @@ def visao_geral(d):
          "administrador, encerramento de sessões e tutorial visto"),
         ("Integrações", "Widget para sites, API compatível com OpenAI, chaves nxk_ com permissão e validade, webhooks com "
          "HMAC-SHA256", "O agente no site, em ferramentas de automação e em outros sistemas, e avisos de eventos"),
-        ("Operação", "Assistente, ajustes e segredos em data/, backup automático, auditoria, logs JSON, Prometheus, CLI e "
-         "Docker", "Configurar sem reiniciar, diagnosticar, manter, fazer backup e acompanhar o servidor"),
+        ("Operação", "Assistente, ajustes e segredos em data/, backup automático, restauração pela tela, auditoria, logs "
+         "JSON, Prometheus e CLI", "Configurar sem reiniciar, diagnosticar, manter, fazer backup e acompanhar o Nexo"),
         ("WhatsApp", "Evolution API v2, WhatsApp Cloud API da Meta ou simulador", "Receber mensagens de clientes e "
          "responder pelo agente ou por uma pessoa"),
     ], larguras=["20%", "33%", "47%"])
@@ -170,155 +169,128 @@ def visao_geral(d):
 
 def instalacao(d):
     d.capitulo("Instalação",
-               "Este capítulo leva do download à primeira pergunta respondida. O caminho mais curto é o script de "
-               "inicialização; os passos manuais vêm logo depois.")
+               "Este capítulo leva do instalador à primeira pergunta respondida. O Nexo é um aplicativo para Windows: "
+               "instala por usuário, abre numa janela própria e já vem com uma base e um agente de teste.")
     d.secao("Pré-requisitos")
     d.tabela(["Item", "Versão", "Para quê"], [
-        ("Python", "3.11 ou mais recente", "Servidor, indexação e respostas"),
-        ("Node.js", "20.19 ou mais recente", "Compilar a interface (uma vez)"),
-        ("Ollama", "Atual", "Modelo de linguagem local e gratuito (modo padrão)"),
-        ("Espaço em disco", "Cerca de 3 GB", "Dependências do Python, modelos de embeddings e reranking"),
+        ("Windows", "10 (1809) ou 11, 64 bits", "O aplicativo e o instalador"),
+        ("Microsoft Edge WebView2", "Já vem no Windows 11 e nos Windows 10 atualizados", "Mostrar a janela do Nexo"),
+        ("Ollama", "Atual", "O Llama 3.1, modelo de linguagem local e gratuito (padrão)"),
+        ("Espaço em disco", "Cerca de 8 GB", "Aplicativo, modelos de embeddings e reranking e o llama3.1"),
         ("Memória", "8 GB ou mais", "Rodar o llama3.1 local com folga"),
+        ("Internet", "Na primeira indexação e na primeira pergunta", "Baixar os modelos de embeddings e reranking"),
         ("WhatsApp (opcional)", "Evolution API v2 ou conta Meta", "Atender clientes pelo WhatsApp (capítulo 6)"),
-    ], larguras=["23%", "26%", "51%"])
+    ], larguras=["23%", "30%", "47%"])
     d.nota("Sem Ollama ou sem GPU?", "Escolha OpenAI, Groq, OpenRouter, Gemini ou outro serviço compatível no assistente "
            "de configuração (seção 3.6), ou o modo sem modelo para validar a instalação. Os modelos de embeddings e "
            "reranking padrão rodam bem em CPU.")
 
     d.secao("Caminho rápido")
     d.passos([
-        "Baixe o repositório (botão **Code › Download ZIP** no GitHub ou `git clone`) e extraia em uma pasta.",
-        "Para rodar tudo no seu computador, instale o Ollama em ollama.com e rode `ollama pull llama3.1`. Para usar um "
-        "serviço na nuvem, tenha a chave de API em mãos.",
-        "No Windows, dê dois cliques em `iniciar.cmd`. No Linux ou macOS, rode `./iniciar.sh`.",
-        "Espere a instalação terminar. Na primeira vez ela leva alguns minutos; depois o navegador abre sozinho em "
-        "`http://127.0.0.1:8000` [[novo]].",
-        "Entre com `admin` / `Nexo@2026`. O assistente de configuração pede uma senha nova e guia a escolha da "
-        "inteligência, do acesso e do backup [[novo]].",
-        "No fim do assistente, crie a base de teste ou envie os seus arquivos, crie um agente e faça a primeira pergunta.",
+        "Baixe o `Nexo-Setup-<versão>.exe` em **Releases** no GitHub e abra. Se aparecer \"O Windows protegeu o "
+        "computador\", clique em **Mais informações › Executar assim mesmo**: o instalador não tem assinatura digital.",
+        "Siga o instalador. Ele não pede administrador, instala em `%LOCALAPPDATA%\\Programs\\Nexo` e termina abrindo o Nexo.",
+        "Instale o Ollama e baixe o modelo uma vez: `winget install --id Ollama.Ollama -e` e `ollama pull llama3.1`.",
+        "Abra o Nexo pela pesquisa do Windows (digite **Nexo**), pelo menu Iniciar ou por `Win + R` › `nexo`.",
+        "Entre com `admin` / `Nexo@2026` e escolha uma senha nova.",
+        "Abra **Chats com agentes**, escolha o **Agente de teste** e pergunte, por exemplo, \"Quanto tempo dura a garantia?\".",
     ])
-    d.p("O script confere se o Python é 3.11 ou mais recente, cria o ambiente virtual `.venv`, instala `requirements.txt`, "
-        "copia `.env.example` para `.env`, compila a interface em `frontend/dist`, sobe o servidor e abre o navegador. "
-        "Nas próximas vezes ele só sobe o servidor; quando `requirements.txt` muda, reinstala as dependências, e quando a "
-        "versão muda, recompila a interface. Se o Nexo já estiver rodando, ele só abre o navegador.")
+    d.p("Na primeira abertura, o Nexo cria a pasta de dados, a **Base de teste** com os arquivos de exemplo (PDF, Markdown, "
+        "HTML, CSV, TXT e JSON) e o **Agente de teste**, coloca os arquivos na fila de indexação e marca o assistente de "
+        "configuração como concluído, com o Llama 3.1 pelo Ollama como modelo. O modelo de embeddings é baixado do "
+        "HuggingFace na primeira indexação e o reranker na primeira pergunta; depois, tudo roda offline. O assistente "
+        "continua em Sistema e conta › Visão geral › **Abrir o assistente**.")
 
-    d.secao("Passo a passo manual")
+    d.secao("Onde ficam os arquivos")
+    d.tabela(["Pasta", "Conteúdo"], [
+        ("`%LOCALAPPDATA%\\Programs\\Nexo`", "O aplicativo: `Nexo.exe` e as bibliotecas em `_internal`. Atualizar "
+         "substitui só esta pasta"),
+        ("`%LOCALAPPDATA%\\Nexo\\data`", "Banco, contas, ajustes, segredos, arquivos enviados, vetores e backups "
+         "automáticos (a pasta `data` do Banco-de-Dados-Nexo.pdf)"),
+        ("`%LOCALAPPDATA%\\Nexo\\modelos`", "Modelos baixados do HuggingFace"),
+        ("`%LOCALAPPDATA%\\Nexo\\logs`", "`nexo.log`, com os registros do aplicativo e do servidor interno"),
+        ("`%LOCALAPPDATA%\\Nexo\\.env`", "Opcional: variáveis avançadas, no formato do `.env.example`"),
+        ("`%LOCALAPPDATA%\\Nexo\\janela`", "Dados da janela (WebView2): tema e cache da interface"),
+    ], larguras=["40%", "60%"])
+    d.p("Desinstalar, em Configurações › Aplicativos, remove o programa e pergunta se os dados também devem ser apagados; "
+        "a resposta padrão é manter.")
+
+    d.secao("Primeiro acesso")
+    d.p("O login pré-definido é criado quando não há nenhum administrador, como na primeira abertura. Ao entrar com ele, o "
+        "Nexo exige uma senha nova antes de qualquer outra tela: até a troca, a API recusa as ações dessa sessão "
+        "com 403 `PASSWORD_CHANGE_REQUIRED`. Depois, o tutorial mostra o caminho: base de conhecimento, agente, chats e "
+        "WhatsApp.")
+    d.lado(["A tela de senha pede só a senha nova e a confirmação. A senha precisa ter de 8 a 72 caracteres, "
+            "com letras e números, sem conter o nome de usuário.",
+            "A sessão vale enquanto a janela estiver aberta: ao fechar e abrir o Nexo, entre de novo."],
+           "tela-assistente-senha.png", "A senha nova do administrador no primeiro acesso.")
+    d.tabela(["Usuário", "Senha", "Perfil", "Pode"], [
+        ("`admin`", "`Nexo@2026`", "Administrador", "Tudo: excluir conteúdo de outras pessoas, ver o painel de todos, "
+         "criar e gerenciar contas, redefinir senhas, restaurar backups, webhooks e conexões do WhatsApp"),
+        ("contas novas", "definida no cadastro ou pelo administrador", "Usuário", "Criar bases e agentes, enviar arquivos, "
+         "conversar, atender no WhatsApp, buscar, ver o próprio painel e criar as próprias chaves"),
+    ], larguras=["16%", "19%", "15%", "50%"])
+
+    d.secao("Atualizando o aplicativo", novo=True)
+    d.passos([
+        "Baixe o instalador da versão nova em Releases.",
+        "Feche o Nexo e abra o instalador. Ele fecha o Nexo sozinho se ainda estiver aberto, troca os arquivos do "
+        "programa e não mexe em `%LOCALAPPDATA%\\Nexo`.",
+        "Abra o Nexo. A migração automática do banco roda na abertura, como nas versões anteriores.",
+    ])
+
+    d.secao("Vindo da 2.x", novo=True)
+    d.p("Até a 2.4, o Nexo rodava pelo código-fonte, com os dados na pasta `data` do projeto. Para levar tudo para o "
+        "aplicativo:")
+    d.passos([
+        "Na pasta do projeto antigo, gere um backup: `python -m nexo backup --saida nexo.zip` (ou **Baixar backup** em "
+        "Sistema e conta › Manutenção).",
+        "Instale e abra o Nexo 3.0 e entre como administrador.",
+        "Em Sistema e conta › Manutenção, clique em **Restaurar backup** e escolha o `nexo.zip`.",
+        "Confirme. O Nexo fecha, guarda os dados da primeira abertura numa cópia ao lado da pasta de dados e abre de novo "
+        "com o backup. Os documentos são reindexados sozinhos.",
+    ])
+    d.p("O `.env` antigo não é copiado: os ajustes feitos pela tela vêm no backup (`ajustes.json` e `segredos.json`). Se "
+        "o `.env` tinha variáveis próprias, copie as linhas para `%LOCALAPPDATA%\\Nexo\\.env`.")
+
+    d.secao("Gerar o instalador", novo=True)
+    d.p("Publicar uma release no GitHub dispara o workflow `.github/workflows/desktop.yml`, que roda num Windows do GitHub, "
+        "gera o instalador e o anexa à release. Para gerar no próprio computador, com Python 3.12 e Node.js 22:")
+    d.codigo("powershell -ExecutionPolicy Bypass -File desktop\\build.ps1", rotulo="PowerShell, na pasta do projeto")
+    d.tabela(["Etapa", "O que acontece"], [
+        ("Ambiente", "Cria `.venv-build` e instala `requirements.txt` e `desktop/requisitos-build.txt` (PyInstaller fixado)"),
+        ("Interface", "`npm ci` e `npm run build` em `frontend`"),
+        ("Empacotamento", "`desktop/nexo.spec` monta `dist\\Nexo\\Nexo.exe` com a interface, os exemplos, o ícone e a "
+         "versão do arquivo"),
+        ("Verificação", "`Nexo.exe verificar` confere os módulos, o servidor interno, o painel fechado fora da janela, o "
+         "login, a indexação da base de teste, uma resposta com fonte e a abertura de arquivo; qualquer falha para o build"),
+        ("Instalador", "`desktop/nexo.iss` gera `desktop\\saida\\Nexo-Setup-<versão>.exe` com o Inno Setup, instalado "
+         "pelo winget se faltar"),
+    ], larguras=["22%", "78%"])
+    d.p("Com `-SemInstalador`, o script para no `Nexo.exe`, que já abre direto, sem instalar.")
+
+    d.secao("Pelo código-fonte")
     d.codigo("""
 python -m venv .venv
-.venv\\Scripts\\activate          # Windows
-source .venv/bin/activate        # Linux / macOS
+.venv\\Scripts\\activate
 pip install -r requirements.txt
-copy .env.example .env           # Windows; no Linux/macOS use cp
 cd frontend
 npm install
 npm run build
 cd ..
 python -m nexo
 """)
-    d.p("Para desenvolver a interface com recarga automática, rode `python -m nexo` em um terminal e `npm run dev` dentro "
-        "de `frontend` em outro. A interface abre em `http://localhost:5173` e repassa as chamadas `/api` para a porta 8000.")
+    d.p("`python -m nexo` abre a mesma janela do aplicativo, com os dados em `data/` (ou na pasta de `NEXO_DATA_DIR`) e o "
+        "`.env` da pasta atual. Para mexer na interface com recarga automática, deixe o Nexo aberto e rode `npm run dev` "
+        "em `frontend`.")
 
-    d.secao("Primeiro acesso")
-    d.p("O login pré-definido é criado quando não há nenhum administrador, como na primeira execução. Ao entrar com ele, o "
-        "Nexo exige uma senha nova antes de qualquer outra tela [[novo]]: até a troca, a API recusa as ações dessa sessão "
-        "com 403 `PASSWORD_CHANGE_REQUIRED`. Em seguida, o assistente de configuração (seção 3.6) guia o resto. Para "
-        "experimentar antes de enviar os seus arquivos, use **Criar base de teste** no último passo do assistente, em "
-        "Bases de conhecimento ou com `python -m nexo base-de-teste` (seção 4.6).")
-    d.lado(["O primeiro passo do assistente pede só a senha nova e a confirmação. A senha precisa ter de 8 a 72 caracteres, "
-            "com letras e números, sem conter o nome de usuário.",
-            "Quem prefere o terminal pode fazer o mesmo com `python -m nexo configurar`, que troca a senha padrão e escolhe "
-            "o provedor de IA com teste de conexão."],
-           "tela-assistente-senha.png", "Primeiro passo do assistente: a senha nova do administrador.")
-    d.tabela(["Usuário", "Senha", "Perfil", "Pode"], [
-        ("`admin`", "`Nexo@2026`", "Administrador", "Tudo: excluir conteúdo de outras pessoas, ver o painel de todos, "
-         "criar e gerenciar contas, redefinir senhas, webhooks e conexões do WhatsApp"),
-        ("contas novas", "definida no cadastro ou pelo administrador", "Usuário", "Criar bases e agentes, enviar arquivos, "
-         "conversar, atender no WhatsApp, buscar, ver o próprio painel e criar as próprias chaves"),
-    ], larguras=["16%", "19%", "15%", "50%"])
-
-    d.secao("Atualizando a partir da 1.5")
-    d.passos([
-        "Pare o servidor e faça uma cópia da pasta `data` (seção 10.5).",
-        f"Substitua os arquivos do projeto pelos da {VERSAO}, mantendo `data` e o seu `.env`.",
-        "Rode `pip install -r requirements.txt` e, em `frontend`, `npm install` e `npm run build`.",
-        "Se quiser, acrescente `NEXO_WEBHOOK_TIMEOUT=5` ao `.env`. Sem a linha, vale o padrão de 5 segundos.",
-        "Suba o servidor. As tabelas `nx_api_key` e `nx_webhook` da 2.0 e as tabelas da 2.1 são criadas sozinhas na "
-        "primeira conexão; as tabelas existentes são migradas pela migração automática e os documentos vão para a "
-        "base \"Acervo geral\".",
-    ])
-
-    d.secao("Atualizando a partir da 2.0")
-    d.passos([
-        "Pare o servidor e faça uma cópia da pasta `data` (seção 10.5).",
-        f"Substitua os arquivos do projeto pelos da {VERSAO}, mantendo `data` e o seu `.env`.",
-        "Rode `pip install -r requirements.txt` e, em `frontend`, `npm install` e `npm run build` (o script de "
-        "inicialização faz isso sozinho).",
-        "Se for usar o WhatsApp, acrescente `NEXO_PUBLIC_URL` ao `.env` (seção 3.2).",
-        "Suba o servidor. A migração automática cria as tabelas novas, acrescenta as colunas novas e coloca os "
-        "documentos antigos na base \"Acervo geral\". Conversas antigas continuam consultando todos os documentos.",
-    ])
-
-    d.secao("Atualizando a partir da 2.1")
-    d.p("A 2.2 não mudou nenhuma tabela. Siga os passos da seção seguinte: a migração da 2.3 acrescenta as colunas e "
-        "tabelas novas nos dois casos.")
-    d.passos([
-        "Pare o servidor. A cópia da pasta `data` (seção 10.5) continua recomendada antes de qualquer atualização.",
-        "Traga os arquivos novos com `git pull` (ou substitua pelos da versão nova), mantendo `data` e o seu `.env`.",
-        "Rode `pip install -r requirements.txt`.",
-        "Em `frontend`, rode `npm ci && npm run build`.",
-        "Suba o servidor. Nada mais precisa ser feito.",
-    ])
-    d.p("As sessões abertas antes da atualização continuam válidas. O arquivo `data/usuarios.json` ganha os campos "
-        "`session_version` e `password_changed_at` automaticamente; não é preciso editá-lo. O `.env` também não muda.")
-
-    d.secao("Atualizando a partir da 2.2")
-    d.passos([
-        "Baixe um backup em Sistema e conta › Manutenção ou rode `python -m nexo backup` (seção 10.5).",
-        "Pare o servidor e traga os arquivos novos com `git pull`, mantendo `data` e o seu `.env`.",
-        "Rode o script de inicialização (ou `pip install -r requirements.txt` e, em `frontend`, `npm ci && npm run build`).",
-        "Suba o servidor. A migração automática cria as tabelas `nx_audit` e `nx_quick_reply` e acrescenta as colunas "
-        "`pinned`, `suggestions`, `index_signature`, `source_url`, `scope` e `expires_at`. Os documentos prontos recebem "
-        "a assinatura da configuração atual, então nada precisa ser reindexado.",
-        "Rode `python -m nexo diagnostico` ou abra Sistema e conta › Diagnóstico para conferir a instalação.",
-    ])
-    d.p("O `.env` antigo continua valendo. As variáveis novas (`NEXO_RATE_LIMIT`, `NEXO_RETENTION_DAYS`, `NEXO_LOG_FORMAT`, "
-        "`NEXO_CORS_ORIGINS` e as de links) têm padrões seguros; o limite de 60 perguntas por minuto por conta passa a "
-        "valer sem configurar nada. Chaves de API antigas ficam com permissão completa e sem validade.")
-
-    d.secao("Atualizando a partir da 2.3", novo=True)
-    d.passos([
-        "Baixe um backup em Sistema e conta › Manutenção ou rode `python -m nexo backup` (seção 10.5).",
-        "Pare o servidor e traga os arquivos novos com `git pull`, mantendo `data` e o seu `.env`.",
-        "Rode o script de inicialização: ele percebe que `requirements.txt` mudou, instala o pacote novo "
-        "`llama-index-llms-openai-like` e recompila a interface.",
-        "Suba o servidor. A tabela `nx_widget` é criada sozinha, e o arquivo `data/vetores.json` passa a registrar o "
-        "modelo de embeddings dos vetores atuais; nada é reindexado.",
-        "Entre como administrador. Se a conta admin ainda usa a senha padrão, o Nexo pede a troca na hora; o assistente "
-        "de configuração aparece uma vez e pode ser pulado.",
-    ])
-    d.p("O `.env` antigo continua valendo. Os provedores e as chaves continuam podendo vir dele; o que for escolhido pela "
-        "tela fica em `data/ajustes.json` e `data/segredos.json`, por cima. As variáveis novas são "
-        "`NEXO_REQUIRE_PASSWORD_CHANGE` (padrão true), `NEXO_BACKUP_HOURS` (0, desligado), `NEXO_BACKUP_KEEP` (7) e "
-        "`NEXO_WIDGET_RATE_LIMIT` (10), e `NEXO_LLM_PROVIDER` aceita também `compativel`.")
-
-    d.secao("Com Docker")
-    d.p("O `Dockerfile` compila a interface e monta uma imagem só com o Python e o Nexo, rodando como usuário sem "
-        "privilégios, com a pasta de dados em `/dados` e checagem de saúde em `/api/health/ready`. O serviço `nexo` do "
-        "`docker-compose.yml` fica no perfil `app`:")
-    d.codigo("""
-cp .env.example .env
-docker compose --profile app --profile ollama up -d --build
-docker compose exec ollama ollama pull llama3.1
-""")
-    d.p("A interface abre em `http://localhost:8000`. No compose, `NEXO_HOST`, `NEXO_DATA_DIR` e `NEXO_OLLAMA_URL` já "
-        "apontam para o contêiner; o resto vem do `.env`. Os dados ficam no volume `nexo-dados`, e os modelos baixados do "
-        "HuggingFace também, em `/dados/modelos`.")
 
 def configuracao(d):
     d.capitulo("Configuração",
                "Quase tudo se configura pela tela, com o servidor no ar: o assistente de configuração no primeiro acesso e "
-               "a aba Sistema e conta › Ajustes depois (seções 3.6 e 3.7). O arquivo .env na raiz do projeto continua valendo como "
-               "base, e é nele que ficam o banco, o banco vetorial e a segurança do servidor.")
+               "a aba Sistema e conta › Ajustes depois (seções 3.6 e 3.7). O arquivo .env continua valendo como base, e é "
+               "nele que ficam o banco, o banco vetorial e a segurança do servidor interno. No aplicativo instalado, ele fica "
+               "em %LOCALAPPDATA%\\Nexo\\.env; pelo código-fonte, na pasta do projeto.")
     d.secao("Modos prontos")
     d.tabela(["Modo", "Linhas no .env", "Quando usar"], [
         ("Local e gratuito (padrão)", "`NEXO_LLM_PROVIDER=ollama` `NEXO_LLM_MODEL=llama3.1` "
@@ -412,31 +384,29 @@ def configuracao(d):
            "trechos, e o Painel de qualidade para acompanhar a taxa de resposta depois do ajuste. Para medir em vez de "
            "adivinhar, use `scripts/avaliar.py` (seção 10.2).")
 
-    d.secao("Serviços externos com Docker")
-    d.p("O `docker-compose.yml` traz serviços opcionais, cada um em um perfil:")
+    d.secao("Serviços externos")
+    d.p("O Nexo usa ChromaDB local e SQLite por padrão, dentro da pasta de dados. Para usar serviços próprios, instale-os "
+        "à parte e aponte o `.env` para eles:")
     d.codigo("""
-docker compose --profile app up -d         # o próprio Nexo em http://localhost:8000 (seção 2.10)
-docker compose --profile chroma up -d      # ChromaDB em http://localhost:8001
-docker compose --profile qdrant up -d      # Qdrant em http://localhost:6333
-docker compose --profile ollama up -d      # Ollama em http://localhost:11434
-docker compose --profile postgres up -d    # PostgreSQL em localhost:5432
+NEXO_OLLAMA_URL=http://localhost:11434
+NEXO_CHROMA_HOST=servidor-chroma
+NEXO_VECTOR_STORE=qdrant
+NEXO_QDRANT_URL=http://servidor-qdrant:6333
+NEXO_DATABASE_URL=postgresql+psycopg://nexo:SENHA@servidor-postgres:5432/nexo
 """)
-    d.p("Depois aponte o `.env` para eles, por exemplo `NEXO_CHROMA_HOST=localhost` ou "
-        "`NEXO_DATABASE_URL=postgresql+psycopg://nexo:troque-esta-senha@localhost:5432/nexo` (instale "
-        "`pip install \"psycopg[binary]\"`). Troque a senha do PostgreSQL no arquivo antes de usar. A Evolution API, usada "
-        "para conectar o próprio número de WhatsApp, tem imagem Docker oficial; siga a documentação do projeto para subi-la.")
+    d.p("Para o PostgreSQL pelo código-fonte, instale `pip install \"psycopg[binary]\"`. A Evolution API, usada para "
+        "conectar o próprio número de WhatsApp, roda num servidor próprio; siga a documentação do projeto para subi-la.")
 
     d.secao("Acesso pela rede")
-    d.p("Para outras máquinas acessarem, use `NEXO_HOST=0.0.0.0`, libere a porta no firewall e defina `NEXO_SECRET` com "
-        "um valor longo e aleatório. Em produção, coloque o Nexo atrás de um proxy com HTTPS (Nginx, Caddy ou IIS) e "
-        "desligue o cadastro aberto se o acesso deve ser restrito; o administrador continua criando contas pela tela.")
-    d.p("Com integrações e WhatsApp, o HTTPS deixa de ser opcional: chaves de API viajam em cada pedido, e a API oficial "
-        "da Meta só entrega webhooks em endereços HTTPS públicos. Defina `NEXO_PUBLIC_URL` com esse endereço. Para "
-        "webhooks de saída, o servidor do Nexo precisa conseguir abrir conexões até as URLs cadastradas.")
-    d.p("Respostas em streaming chegam por Server-Sent Events. No Nginx, desligue o buffer da rota de streaming "
-        "(`proxy_buffering off`) para que o texto apareça enquanto é escrito. Para checagens de saúde do balanceador, "
-        "use `GET /api/health/ready`, que devolve 503 quando o banco não responde. Atrás de um proxy, o Nexo registra o "
-        "IP do cabeçalho `X-Forwarded-For` no registro de atividades.")
+    d.p("O painel do Nexo abre só na janela do aplicativo. O servidor interno ouve em `127.0.0.1`, numa porta livre a "
+        "partir de `NEXO_PORT` (8000), e entrega a interface só para a janela, que recebe um cookie da sessão do "
+        "aplicativo; num navegador, o mesmo endereço responde que o painel abre só pelo aplicativo.")
+    d.p("A API, o widget, as rotas `/v1` e os webhooks continuam no servidor interno enquanto o Nexo está aberto. Para "
+        "que outros sistemas, sites ou o WhatsApp alcancem esse servidor, defina `NEXO_HOST=0.0.0.0` no `.env`, libere a "
+        "porta no firewall, publique por um túnel ou proxy com HTTPS e defina `NEXO_PUBLIC_URL` com o endereço público "
+        "e `NEXO_SECRET` com um valor longo e aleatório. A API oficial da Meta só entrega webhooks em endereços HTTPS "
+        "públicos. Respostas em streaming chegam por Server-Sent Events: no proxy, desligue o buffer da rota de streaming "
+        "(`proxy_buffering off` no Nginx).")
 
     d.secao("Assistente de configuração", novo=True)
     d.p("O assistente abre sozinho para o administrador enquanto não for concluído ou pulado, e a qualquer momento por "
@@ -501,7 +471,7 @@ def usando(d):
     ], larguras=["16%", "36%", "48%"])
     d.p("No topo do menu, o botão **Ir para…** (`Ctrl + K`) abre a paleta de comandos. No rodapé ficam o tutorial, os "
         "**Atalhos** (ou a tecla `?`), o botão de tema, **Sair** e o usuário conectado. O item WhatsApp mostra quantos "
-        "clientes aguardam atendente, e o título da aba do navegador também. Se o servidor sair do ar, uma faixa no topo "
+        "clientes aguardam atendente, e o título da janela também. Se o servidor sair do ar, uma faixa no topo "
         "avisa e some sozinha quando ele volta.")
 
     d.secao("Entrada", quebra=True)
@@ -595,7 +565,7 @@ def usando(d):
         "Em cada resposta, **Ver trechos** abre os trechos usados logo abaixo dela, com documento e página, e **Refazer** "
         "pede ao agente uma nova resposta para a mesma pergunta.",
     ])
-    d.p("As abas abertas ficam guardadas no navegador. Conversas antigas de cada agente aparecem abaixo dele na lista e "
+    d.p("As abas abertas ficam guardadas na janela do Nexo. Conversas antigas de cada agente aparecem abaixo dele na lista e "
         "reabrem numa aba. Um agente cuja base ainda não tem conteúdo pronto avisa isso no lugar da caixa de pergunta.")
     d.p("**Perguntas sugeridas**: numa conversa nova, as perguntas cadastradas no agente aparecem como botões "
         "abaixo da saudação. Um clique envia a pergunta.")
@@ -873,7 +843,7 @@ def usando(d):
         "**Nome**: cada pessoa troca o próprio nome de exibição (`PATCH /api/auth/me`). O nome de usuário não muda.",
         "**Trocar senha:** pede a senha atual e a nova, que precisa ser diferente da atual. Ao trocar, todas as outras "
         "sessões da conta são encerradas; esta aba continua conectada com uma sessão nova.",
-        "**Sair dos outros dispositivos**: encerra as sessões abertas em outros navegadores e computadores sem "
+        "**Sair dos outros dispositivos**: encerra as sessões abertas em outros computadores e integrações sem "
         "trocar a senha. Útil depois de usar um computador compartilhado.",
         "**Senha trocada em** mostra a data da última troca ou redefinição da senha.",
         "**Ver tutorial** abre de novo o tutorial de primeiro acesso.",
@@ -1407,15 +1377,16 @@ flowchart TB
 
 def arquitetura(d):
     d.capitulo("Arquitetura",
-               "O Nexo é um único processo Python que serve a API e a interface compilada. Os componentes pesados "
+               "O Nexo é um aplicativo de um único processo Python: a janela (pywebview sobre o WebView2) mostra a "
+               "interface compilada, servida por um servidor FastAPI interno em 127.0.0.1. Os componentes pesados "
                "(modelos e banco vetorial) e o provedor de WhatsApp são plugáveis por configuração.")
     d.diagrama(f"""
 flowchart LR
-  N[{no("Navegador", "React 19 + TypeScript + Vite")}] --> API
+  N[{no("Janela do aplicativo", "WebView2 · React 19 + TypeScript + Vite")}] --> API
   S[{no("Sites e automações", "widget.js · /v1 compatível com OpenAI")}] --> API
   X[{no("Sistemas externos", "X-API-Key: nxk_… · recebem webhooks")}] --> API
   Z[{no("WhatsApp", "Evolution API ou Cloud API da Meta")}] --> API
-  API[{no("API FastAPI · nexo/api", "REST e SSE em /api · JWT com versão ou chave de API · X-Request-ID · webhook do WhatsApp")}]
+  API[{no("API FastAPI interna · nexo/api", "127.0.0.1 · REST e SSE em /api · JWT com versão ou chave de API · X-Request-ID · webhook do WhatsApp")}]
   API --> U[{no("Contas", "nexo/users.py")}]
   API --> R[{no("Motor RAG", "nexo/rag/engine.py")}]
   API --> K[{no("Leitura de arquivos", "nexo/knowledge.py")}]
@@ -1449,8 +1420,10 @@ flowchart LR
         ("`nexo/audit.py`", "Registro de atividades com a conta, a ação, o alvo, os detalhes e o IP"),
         ("`nexo/links.py`", "Download de links com bloqueio da rede interna, checagem de cada redirecionamento e limite de tamanho"),
         ("`nexo/sample.py`", "Criação da Base de teste e do Agente de teste a partir de exemplos/base-de-teste"),
-        ("`nexo/cli.py`", "Linha de comando `python -m nexo`: servir (com `--abrir` e a checagem da porta), configurar e "
-         "senha [[novo]], diagnostico, backup, restaurar, reindexar, base-de-teste, contas e versao"),
+        ("`nexo/desktop.py` [[novo]]", "Aplicativo: pasta de dados, instância única, porta livre, servidor interno, janela "
+         "WebView2, abertura de arquivos, restauração, primeira abertura configurada e a verificação do pacote"),
+        ("`nexo/cli.py`", "Linha de comando `python -m nexo`: abre o aplicativo [[novo]], configurar, senha, verificar "
+         "[[novo]], diagnostico, backup, restaurar, reindexar, base-de-teste, contas e versao"),
         ("`nexo/logs.py` / `nexo/context.py`", "Registros em texto ou JSON com o id do pedido, a conta e o IP"),
         ("`nexo/knowledge.py`", "Leitura de DOCX, ODT, EPUB, PPTX, XLSX, TXT, MD, CSV, JSON, HTML e textos em partes para "
          "indexar, com o limite de 50 MB por item dos pacotes zip"),
@@ -1579,8 +1552,41 @@ flowchart TB
         "e registradas no histórico só como \"(alterada)\" [[novo]].",
         "Widget com chave pública própria, sites autorizados, limite por visitante e por widget, corpo limitado a 32 KB e "
         "texto sempre tratado como texto no navegador [[novo]].",
-        "Rotas `/v1` com a mesma autenticação, permissão e limite de perguntas das demais [[novo]].",
+        "Rotas `/v1` com a mesma autenticação, permissão e limite de perguntas das demais.",
+        "Painel entregue só para a janela do aplicativo, por um cookie `HttpOnly` e `SameSite=Strict` com uma chave "
+        "aleatória gerada a cada abertura e comparada em tempo constante [[novo]].",
+        "Ponte da janela restrita: abrir documento só por id válido e com a sessão do usuário (a API confere a "
+        "permissão), nomes de arquivo saneados e só nos formatos aceitos, restauração só para administradores e "
+        "páginas internas de uma lista fixa [[novo]].",
     ])
+
+    d.secao("Aplicativo para Windows", novo=True)
+    d.diagrama(f"""
+flowchart LR
+  I[{no("Nexo.exe", "PyInstaller · instância única")}] --> W[{no("Janela", "pywebview + WebView2")}]
+  I --> S[{no("Servidor interno", "Uvicorn + FastAPI · 127.0.0.1")}]
+  W -->|"/janela?chave=…"| S
+  S -->|"cookie nexo_janela"| W
+  W -->|"ponte JS"| P[{no("Ponte da janela", "abrir documento · referência da API · restaurar")}]
+  P --> S
+  P --> F[{no("Arquivos", "PDF na janela · outros no Windows")}]
+  S --> D[{no("Pasta de dados", "LOCALAPPDATA/Nexo/data")}]
+  N[{no("Navegador", "sem o cookie da janela")}] -.->|"403 · só pelo aplicativo"| S
+  class I,S escuro
+  class W,P claro
+  class D,F,N cinza
+{ESTILO_FLUXO}
+""", "O Nexo.exe sobe o servidor interno e a janela; o painel só é entregue para a janela.", altura_max_mm=95)
+    d.tabela(["Etapa", "O que acontece"], [
+        ("Abertura", "O Nexo.exe prepara `%LOCALAPPDATA%\\Nexo`, trava a instância única (abrir de novo traz a janela "
+         "aberta para a frente) e mostra a tela de abertura"),
+        ("Restauração pendente", "Se houver um backup escolhido em Restaurar backup, ele é aplicado antes de tudo"),
+        ("Primeira abertura", "Sem `instalacao.json`, cria a Base de teste e o Agente de teste na fila e conclui o assistente"),
+        ("Servidor interno", "Escolhe uma porta livre a partir de `NEXO_PORT`, gera a chave da janela e sobe o FastAPI"),
+        ("Janela", "Entra por `/janela?chave=…`, recebe o cookie e carrega o painel"),
+        ("Fechamento", "Com documentos na fila, pede confirmação; para o servidor, encerra a fila e limpa os arquivos "
+         "temporários. O que ficou na fila volta na próxima abertura"),
+    ], larguras=["24%", "76%"])
 
 
 def banco_de_dados(d):
@@ -1874,8 +1880,9 @@ python -m pytest
     d.p("O script mostra, para a busca vetorial pura e com reranking, o acerto e o MRR. Repita depois de cada ajuste de parâmetros.")
 
     d.secao("Integração contínua")
-    d.p("O workflow `.github/workflows/ci.yml` roda, a cada push e pull request, o `ruff check .` e os testes do Python, o "
-        "build da interface e o `docker build` da imagem.")
+    d.p("O workflow `.github/workflows/ci.yml` roda, a cada push e pull request, o `ruff check .`, os testes do Python e o "
+        "build da interface. O `.github/workflows/desktop.yml` roda num Windows do GitHub quando uma release é publicada: "
+        "gera o `Nexo.exe`, roda `Nexo.exe verificar`, monta o `Nexo-Setup-<versão>.exe` e o anexa à release.")
 
     d.secao("Commit automático diário")
     d.p("O workflow `.github/workflows/diario.yml` acrescenta a data e a hora em `.github/atividade.txt` e faz um commit "
@@ -1887,42 +1894,47 @@ python -m pytest
         "e o Nexo grava uma cópia em `data/backups` a cada 6, 12 ou 24 horas ou toda semana, guardando só as mais "
         "recentes. A tela mostra o próximo horário, a última falha, se houver, e o link para baixar cada arquivo. Copie "
         "essa pasta para outro disco ou para a nuvem de tempos em tempos.")
-    d.p("Para uma cópia na hora, use **Baixar backup** em Sistema e conta › Manutenção ou a linha de comando, com o servidor no ar:")
+    d.p("Para uma cópia na hora, use **Baixar backup** em Sistema e conta › Manutenção; para voltar a uma cópia, "
+        "**Restaurar backup** [[novo]] na mesma tela. Pelo código-fonte, também pela linha de comando:")
     d.codigo("""
 python -m nexo backup --saida backups/nexo.zip
 python -m nexo restaurar backups/nexo.zip --substituir
 """)
     d.p("O .zip leva o banco SQLite (copiado de forma consistente, mesmo com o servidor rodando), as contas, os ajustes, "
         "o segredo das sessões, os arquivos enviados e um `manifesto.json` com a versão e as contagens. Os vetores não vão: "
-        "a restauração, feita com o servidor parado, marca os documentos para reindexar quando ele subir. "
+        "a restauração, feita com o Nexo fechado (a tela fecha e reabre o Nexo sozinha), marca os documentos para "
+        "reindexar na abertura. "
         "`--substituir` guarda a pasta de dados atual numa cópia antes de restaurar. Com bancos externos, faça o backup "
         "deles com a ferramenta do próprio banco no mesmo momento.")
-    d.p("Para uma cópia completa, inclusive dos vetores, pare o servidor e copie a pasta `data` inteira.")
+    d.p("Para uma cópia completa, inclusive dos vetores, feche o Nexo e copie a pasta `%LOCALAPPDATA%\\Nexo\\data` inteira.")
     d.nota("O backup contém segredos.", "Os segredos dos webhooks, os tokens do WhatsApp, `data/.segredo` e as chaves de "
            "`data/segredos.json` estão nele. "
            "Guarde as cópias com o mesmo cuidado de uma senha.", alerta=True)
 
     d.secao("Linha de comando")
     d.tabela(["Comando", "O que faz"], [
-        ("`python -m nexo`", "Sobe o servidor (o mesmo que `servir`)"),
-        ("`python -m nexo servir --abrir` [[novo]]", "Sobe o servidor e abre o navegador quando ele estiver pronto; se o "
-         "Nexo já estiver rodando, só abre o navegador"),
-        ("`python -m nexo configurar` [[novo]]", "Assistente no terminal: troca a senha padrão e escolhe o provedor de IA, "
+        ("`python -m nexo` [[novo]]", "Abre o aplicativo: janela e servidor interno"),
+        ("`python -m nexo verificar [--saida arquivo.txt]` [[novo]]", "Confere o pacote: módulos, servidor interno, painel "
+         "fechado fora da janela, login, indexação, resposta e abertura de arquivo. No instalado: `Nexo.exe verificar`"),
+        ("`python -m nexo configurar`", "Assistente no terminal: troca a senha padrão e escolhe o provedor de IA, "
          "com teste de conexão"),
-        ("`python -m nexo senha <usuario>` [[novo]]", "Redefine a senha de uma conta, encerra as sessões e libera o bloqueio"),
+        ("`python -m nexo senha <usuario>`", "Redefine a senha de uma conta, encerra as sessões e libera o bloqueio"),
         ("`python -m nexo diagnostico [--completo]`", "O diagnóstico da tela no terminal; termina com erro se houver falha"),
         ("`python -m nexo backup [--saida arquivo.zip]`", "Grava o backup"),
-        ("`python -m nexo restaurar arquivo.zip [--substituir]`", "Restaura um backup, com o servidor parado"),
-        ("`python -m nexo reindexar [--desatualizados | --todos]`", "Reindexa no terminal, com o servidor parado; sem opção, "
+        ("`python -m nexo restaurar arquivo.zip [--substituir]`", "Restaura um backup, com o Nexo fechado"),
+        ("`python -m nexo reindexar [--desatualizados | --todos]`", "Reindexa no terminal, com o Nexo fechado; sem opção, "
          "só os que falharam ou ficaram na fila"),
         ("`python -m nexo base-de-teste [--conta admin]`", "Cria a Base de teste e o Agente de teste, indexando na hora"),
         ("`python -m nexo contas`", "Lista as contas com perfil e último acesso"),
         ("`python -m nexo versao`", "Mostra a versão"),
     ], larguras=["46%", "54%"])
-    d.p("Com um valor inválido no `.env`, os comandos dizem qual variável está errada e o valor recebido, em vez de um erro técnico.")
+    d.p("Com um valor inválido no `.env`, os comandos dizem qual variável está errada e o valor recebido, em vez de um erro "
+        "técnico; o aplicativo mostra o mesmo aviso na janela. A linha de comando é para quem roda pelo código-fonte; no "
+        "aplicativo instalado, o diagnóstico, o backup, a restauração e a reindexação ficam em Sistema e conta.")
 
     d.secao("Registros e acompanhamento")
-    d.p("Cada pedido gera uma linha de registro com o método, a rota, o status, o tempo, a conta e o `X-Request-ID`. Com "
+    d.p("No aplicativo instalado, os registros ficam em `%LOCALAPPDATA%\\Nexo\\logs\\nexo.log`, com uma cópia anterior "
+        "quando passam de 5 MB. Cada pedido gera uma linha de registro com o método, a rota, o status, o tempo, a conta e o `X-Request-ID`. Com "
         "`NEXO_LOG_FORMAT=json`, cada linha é um objeto JSON, pronto para Loki, Elastic ou CloudWatch; `NEXO_LOG_LEVEL` "
         "controla o detalhe. Para acompanhar o servidor, use `/api/health/ready` na checagem de saúde e "
         "`/api/health/metrics` no Prometheus (seção 5.6). Quem fez o quê fica no registro de atividades (seção 4.12).")
@@ -1932,9 +1944,18 @@ python -m nexo restaurar backups/nexo.zip --substituir
 pip install --upgrade -r requirements.txt
 cd frontend && npm update && npm run build
 """)
+    d.p("Depois, gere o instalador de novo com `desktop\\build.ps1`: a verificação do pacote acusa qualquer módulo que o "
+        "empacotamento deixou de fora.")
 
     d.secao("Solução de problemas")
     d.tabela(["Sintoma", "Causa provável", "O que fazer"], [
+        ("\"O Windows protegeu o computador\"", "Instalador sem assinatura digital", "Mais informações › Executar assim mesmo"),
+        ("A janela não abre ou fica em branco", "Microsoft Edge WebView2 ausente", "Instale o WebView2 Runtime da Microsoft e "
+         "abra o Nexo de novo"),
+        ("\"O Nexo não conseguiu abrir\"", "Erro ao subir o servidor interno", "Veja `%LOCALAPPDATA%\\Nexo\\logs\\nexo.log`"),
+        ("Abrir o Nexo só traz a janela para a frente", "Ele já está aberto (instância única)", "Use a janela aberta"),
+        ("\"O painel do Nexo abre só pelo aplicativo\"", "Endereço aberto num navegador", "Abra pelo menu Iniciar ou pela "
+         "pesquisa do Windows"),
         ("\"O modelo não respondeu\"", "Ollama desligado ou modelo não baixado", "Abra o Ollama e rode `ollama pull llama3.1`"),
         ("\"Instale o pacote ...\"", "Provedor sem a biblioteca", "pip install do pacote indicado"),
         ("Item em Falhou: sem texto", "PDF digitalizado ou arquivo vazio", "Aplique OCR (OCRmyPDF) ou envie o texto pela aba Textos"),
@@ -1954,10 +1975,11 @@ cd frontend && npm update && npm run build
          "pelo X-Nexo-Delivery"),
         ("WhatsApp não recebe mensagens", "Webhook não registrado", "Veja a seção 6.7"),
         ("Tutorial não aparece mais", "Já foi visto pela conta", "Use Ver tutorial na paleta ou em Sistema e conta"),
-        ("Tela em branco em /", "Interface não compilada", "cd frontend, npm ci e npm run build"),
+        ("\"A interface não foi compilada\"", "Rodando pelo código-fonte sem o build", "cd frontend, npm ci e npm run build"),
         ("Esqueci a senha do admin", "Senha trocada e perdida", "Outro administrador usa Redefinir senha; sem nenhum, rode "
-         "`python -m nexo senha admin`"),
-        ("\"A porta 8000 está ocupada\"", "Outro programa usa a porta", "Feche o programa ou defina NEXO_PORT=8001 no .env"),
+         "`python -m nexo senha admin` pelo código-fonte"),
+        ("API em outra porta", "A 8000 estava ocupada; o Nexo usou a próxima livre", "Veja a porta em nexo.log ou defina "
+         "NEXO_PORT no .env"),
         ("Testar conexão falha com 401", "Chave errada ou vencida no provedor", "Gere outra chave no painel do provedor e cole em Ajustes"),
         ("Testar conexão falha com 404", "Modelo ou endereço errado", "Confira o nome exato do modelo e o endereço terminado em /v1"),
         ("Respostas incompletas depois de trocar embeddings", "O acervo está sendo reindexado", "Acompanhe a fila em Documentos"),
@@ -1977,7 +1999,8 @@ def montar(temp):
     d = Documento("Manual técnico", temp)
     d.capa("Manual técnico",
            "Agentes de IA com bases de conhecimento próprias, chats com vários agentes e atendimento pelo WhatsApp, com "
-           "respostas baseadas somente nos documentos enviados. Instalação, configuração, cada tela, integrações, "
+           "respostas baseadas somente nos documentos enviados, num aplicativo para Windows. Instalação, configuração, "
+           "cada tela, integrações, "
            "arquitetura, banco de dados, API e manutenção, passo a passo.")
     d.lugar_do_sumario()
     visao_geral(d)

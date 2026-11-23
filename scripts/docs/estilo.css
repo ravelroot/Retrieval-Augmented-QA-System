@@ -41,7 +41,7 @@
 @page capa { margin: 0;
   @top-left { content: none; border: 0; } @top-center { content: none; border: 0; } @top-right { content: none; border: 0; }
   @bottom-left { content: none; } @bottom-right { content: none; } }
-@page largo { size: A4 landscape; margin: 17mm 16mm 16mm 16mm; }
+@page largo { size: A3 landscape; margin: 17mm 16mm 16mm 16mm; }
 
 * { box-sizing: border-box; }
 html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

@@ -175,12 +175,14 @@ def test_cli_configure_password_and_port(client, monkeypatch, capsys):
     cli.main(["senha", "admin"])
     assert UserStore(settings.users_file).authenticate("admin", "OutraSenha456").username == "admin"
 
+    from nexo import desktop
     with socket.socket() as busy:
         busy.bind(("127.0.0.1", 0))
         busy.listen(1)
         port = busy.getsockname()[1]
-        assert cli._port_free("127.0.0.1", port) is False
-    assert cli._local_url(settings).startswith("http://")
+        assert desktop.porta_livre("127.0.0.1", port) is False
+        assert desktop.escolher_porta("127.0.0.1", port) != port
+    assert desktop.url_local(settings.host, settings.port).startswith("http://")
 
 
 def test_rate_limiter_prunes_idle_keys():

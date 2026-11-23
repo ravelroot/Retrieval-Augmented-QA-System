@@ -1,3 +1,5 @@
+import { bridge, type BridgeResult } from "./desktop";
+
 export type Role = "admin" | "user";
 
 export interface User {
@@ -579,7 +581,7 @@ export async function askStream(id: string, content: string, handlers: StreamHan
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") throw new ApiError(0, "ABORTED", "Resposta interrompida.");
-    throw new ApiError(0, "NETWORK", "Não foi possível falar com o servidor do Nexo. Ele está rodando?");
+    throw new ApiError(0, "NETWORK", "Não foi possível falar com o Nexo. Feche e abra o aplicativo de novo.");
   }
   if (!response.ok || !response.body) {
     const data = await response.json().catch(() => null);
@@ -637,7 +639,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try {
     response = await fetch(`/api${path}`, { method, headers, body: payload });
   } catch {
-    throw new ApiError(0, "NETWORK", "Não foi possível falar com o servidor do Nexo. Ele está rodando?");
+    throw new ApiError(0, "NETWORK", "Não foi possível falar com o Nexo. Feche e abra o aplicativo de novo.");
   }
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => null);
@@ -850,9 +852,20 @@ export function downloadAudit(params: { actor?: string; action?: string; days?: 
   return download(`/audit/export?${query.toString()}`, "nexo-atividades.csv", "Não foi possível exportar as atividades.");
 }
 
+function bridgeFailure(result: BridgeResult, fallback: string, hadSession: boolean): ApiError {
+  if (result.status === 401 && hadSession) onUnauthorized();
+  return new ApiError(result.status ?? 0, result.code ?? "ERROR", result.message ?? fallback);
+}
+
 export async function openDocument(id: string, page?: number): Promise<void> {
-  const target = window.open("", "_blank");
   const session = loadSession();
+  const app = await bridge();
+  if (app) {
+    const result = await app.abrir_documento(id, page ?? null, session?.token ?? "");
+    if (!result.ok) throw bridgeFailure(result, "Não foi possível abrir o arquivo.", !!session);
+    return;
+  }
+  const target = window.open("", "_blank");
   const response = await fetch(`/api/documents/${id}/file`, {
     headers: session ? { Authorization: `Bearer ${session.token}` } : {},
   });
@@ -865,4 +878,14 @@ export async function openDocument(id: string, page?: number): Promise<void> {
   const href = page ? `${url}#page=${page}` : url;
   if (target) target.location.href = href;
   else window.location.href = href;
+}
+
+export async function restoreBackup(): Promise<boolean> {
+  const session = loadSession();
+  const app = await bridge();
+  if (!app) throw new ApiError(0, "UNAVAILABLE", "A restauração está disponível no aplicativo do Nexo.");
+  const result = await app.restaurar_backup(session?.token ?? "");
+  if (result.cancelado) return false;
+  if (!result.ok) throw bridgeFailure(result, "Não foi possível restaurar o backup.", !!session);
+  return true;
 }

@@ -8,6 +8,7 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import { AuthProvider } from "./auth";
 import { ToastProvider } from "./components/Toast";
+import { installLinkHandler } from "./desktop";
 import { applyTheme, initialTheme } from "./theme";
 import "./styles.css";
 import "./agentes.css";
@@ -16,6 +17,7 @@ import "./operacao.css";
 import "./configuracao.css";
 
 applyTheme(initialTheme());
+installLinkHandler();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

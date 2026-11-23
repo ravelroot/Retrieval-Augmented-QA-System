@@ -2,13 +2,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
-import os
-import socket
 import sys
-import threading
-import time
-import urllib.request
-import webbrowser
 from datetime import datetime
 from pathlib import Path
 
@@ -29,61 +23,6 @@ def _settings():
             name = "NEXO_" + ".".join(str(x) for x in err.get("loc", [])).upper()
             lines.append(f"  {name}: {err.get('msg')} (valor recebido: {err.get('input')!r})")
         sys.exit("O arquivo .env tem valores inválidos:\n" + "\n".join(lines) + "\nCorrija e rode de novo.")
-
-
-def _local_url(settings) -> str:
-    host = "127.0.0.1" if settings.host in ("0.0.0.0", "::", "") else settings.host
-    return f"http://{host}:{settings.port}"
-
-
-def _port_free(host: str, port: int) -> bool:
-    family = socket.AF_INET6 if ":" in host else socket.AF_INET
-    with socket.socket(family, socket.SOCK_STREAM) as sock:
-        if os.name != "nt":
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind((host, port))
-        except OSError:
-            return False
-    return True
-
-
-def _nexo_answers(url: str, timeout: float = 2.0) -> bool:
-    try:
-        with urllib.request.urlopen(f"{url}/api/health", timeout=timeout) as r:
-            return r.status == 200 and b"version" in r.read(200)
-    except (OSError, ValueError):
-        return False
-
-
-def _open_when_ready(url: str) -> None:
-    def wait() -> None:
-        for _ in range(120):
-            if _nexo_answers(url, 1.0):
-                webbrowser.open(url)
-                return
-            time.sleep(0.5)
-    threading.Thread(target=wait, name="nexo-navegador", daemon=True).start()
-
-
-def serve(args: argparse.Namespace) -> None:
-    import uvicorn
-    from nexo import logs
-    settings = _settings()
-    logs.setup(settings)
-    url = _local_url(settings)
-    if not _port_free(settings.host, settings.port):
-        if _nexo_answers(url):
-            print(f"\n  O Nexo já está rodando em {url}\n")
-            if getattr(args, "abrir", False):
-                webbrowser.open(url)
-            return
-        sys.exit(f"A porta {settings.port} está ocupada por outro programa. Feche-o ou defina outra porta no .env "
-                 f"(NEXO_PORT={settings.port + 1}) e rode de novo.")
-    print(f"\n  Nexo {__version__} rodando em {url}\n")
-    if getattr(args, "abrir", False):
-        _open_when_ready(url)
-    uvicorn.run("nexo.api.app:app", host=settings.host, port=settings.port, log_config=None, access_log=False)
 
 
 PRESETS = (
@@ -160,7 +99,7 @@ def configure(_: argparse.Namespace) -> None:
         if not result["ok"] and _ask("Salvar mesmo assim? (s/n)", "n").lower() != "s":
             sys.exit("Nada foi salvo.")
     changed = runtime.update(settings, values, "linha de comando")
-    print(f"\nPronto: {len(changed)} ajuste(s) salvo(s) em {settings.overrides_file}. Já valem na próxima vez que o Nexo subir.")
+    print(f"\nPronto: {len(changed)} ajuste(s) salvo(s) em {settings.overrides_file}. Já valem na próxima vez que o Nexo abrir.")
     print("Confira tudo com: python -m nexo diagnostico")
 
 
@@ -223,7 +162,7 @@ def restore(args: argparse.Namespace) -> None:
     print(f"Backup da versão {result['manifest'].get('versao')} restaurado em {settings.data_dir} ({result['files']} arquivo(s)).")
     if result["previous"]:
         print(f"Os dados anteriores foram guardados em {result['previous']}.")
-    print(f"{result['queued']} documento(s) serão reindexados quando o servidor subir.")
+    print(f"{result['queued']} documento(s) serão reindexados quando o Nexo abrir.")
 
 
 def reindex(args: argparse.Namespace) -> None:
@@ -242,7 +181,7 @@ def reindex(args: argparse.Namespace) -> None:
     if not ids:
         print("Nada para reindexar.")
         return
-    print(f"Reindexando {len(ids)} documento(s). Mantenha o servidor parado enquanto isso.")
+    print(f"Reindexando {len(ids)} documento(s). Mantenha o Nexo fechado enquanto isso.")
     failed = 0
     for i, document_id in enumerate(ids, start=1):
         jobs.process(document_id)
@@ -294,12 +233,20 @@ def version(_: argparse.Namespace) -> None:
     print(f"Nexo {__version__}")
 
 
+def window(args: argparse.Namespace) -> None:
+    from nexo import desktop
+    desktop.abrir(reabrir=getattr(args, "reabrir", False))
+
+
+def check(args: argparse.Namespace) -> None:
+    from nexo import desktop
+    sys.exit(desktop.verificar(args.saida))
+
+
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(prog="python -m nexo", description="Servidor e ferramentas de manutenção do Nexo.")
+    root = argparse.ArgumentParser(prog="python -m nexo", description="Aplicativo do Nexo e ferramentas de manutenção.")
+    root.add_argument("--reabrir", action="store_true", help=argparse.SUPPRESS)
     sub = root.add_subparsers(dest="comando", metavar="comando")
-    p = sub.add_parser("servir", help="sobe o servidor (padrão)")
-    p.add_argument("--abrir", action="store_true", help="abre o navegador quando o servidor estiver pronto")
-    p.set_defaults(func=serve)
     sub.add_parser("configurar", help="assistente no terminal: senha do admin e provedor de IA").set_defaults(func=configure)
     p = sub.add_parser("senha", help="redefine a senha de uma conta")
     p.add_argument("usuario", help="nome de usuário da conta")
@@ -310,11 +257,11 @@ def parser() -> argparse.ArgumentParser:
     p = sub.add_parser("backup", help="grava um .zip com banco, contas, ajustes e arquivos enviados")
     p.add_argument("--saida", help="caminho do arquivo .zip")
     p.set_defaults(func=backup)
-    p = sub.add_parser("restaurar", help="restaura um backup na pasta de dados (com o servidor parado)")
+    p = sub.add_parser("restaurar", help="restaura um backup na pasta de dados (com o Nexo fechado)")
     p.add_argument("arquivo", help="arquivo .zip gerado pelo backup")
     p.add_argument("--substituir", action="store_true", help="guarda a pasta de dados atual numa cópia e restaura por cima")
     p.set_defaults(func=restore)
-    p = sub.add_parser("reindexar", help="reindexa documentos (com o servidor parado)")
+    p = sub.add_parser("reindexar", help="reindexa documentos (com o Nexo fechado)")
     grupo = p.add_mutually_exclusive_group()
     grupo.add_argument("--desatualizados", action="store_true", help="só os indexados com outra configuração")
     grupo.add_argument("--todos", action="store_true", help="o acervo inteiro")
@@ -324,9 +271,12 @@ def parser() -> argparse.ArgumentParser:
     p.set_defaults(func=sample_base)
     sub.add_parser("contas", help="lista as contas de acesso").set_defaults(func=accounts)
     sub.add_parser("versao", help="mostra a versão").set_defaults(func=version)
+    p = sub.add_parser("verificar", help="confere o pacote do aplicativo: módulos, servidor, indexação e resposta")
+    p.add_argument("--saida", help="grava o relatório neste arquivo")
+    p.set_defaults(func=check)
     return root
 
 
 def main(argv: list[str] | None = None) -> None:
     args = parser().parse_args(argv)
-    (getattr(args, "func", None) or serve)(args)
+    (getattr(args, "func", None) or window)(args)

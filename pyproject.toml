@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nexo"
-version = "2.4.0"
-description = "Chatbot RAG que responde dúvidas com base estrita em manuais técnicos e livros em PDF."
+version = "3.0.0"
+description = "Aplicativo para Windows de agentes de IA (RAG) que respondem só com a própria base de conhecimento, citando a página."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

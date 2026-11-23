@@ -10,19 +10,35 @@
 </p>
 
 <p align="center">
-  <b>Versão 2.4.0</b><br>
-  Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama, OpenAI ou compatíveis (Groq, OpenRouter, Gemini, LM Studio) · WhatsApp (Evolution API ou Cloud API) · Widget para sites · API compatível com OpenAI · React 19 · TypeScript
+  <b>Versão 3.0.0</b><br>
+  Aplicativo para Windows (Nexo-Setup.exe) · pywebview + WebView2 · PyInstaller · Inno Setup · Python 3.11+ · FastAPI · LlamaIndex · ChromaDB ou Qdrant · Reranking HuggingFace ou Cohere · Ollama, OpenAI ou compatíveis (Groq, OpenRouter, Gemini, LM Studio) · WhatsApp (Evolution API ou Cloud API) · Widget para sites · API compatível com OpenAI · React 19 · TypeScript
 </p>
 
 ---
 
-> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica instalação, o assistente de configuração, cada tela, os agentes, as bases de conhecimento, o WhatsApp, o widget para sites, a API compatível com OpenAI, as integrações, a arquitetura, a API, a avaliação da recuperação e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Nexo.pdf)).
+> **Manual completo:** [`Manual-Nexo.pdf`](Manual-Nexo.pdf) explica a instalação do aplicativo para Windows, o assistente de configuração, cada tela, os agentes, as bases de conhecimento, o WhatsApp, o widget para sites, a API compatível com OpenAI, as integrações, a arquitetura, a API, a avaliação da recuperação e a solução de problemas, passo a passo (cópia em [`docs/`](docs/Manual-Nexo.pdf)).
 
-> **Banco de dados:** [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) traz o diagrama de relacionamentos, todas as tabelas com campos, tipos, chaves e restrições (inclusive bases, agentes, WhatsApp e widgets), os índices, a migração automática, o banco vetorial e a troca segura de embeddings, os arquivos de contas, ajustes e segredos, as consultas do painel de qualidade e como trocar o SQLite por outro banco (cópia em [`docs/`](docs/Banco-de-Dados-Nexo.pdf)).
+> **Banco de dados:** [`Banco-de-Dados-Nexo.pdf`](Banco-de-Dados-Nexo.pdf) traz o diagrama de relacionamentos, o diagrama completo da arquitetura de dados (todas as tabelas com todas as colunas, as ligações com as contas, o banco vetorial, os arquivos e o aplicativo), todas as tabelas com campos, tipos, chaves e restrições (inclusive bases, agentes, WhatsApp e widgets), os índices, a migração automática, o banco vetorial e a troca segura de embeddings, os arquivos de contas, ajustes e segredos, as consultas do painel de qualidade e como trocar o SQLite por outro banco (cópia em [`docs/`](docs/Banco-de-Dados-Nexo.pdf)).
 
 <p align="center">
   <img src="docs/images/tela-chats.png" alt="Chats com vários agentes lado a lado">
 </p>
+
+## Novidades da 3.0
+
+A 3.0.0 transforma o Nexo num aplicativo para Windows. Ele é instalado pelo `Nexo-Setup.exe`, aparece na pesquisa do Windows e no menu Iniciar e abre numa janela própria, sem navegador. A versão web que abria no navegador, os scripts `iniciar.cmd` e `iniciar.sh` e o Docker saíram.
+
+| Novidade | Como funciona |
+|---|---|
+| **Instalador para Windows** | `Nexo-Setup-3.0.0.exe` instala por usuário, sem pedir administrador, em `%LOCALAPPDATA%\Programs\Nexo`, com atalho no menu Iniciar (encontrado pela pesquisa do Windows), atalho opcional na área de trabalho, `Win + R` → `nexo` e desinstalador em **Configurações → Aplicativos**. |
+| **Janela própria** | O painel abre numa janela do Windows (WebView2). O servidor interno sobe só em `127.0.0.1`, numa porta livre, e o painel só é entregue para a janela do aplicativo: aberto num navegador, ele responde que o Nexo abre só pelo aplicativo. |
+| **Já vem configurado** | Na primeira abertura, o Nexo cria a **Base de teste** e o **Agente de teste**, indexa os arquivos de exemplo e usa o **Llama 3.1 pelo Ollama**. O assistente de configuração fica disponível em **Sistema e conta**. |
+| **Arquivos na janela** | PDFs abrem numa janela do Nexo, já na página citada; os outros formatos abrem no programa padrão do Windows. Downloads (backup, exportações) pedem onde salvar. |
+| **Restaurar pela tela** | **Sistema e conta → Manutenção → Restaurar backup** escolhe o `.zip`, fecha o Nexo, guarda os dados atuais numa cópia e abre de novo com o backup. |
+| **Instância única** | Abrir o Nexo de novo traz a janela que já está aberta para a frente. Fechar com documentos na fila pede confirmação; a indexação continua na próxima abertura. |
+| **Dados do usuário** | Tudo fica em `%LOCALAPPDATA%\Nexo` (`data`, `modelos`, `logs`). Atualizar o aplicativo não mexe nos dados; desinstalar pergunta se deve apagá-los. |
+| **Ícone** | Quadrado preto com bordas levemente arredondadas e o N branco, em todos os tamanhos do Windows. |
+| **Release automática** | Publicar uma release no GitHub dispara o workflow `desktop.yml`, que compila, verifica o pacote e anexa o `Nexo-Setup-<versão>.exe` à release. |
 
 ## Novidades da 2.4
 
@@ -137,61 +153,84 @@ flowchart LR
 6. **Lacunas visíveis**: toda pergunta sem resposta aparece no Painel de qualidade e pode disparar um webhook; no WhatsApp, o contato passa para a equipe.
 7. **Base por agente**: cada agente só enxerga os documentos da própria base, o que evita misturar assuntos.
 
-## Como rodar
+## Instalar no Windows
 
-Pré-requisitos: **Python 3.11 ou mais recente** e **Node.js 20.19 ou mais recente** (só para compilar a interface).
+1. Baixe o `Nexo-Setup-3.0.0.exe` em [Releases](https://github.com/ravelroot/Retrieval-Augmented-QA-System/releases/latest) e abra. Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo** (o instalador não é assinado digitalmente).
+2. Siga o instalador. Ele não pede administrador e termina abrindo o Nexo.
+3. Depois, abra pela pesquisa do Windows (digite **Nexo**), pelo menu Iniciar ou por `Win + R` → `nexo`.
+4. Entre com `admin` / `Nexo@2026` e escolha uma senha nova.
 
-**Windows:** dê dois cliques em `iniciar.cmd`.
-**Linux / macOS:** `./iniciar.sh`
+Para as respostas com o **Llama 3.1**, instale o [Ollama](https://ollama.com/download/windows) e baixe o modelo uma vez:
 
-Os scripts conferem o Python, criam o ambiente virtual, instalam as dependências (e reinstalam quando `requirements.txt` muda), copiam `.env.example` para `.env`, compilam a interface, sobem o servidor em **http://127.0.0.1:8000** e abrem o navegador. Entre com `admin` / `Nexo@2026`: o assistente de configuração pede uma senha nova e guia o resto.
+```powershell
+winget install --id Ollama.Ollama -e
+ollama pull llama3.1
+```
 
-> Atualizando da 2.3? Rode o script de novo: ele instala o pacote novo e recompila a interface. Na primeira execução, a tabela `nx_widget` é criada e o Nexo registra o modelo de embeddings atual, sem reindexar nada. Se a conta admin ainda usa a senha padrão, a troca passa a ser obrigatória.
+A primeira abertura já deixa a **Base de teste** e o **Agente de teste** prontos: abra **Chats com agentes** e pergunte, por exemplo, "Quanto tempo dura a garantia?". O modelo de embeddings e o reranker são baixados do HuggingFace na primeira indexação e na primeira pergunta e funcionam em CPU. Requisitos: Windows 10 1809 ou mais recente, 64 bits, com o Microsoft Edge WebView2 (já vem no Windows 11 e nos Windows 10 atualizados).
 
-> Atualizando da 2.2 ou da 2.1? Baixe um backup (**Sistema e conta → Manutenção** ou `python -m nexo backup`), traga a versão nova e rode o script de novo. Na primeira execução, o banco ganha sozinho as colunas e tabelas novas, os documentos prontos recebem a assinatura da configuração atual (nada é reindexado) e o `.env` antigo continua valendo. Depois, confira com `python -m nexo diagnostico`.
+| Pasta | Conteúdo |
+|---|---|
+| `%LOCALAPPDATA%\Programs\Nexo` | O aplicativo (`Nexo.exe` e bibliotecas) |
+| `%LOCALAPPDATA%\Nexo\data` | Banco, contas, ajustes, segredos, arquivos enviados, vetores e backups |
+| `%LOCALAPPDATA%\Nexo\modelos` | Modelos baixados do HuggingFace |
+| `%LOCALAPPDATA%\Nexo\logs` | `nexo.log`, com os registros do aplicativo |
+| `%LOCALAPPDATA%\Nexo\.env` | Opcional: variáveis avançadas (modelo em [`.env.example`](.env.example)) |
 
-> Atualizando da 2.0? Rode o script de novo: ele percebe que a versão mudou e recompila a interface. O banco existente é migrado sozinho na primeira execução: as tabelas novas são criadas, os documentos antigos vão para a base "Acervo geral" e nenhum vetor precisa ser recalculado.
+> Integrações: enquanto o Nexo está aberto, a API, o widget e os webhooks respondem no servidor interno (`http://127.0.0.1:8000` ou a próxima porta livre). Para o WhatsApp ou um widget em site público, deixe esse servidor alcançável (`NEXO_HOST` no `.env` e um túnel ou proxy) e defina `NEXO_PUBLIC_URL`. O painel continua só na janela do aplicativo.
 
-Manualmente:
+> Vindo da 2.x? Pelo código da versão antiga, gere um backup (`python -m nexo backup --saida nexo.zip`) e, no aplicativo, use **Sistema e conta → Manutenção → Restaurar backup**.
+
+### Gerar o instalador
+
+Publicar uma release no GitHub gera e anexa o instalador sozinho (workflow [`desktop.yml`](.github/workflows/desktop.yml)). Para gerar no próprio computador, com **Python 3.12** e **Node.js 22** instalados:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File desktop\build.ps1
+```
+
+O script cria `.venv-build`, instala as dependências, compila a interface, empacota o `dist\Nexo\Nexo.exe` com o PyInstaller, roda `Nexo.exe verificar` (módulos, servidor interno, painel fechado fora da janela, login, indexação, resposta e abertura de arquivo) e gera `desktop\saida\Nexo-Setup-3.0.0.exe` com o Inno Setup (instalado pelo `winget` se faltar). Com `-SemInstalador`, para no `Nexo.exe`.
+
+| Arquivo | Papel |
+|---|---|
+| `nexo/desktop.py` | Janela, servidor interno, instância única, pasta de dados, abertura de arquivos, restauração e verificação do pacote |
+| `desktop/nexo.spec` | Empacotamento do PyInstaller (interface, arquivos de exemplo, ícone e versão do `.exe`) |
+| `desktop/nexo.iss` | Instalador do Inno Setup (menu Iniciar, pesquisa do Windows, `App Paths`, desinstalador) |
+| `desktop/build.ps1` | Build completo no Windows |
+| `desktop/nexo.ico` | Ícone do aplicativo e do instalador |
+
+### Rodar pelo código-fonte
+
+Para desenvolver, com Python 3.11+ e Node.js 20.19+:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate          # Windows
-source .venv/bin/activate       # Linux / macOS
 pip install -r requirements.txt
-copy .env.example .env          # Windows  (cp no Linux / macOS)
 cd frontend && npm install && npm run build && cd ..
 python -m nexo
 ```
 
-Com Docker (o Nexo e o Ollama em contêineres, dados no volume `nexo-dados`):
-
-```bash
-cp .env.example .env
-docker compose --profile app --profile ollama up -d --build
-docker compose exec ollama ollama pull llama3.1
-```
-
-Para experimentar sem os seus arquivos, clique em **Criar base de teste** em **Bases de conhecimento** ou rode `python -m nexo base-de-teste`.
+`python -m nexo` abre a mesma janela do aplicativo, com os dados em `data/` (ou na pasta de `NEXO_DATA_DIR`) e o `.env` da pasta atual. Para mexer na interface com recarga automática, deixe o Nexo aberto e rode `npm run dev` em `frontend/`.
 
 ### Linha de comando
 
 | Comando | Função |
 |---|---|
-| `python -m nexo` | Sobe o servidor |
-| `python -m nexo servir --abrir` | Sobe o servidor e abre o navegador quando ele estiver pronto |
+| `python -m nexo` | Abre o aplicativo (janela e servidor interno) |
+| `python -m nexo verificar [--saida arquivo.txt]` | Confere o pacote: módulos, servidor interno, painel fechado fora da janela, login, indexação, resposta e abertura de arquivo (no instalado: `Nexo.exe verificar --saida arquivo.txt`) |
 | `python -m nexo configurar` | Assistente no terminal: senha do admin e provedor de IA, com teste de conexão |
 | `python -m nexo senha <usuario>` | Redefine a senha de uma conta e encerra as sessões dela |
 | `python -m nexo diagnostico [--completo]` | Confere banco, modelos, acervo, segurança e integrações |
 | `python -m nexo backup [--saida arquivo.zip]` | Grava o backup |
-| `python -m nexo restaurar arquivo.zip [--substituir]` | Restaura um backup (servidor parado) |
-| `python -m nexo reindexar [--desatualizados \| --todos]` | Reindexa no terminal (servidor parado) |
+| `python -m nexo restaurar arquivo.zip [--substituir]` | Restaura um backup (Nexo fechado) |
+| `python -m nexo reindexar [--desatualizados \| --todos]` | Reindexa no terminal (Nexo fechado) |
 | `python -m nexo base-de-teste` | Cria a Base de teste e o Agente de teste |
 | `python -m nexo contas` · `versao` | Lista as contas e mostra a versão |
 
 ### Escolha um modo
 
-Tudo isso também se escolhe pela tela, no assistente de configuração ou em **Sistema e conta → Ajustes**, com um botão para testar a conexão antes de salvar.
+No aplicativo instalado, o `.env` fica em `%LOCALAPPDATA%\Nexo\.env`. Tudo isso também se escolhe pela tela, no assistente de configuração ou em **Sistema e conta → Ajustes**, com um botão para testar a conexão antes de salvar.
 
 | Modo | O que instalar | `.env` |
 |---|---|---|
@@ -212,7 +251,7 @@ O modo de teste usa um embedding léxico e devolve as frases mais relevantes dos
 |---|---|---|
 | `admin` | `Nexo@2026` | Administrador |
 
-Esse é o login pré-definido, criado quando `data/usuarios.json` não existe. Ao entrar com ele, o Nexo exige uma senha nova antes de qualquer outra tela (a API responde 403 `PASSWORD_CHANGE_REQUIRED` até a troca) e abre o assistente de configuração. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`); com o cadastro fechado, um administrador cria as contas em **Sistema e conta → Contas**. Esqueceu a senha? Um administrador redefine na mesma tela, ou rode `python -m nexo senha <usuario>` no servidor.
+Esse é o login pré-definido, criado quando `usuarios.json` não existe na pasta de dados. Ao entrar com ele, o Nexo exige uma senha nova antes de qualquer outra tela (a API responde 403 `PASSWORD_CHANGE_REQUIRED` até a troca) e abre o assistente de configuração. Na primeira entrada de cada conta, o tutorial mostra o caminho: base de conhecimento, agente, chats e WhatsApp. Qualquer pessoa pode criar a própria conta na tela de entrada (desligue com `NEXO_ALLOW_REGISTRATION=false`); com o cadastro fechado, um administrador cria as contas em **Sistema e conta → Contas**. Esqueceu a senha? Um administrador redefine na mesma tela, ou rode `python -m nexo senha <usuario>` pelo código-fonte.
 
 ## Telas
 
@@ -430,7 +469,7 @@ Na **caixa de entrada**, o agente responde sozinho com a base dele. Quando não 
 
 ## Configuração
 
-A configuração base fica no `.env` (modelo em [`.env.example`](.env.example)). Quase tudo também muda pela tela **Sistema e conta → Ajustes**, sem reiniciar: provedor de IA, modelos, endereços e chaves, busca, trechos, acesso, backup e retenção. Os valores da tela ficam em `data/ajustes.json` e as chaves em `data/segredos.json`, por cima do `.env`. As principais variáveis:
+A configuração base fica no `.env` (modelo em [`.env.example`](.env.example)); no aplicativo instalado, em `%LOCALAPPDATA%\Nexo\.env`, e a pasta de dados é `%LOCALAPPDATA%\Nexo\data`. Quase tudo também muda pela tela **Sistema e conta → Ajustes**, sem reiniciar: provedor de IA, modelos, endereços e chaves, busca, trechos, acesso, backup e retenção. Os valores da tela ficam em `data/ajustes.json` e as chaves em `data/segredos.json`, por cima do `.env`. As principais variáveis:
 
 | Variável | Padrão | Função |
 |---|---|---|
@@ -527,7 +566,8 @@ nexo/
   audit.py           registro de atividades
   links.py           importação de links com bloqueio da rede interna
   sample.py          base de teste
-  cli.py             linha de comando python -m nexo (servir --abrir, configurar, senha e manutenção)
+  cli.py             linha de comando python -m nexo (abre o aplicativo, configurar, senha, verificar e manutenção)
+  desktop.py         aplicativo: janela WebView2, servidor interno, instância única, arquivos, restauração e verificação
   logs.py            registros em texto ou JSON
   knowledge.py       leitura de DOCX, EPUB, PPTX, XLSX, ODT, TXT, MD, CSV, JSON, HTML e textos
   whatsapp.py        provedores, webhook, contatos e respostas do agente no WhatsApp
@@ -550,12 +590,12 @@ scripts/             avaliação da recuperação, PDF de exemplo, redefinição
 exemplos/            PDF fictício, perguntas de avaliação e base-de-teste/ (arquivos da base de teste)
 docs/                manuais em PDF, banco de dados, DDL e imagens
 tests/               testes automatizados
-Dockerfile           imagem do Nexo (interface compilada, usuário sem privilégios, dados em /dados)
+desktop/             aplicativo para Windows: nexo.spec (PyInstaller), nexo.iss (Inno Setup), build.ps1, entrada.py e nexo.ico
 ```
 
 ## API
 
-Documentação interativa em **http://127.0.0.1:8000/api/docs**. Todas as rotas, exceto entrada, cadastro, o webhook público do WhatsApp e as rotas públicas do widget, exigem `Authorization: Bearer <token>` ou uma chave de API.
+Documentação interativa em **Integrações → /api/docs**, que abre numa janela do Nexo (com o aplicativo aberto, também em `http://127.0.0.1:8000/api/docs`; se a 8000 estiver ocupada, o Nexo usa a próxima livre). Todas as rotas, exceto entrada, cadastro, o webhook público do WhatsApp e as rotas públicas do widget, exigem `Authorization: Bearer <token>` ou uma chave de API.
 
 | Método | Rota | Função |
 |---|---|---|
@@ -644,7 +684,7 @@ python -m pytest
 ruff check .
 ```
 
-Os testes usam o modo sem modelos e cobrem a troca obrigatória da senha padrão, os provedores e as chaves pela tela (com `data/segredos.json` em 0600), o teste de conexão, a troca de embeddings com reindexação automática, o assistente e os primeiros passos, o backup automático com rotação e download, o widget para sites (sites autorizados, pré-voo, limite por visitante, corpo grande, pausa, troca de chave e exclusão em cascata), a API compatível com OpenAI (modelos, resposta, streaming, erros e permissão), a linha de comando `configurar` e `senha`, a checagem da porta, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+Os testes usam o modo sem modelos e cobrem o aplicativo (painel entregue só para a janela, cookie da janela, nomes de arquivo seguros, abertura de documentos e da referência da API, restauração só por administradores, restauração pendente, instância única, primeira abertura já configurada), a troca obrigatória da senha padrão, os provedores e as chaves pela tela (com `data/segredos.json` em 0600), o teste de conexão, a troca de embeddings com reindexação automática, o assistente e os primeiros passos, o backup automático com rotação e download, o widget para sites (sites autorizados, pré-voo, limite por visitante, corpo grande, pausa, troca de chave e exclusão em cascata), a API compatível com OpenAI (modelos, resposta, streaming, erros e permissão), a linha de comando `configurar` e `senha`, a checagem da porta, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
 
 ## Documentação em PDF
 

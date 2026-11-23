@@ -26,14 +26,14 @@ Leva poucos segundos. Precisa de:
 |---|---|
 | `gerar_pdfs.py` | Ponto de entrada: monta os dois documentos, gera os PDFs e grava os metadados |
 | `manual.py` | Texto do manual, capítulo por capítulo |
-| `banco.py` | Texto do PDF do banco e o diagrama de relacionamentos, que o manual também usa |
+| `banco.py` | Texto do PDF do banco, o diagrama de relacionamentos (que o manual também usa) e o diagrama completo da arquitetura de dados, numa página A3 deitada |
 | `base.py` | Versão, data, marcação (títulos, tabelas, passos, cartões, código, avisos, telas e diagramas) e geração com o Chromium |
 | `estilo.css` | Identidade visual: cores, tipografia, capa, sumário, cabeçalho e rodapé |
 | `fontes/` | Bricolage Grotesque, Instrument Sans e IBM Plex Mono, embutidas no PDF |
 
 - A versão e a data ficam em `base.py` (`VERSAO` e `DATA`) e aparecem na capa, no cabeçalho, nos textos e nos metadados.
 - O Sumário é feito em duas passagens: a primeira descobre a página de cada título, a segunda escreve os números.
-- Os diagramas são desenhados com Mermaid dentro da própria página, com as mesmas fontes, e saem em vetor.
+- Os diagramas são desenhados com Mermaid dentro da própria página, com as mesmas fontes, e saem em vetor. O que fica dentro de `<div class="largo">` vai para uma página A3 deitada (`@page largo` em `estilo.css`).
 - As capturas vêm de `docs/images/tela-*.png`, convertidas para JPEG. A logo da capa vem de `docs/images/logo.svg`.
 - O número de testes do capítulo 10 do manual é contado em `tests/` a cada geração.
 - Para mudar o texto, edite `manual.py` ou `banco.py`. Use `` `código` ``, `**negrito**` e `[[novo]]` (selo Novo) dentro dos textos.

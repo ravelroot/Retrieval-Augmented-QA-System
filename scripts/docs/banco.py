@@ -128,6 +128,266 @@ erDiagram
   }
 """
 
+ER_COMPLETO = """
+erDiagram
+  conta_usuarios_json ||--o{ nx_knowledge_base : "created_by"
+  conta_usuarios_json ||--o{ nx_document : "uploaded_by"
+  conta_usuarios_json ||--o{ nx_bot : "created_by"
+  conta_usuarios_json ||--o{ nx_conversation : "owner"
+  conta_usuarios_json ||--o{ nx_feedback : "owner"
+  conta_usuarios_json ||--o{ nx_api_key : "owner"
+  conta_usuarios_json ||--o{ nx_webhook : "created_by"
+  conta_usuarios_json ||--o{ nx_quick_reply : "created_by"
+  conta_usuarios_json ||--o{ nx_widget : "created_by"
+  conta_usuarios_json ||--o{ nx_whatsapp_channel : "created_by"
+  conta_usuarios_json ||--o{ nx_audit : "actor"
+  nx_knowledge_base ||--o{ nx_document : "base_id · CASCADE"
+  nx_knowledge_base ||--o{ nx_bot : "base_id · 409 se em uso"
+  nx_bot |o--o{ nx_conversation : "bot_id · CASCADE"
+  nx_bot |o--o{ nx_whatsapp_channel : "bot_id · SET NULL"
+  nx_bot ||--o{ nx_widget : "bot_id · CASCADE"
+  nx_conversation ||--o{ nx_conversation_document : "conversation_id · CASCADE"
+  nx_document ||--o{ nx_conversation_document : "document_id · CASCADE"
+  nx_conversation ||--o{ nx_message : "conversation_id · CASCADE"
+  nx_message ||--o{ nx_message_source : "message_id · CASCADE"
+  nx_document |o--o{ nx_message_source : "document_id · SET NULL"
+  nx_message ||--o{ nx_feedback : "message_id · CASCADE"
+  nx_whatsapp_channel ||--o{ nx_whatsapp_contact : "channel_id · CASCADE"
+  nx_whatsapp_contact ||--o{ nx_whatsapp_message : "contact_id · CASCADE"
+  nx_document ||--o{ trecho_vetorial : "source_id · vetores apagados junto"
+  nx_document ||--o| arquivo_upload : "id · original enviado"
+  trecho_vetorial ||--o{ nx_message_source : "chunk_id · citado"
+  espaco_vetorial_json ||--o{ trecho_vetorial : "modelo que gerou"
+  conta_usuarios_json {
+    string username PK "data/usuarios.json"
+    string name
+    string role "admin ou user"
+    string password_hash "bcrypt"
+    integer session_version "revoga tokens"
+    string created_at
+    string last_login_at "nulo"
+    string tutorial_done_at "nulo"
+    string password_changed_at "nulo"
+  }
+  nx_knowledge_base {
+    varchar(32) id PK
+    varchar(120) name
+    text description "nulo"
+    varchar(16) color
+    boolean is_default
+    varchar(32) created_by
+    timestamp created_at
+    timestamp updated_at
+  }
+  nx_document {
+    varchar(32) id PK
+    varchar(32) base_id FK,UK "uk_document_base_sha256"
+    varchar(10) kind "pdf, file, note"
+    varchar(10) extension
+    varchar(200) title
+    varchar(255) filename
+    varchar(64) sha256 UK "único por base"
+    text content "nulo · textos"
+    integer size_bytes
+    integer pages
+    integer chunks
+    varchar(20) status "PENDING a READY"
+    text error "nulo"
+    varchar(32) uploaded_by
+    timestamp created_at
+    timestamp indexed_at "nulo"
+    timestamp updated_at "nulo"
+    varchar(64) index_signature "nulo"
+    varchar(1000) source_url "nulo · links"
+  }
+  nx_bot {
+    varchar(32) id PK
+    varchar(80) name
+    varchar(300) description "nulo"
+    varchar(32) base_id FK
+    text instructions "nulo"
+    varchar(500) greeting "nulo"
+    varchar(500) fallback "nulo"
+    varchar(16) color
+    boolean cite_sources
+    text suggestions "nulo"
+    varchar(32) created_by
+    timestamp created_at
+    timestamp updated_at
+  }
+  nx_conversation {
+    varchar(32) id PK
+    varchar(32) owner
+    varchar(32) bot_id FK "nulo"
+    varchar(160) title
+    boolean pinned
+    timestamp created_at
+    timestamp updated_at
+  }
+  nx_conversation_document {
+    varchar(32) conversation_id PK,FK
+    varchar(32) document_id PK,FK
+  }
+  nx_message {
+    varchar(32) id PK
+    varchar(32) conversation_id FK
+    varchar(10) role "user ou assistant"
+    text content
+    boolean grounded "nulo"
+    boolean answered "nulo"
+    varchar(120) model "nulo"
+    integer latency_ms "nulo"
+    timestamp created_at
+  }
+  nx_message_source {
+    integer id PK
+    varchar(32) message_id FK
+    varchar(32) document_id FK "nulo"
+    varchar(200) document_title
+    varchar(80) chunk_id
+    integer page
+    integer rank
+    float similarity "nulo"
+    float rerank_score "nulo"
+    text excerpt
+  }
+  nx_feedback {
+    integer id PK
+    varchar(32) message_id FK,UK "uk_feedback_message_owner"
+    varchar(32) owner UK
+    integer rating "1 ou -1"
+    text comment "nulo"
+    timestamp created_at
+  }
+  nx_api_key {
+    varchar(32) id PK
+    varchar(32) owner
+    varchar(80) name
+    varchar(16) prefix
+    varchar(64) key_hash UK "SHA-256"
+    varchar(16) scope "full, read, ingest"
+    timestamp created_at
+    timestamp last_used_at "nulo"
+    timestamp expires_at "nulo"
+  }
+  nx_webhook {
+    varchar(32) id PK
+    varchar(500) url
+    varchar(300) events
+    varchar(80) secret "HMAC"
+    boolean active
+    varchar(32) created_by
+    timestamp created_at
+    integer last_status "nulo"
+    text last_error "nulo"
+    timestamp last_delivery_at "nulo"
+  }
+  nx_quick_reply {
+    varchar(32) id PK
+    varchar(80) title
+    text body
+    varchar(32) created_by
+    timestamp created_at
+    timestamp updated_at
+  }
+  nx_widget {
+    varchar(32) id PK
+    varchar(80) name
+    varchar(32) bot_id FK
+    varchar(48) public_key UK
+    text origins "nulo"
+    varchar(80) title "nulo"
+    varchar(500) welcome "nulo"
+    varchar(16) color
+    varchar(8) position
+    boolean show_sources
+    boolean active
+    integer questions
+    integer unanswered
+    timestamp last_used_at "nulo"
+    varchar(32) created_by
+    timestamp created_at
+    timestamp updated_at
+  }
+  nx_whatsapp_channel {
+    varchar(32) id PK
+    varchar(80) name
+    varchar(16) provider "evolution, cloud, simulador"
+    varchar(32) bot_id FK "nulo"
+    boolean auto_reply
+    boolean active
+    varchar(32) phone "nulo"
+    varchar(64) verify_token
+    varchar(64) webhook_token
+    varchar(16) api_version "nulo"
+    varchar(64) phone_number_id "nulo"
+    text access_token "nulo"
+    varchar(200) app_secret "nulo"
+    varchar(300) base_url "nulo"
+    varchar(200) api_key "nulo"
+    varchar(80) instance "nulo"
+    varchar(32) created_by
+    timestamp created_at
+    timestamp last_event_at "nulo"
+    text last_error "nulo"
+  }
+  nx_whatsapp_contact {
+    varchar(32) id PK
+    varchar(32) channel_id FK,UK "uk_whatsapp_contact_channel_phone"
+    varchar(32) phone UK
+    varchar(120) name "nulo"
+    boolean bot_enabled
+    boolean needs_human
+    integer unread
+    timestamp last_message_at "nulo"
+    timestamp created_at
+  }
+  nx_whatsapp_message {
+    varchar(32) id PK
+    varchar(32) contact_id FK
+    varchar(3) direction "in ou out"
+    varchar(40) author
+    text body
+    varchar(12) status
+    varchar(128) external_id "nulo"
+    text error "nulo"
+    boolean answered "nulo"
+    text sources_json "nulo"
+    timestamp created_at
+  }
+  nx_audit {
+    integer id PK
+    timestamp created_at
+    varchar(32) actor
+    varchar(40) action
+    varchar(20) target_type "nulo"
+    varchar(64) target_id "nulo"
+    text detail "nulo"
+    varchar(64) ip "nulo"
+  }
+  trecho_vetorial {
+    string node_id PK "coleção nexo_trechos"
+    string source_id FK "nx_document.id"
+    string title
+    string filename
+    integer page
+    integer chunk_index
+    vector embedding "dimensão do modelo"
+    text texto
+  }
+  arquivo_upload {
+    string caminho PK "data/uploads/id.extensão"
+    string document_id FK
+    bytes original
+  }
+  espaco_vetorial_json {
+    string espaco PK "data/vetores.json"
+    integer versao
+    string embeddings "provedor e modelo"
+    string gravado_em
+  }
+"""
+
 COLS = ["Coluna", "Tipo", "Nulo", "Padrão", "Regra"]
 LARG = ["21%", "17%", "8%", "14%", "40%"]
 COLS4 = ["Coluna", "Tipo", "Nulo", "Regra"]
@@ -154,7 +414,8 @@ def visao_geral(d):
          "Ajustes da tela, chaves dos provedores, estado do assistente e o modelo que gerou os vetores"),
         ("Backups [[novo]]", "`data/backups/nexo-auto-*.zip`", "Cópias automáticas, com rotação"),
     ], larguras=["19%", "33%", "48%"])
-    d.p("A pasta `data` (ou a de `NEXO_DATA_DIR`) concentra tudo o que é local. Copiar essa pasta com o servidor parado é "
+    d.p("A pasta `data` (ou a de `NEXO_DATA_DIR`) concentra tudo o que é local. No aplicativo para Windows, ela fica em "
+        "`%LOCALAPPDATA%\\Nexo\\data`; pelo código-fonte, na pasta do projeto. Copiar essa pasta com o Nexo fechado é "
         "um backup completo.")
 
     d.secao("Criação e migração automáticas")
@@ -194,15 +455,20 @@ def visao_geral(d):
 
     d.secao(f"O que mudou na {VERSAO[:3]}", novo=True)
     d.lista([
-        "Uma tabela nova: `nx_widget`, os widgets que publicam um agente em sites (seção 7.6). Ela é criada sozinha na "
-        "primeira execução; nenhuma coluna das tabelas existentes muda.",
-        "Quatro arquivos novos na pasta de dados: `data/segredos.json` (chaves dos provedores salvas pela tela), "
-        "`data/instalacao.json` (assistente de configuração), `data/vetores.json` (qual modelo de embeddings gerou os "
-        "vetores) e `data/backups/` (backups automáticos). Detalhes no capítulo 9.",
-        "Trocar o modelo de embeddings, pela tela ou pelo `.env`, apaga a coleção vetorial e põe o acervo inteiro na fila "
-        "de indexação (seção 8.4). Bases, agentes e conversas não mudam.",
-        "O backup passa a levar `segredos.json` e `instalacao.json`, e a restauração aceita os dois.",
+        "Nenhuma tabela nem coluna mudou: o banco da 2.4 abre na 3.0 como está.",
+        "O Nexo virou um aplicativo para Windows. A pasta de dados passa a ficar em `%LOCALAPPDATA%\\Nexo\\data`, fora da "
+        "pasta do programa, e sobrevive às atualizações. Para trazer os dados de uma instalação 2.x, gere um backup nela e "
+        "use **Restaurar backup** no aplicativo.",
+        "Na primeira abertura, sem `data/instalacao.json`, o Nexo cria a Base de teste e o Agente de teste (linhas em "
+        "`nx_knowledge_base`, `nx_bot` e seis em `nx_document`, na fila como PENDING) e grava `instalacao.json` como "
+        "concluído. Com documentos já existentes, ele só conclui o assistente.",
+        "A restauração pela tela grava o `.zip` escolhido como `restaurar.zip` em `%LOCALAPPDATA%\\Nexo`, fecha o Nexo e "
+        "aplica na abertura seguinte, antes de qualquer conexão com o banco; a pasta anterior vira `data.antes-<data>`.",
+        "Novo neste documento: o diagrama completo da arquitetura de dados (seção 2.3), com todas as colunas e as "
+        "ligações com as contas, a coleção vetorial e os arquivos, e as camadas de armazenamento (seção 2.4).",
     ])
+    d.p("**Na 2.4** chegaram a tabela `nx_widget` e os arquivos `segredos.json`, `instalacao.json`, `vetores.json` e "
+        "`backups/`; trocar o modelo de embeddings passou a refazer a coleção vetorial sozinho.")
     d.p("**Na 2.3** chegaram `nx_quick_reply` e `nx_audit`; `nx_document` ganhou `index_signature` e `source_url`, "
         "`nx_bot` ganhou `suggestions`, `nx_conversation` ganhou `pinned` e `nx_api_key` ganhou `scope` e `expires_at`. A "
         "migração passou a acrescentar sozinha qualquer coluna que falte.")
@@ -241,6 +507,51 @@ def diagrama(d):
     d.secao("Diagrama", quebra=True)
     d.diagrama(ER_DIAGRAMA, "As dezesseis tabelas do Nexo, com nx_widget da 2.4. \"||\" indica exatamente um, \"|o\" zero ou um "
                "e \"o{\" muitos. nx_api_key, nx_webhook, nx_quick_reply e nx_audit se ligam às contas pelo nome de usuário.", altura_max_mm=215)
+    d.raw('<div class="largo">')
+    d.secao("Diagrama completo da arquitetura de dados", novo=True)
+    d.diagrama(ER_COMPLETO, "As dezesseis tabelas com todas as colunas, tipos, chaves e restrições, mais o que fica fora do banco "
+               "relacional: as contas (usuarios.json), os trechos da coleção vetorial, os arquivos originais e o registro do "
+               "espaço vetorial (vetores.json). As linhas com nome de coluna e regra de exclusão são chaves estrangeiras; as "
+               "que saem das contas, da coleção e dos arquivos são ligações mantidas pela aplicação. PK chave primária, FK "
+               "chave estrangeira, UK participa de restrição única.", largura_mm=382, altura_max_mm=222)
+    d.raw("</div>")
+    d.secao("Camadas de armazenamento", novo=True)
+    d.diagrama("""
+flowchart TB
+  APP["<b>Nexo.exe</b><br/>janela WebView2 + servidor interno 127.0.0.1"] --> API["<b>API FastAPI</b><br/>nexo/api"]
+  API --> ORM["<b>SQLAlchemy</b><br/>nexo/db.py · nexo/migrations.py"]
+  ORM --> SQL[("<b>Banco relacional</b><br/>data/nexo.db (SQLite, WAL)<br/>ou PostgreSQL, MySQL, SQL Server")]
+  API --> RAG["<b>Motor RAG</b><br/>LlamaIndex · nexo/rag"]
+  RAG --> VEC[("<b>Banco vetorial</b><br/>data/chroma (ChromaDB)<br/>ou Qdrant")]
+  RAG --> MOD["<b>Modelos</b><br/>embeddings e reranker em LOCALAPPDATA/Nexo/modelos"]
+  RAG --> VJ["<b>vetores.json</b><br/>modelo que gerou os vetores"]
+  API --> USR["<b>usuarios.json</b><br/>contas, bcrypt, versão da sessão"]
+  API --> CFG["<b>ajustes.json · segredos.json · instalacao.json</b><br/>tela, chaves (0600) e primeira abertura"]
+  API --> UP["<b>uploads/</b><br/>id.extensão"]
+  API --> BK["<b>backups/</b><br/>nexo-auto-*.zip com manifesto.json"]
+  SQL -.-> BK
+  USR -.-> BK
+  CFG -.-> BK
+  UP -.-> BK
+  classDef escuro fill:#000000,stroke:#000000,color:#FFFFFF
+  classDef claro fill:#FFFFFF,stroke:#BAB7B6,color:#000000
+  classDef cinza fill:#F5F4F4,stroke:#E8E7E6,color:#000000
+  class APP,API escuro
+  class ORM,RAG claro
+  class SQL,VEC,MOD,VJ,USR,CFG,UP,BK cinza
+""", "Onde cada dado fica no aplicativo. As linhas tracejadas mostram o que entra no backup; os vetores e os modelos "
+       "não entram, porque são refeitos a partir dos arquivos.", altura_max_mm=150)
+    d.tabela(["Entidade", "Onde fica", "Ligação"], [
+        ("conta_usuarios_json", "`data/usuarios.json`", "Pelo nome de usuário em owner, created_by, uploaded_by e actor; "
+         "excluir a conta apaga as chaves e as conversas dela"),
+        ("trecho_vetorial", "`data/chroma` (coleção `nexo_trechos`) ou Qdrant", "`source_id` = `nx_document.id`; excluir ou "
+         "reindexar o documento apaga os trechos dele"),
+        ("arquivo_upload", "`data/uploads/<id>.<extensão>`", "O nome do arquivo é o id do documento; notas (kind note) "
+         "ficam só em `content`"),
+        ("espaco_vetorial_json", "`data/vetores.json`", "Registra o modelo dos vetores; se mudar, a coleção é refeita"),
+        ("nx_message_source", "Banco relacional", "Guarda `chunk_id`, título e trecho: a citação continua mesmo se o "
+         "documento for excluído"),
+    ], larguras=["24%", "33%", "43%"])
 
 
 def bases(d):
@@ -1059,7 +1370,8 @@ CREATE TABLE nx_bot (
 def montar(temp):
     d = Documento("Arquitetura do banco de dados", temp)
     d.capa("Arquitetura do banco de dados",
-           "Diagrama de relacionamentos, as dezesseis tabelas com campos, tipos, chaves e restrições, os índices, as bases "
+           "Diagrama de relacionamentos e diagrama completo da arquitetura de dados, as dezesseis tabelas com campos, tipos, "
+           "chaves e restrições, os índices, as bases "
            "de conhecimento, os agentes, o WhatsApp, os widgets, a migração automática, a coleção vetorial e a troca segura "
            "de embeddings, os arquivos de contas, ajustes e segredos, as consultas e os caminhos para trocar de banco e escalar.")
     d.lugar_do_sumario()

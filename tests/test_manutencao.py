@@ -435,7 +435,7 @@ def test_cli_commands(client, capsys, tmp_path):
     headers = login(client)
     upload(client, headers)
     cli.main(["versao"])
-    assert "Nexo 2." in capsys.readouterr().out
+    assert "Nexo 3." in capsys.readouterr().out
     cli.main(["contas"])
     assert "admin" in capsys.readouterr().out
     with pytest.raises(SystemExit) as stop:

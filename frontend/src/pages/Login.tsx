@@ -125,7 +125,7 @@ export function LoginPage() {
             </div>
           )}
           {mode === "register" && (
-            <p className="login__aside">Sua conta fica salva no arquivo <code>data/usuarios.json</code> do servidor, com a senha protegida por bcrypt.</p>
+            <p className="login__aside">Sua conta fica salva neste computador, no arquivo <code>usuarios.json</code> da pasta de dados do Nexo, com a senha protegida por bcrypt.</p>
           )}
         </form>
       </section>

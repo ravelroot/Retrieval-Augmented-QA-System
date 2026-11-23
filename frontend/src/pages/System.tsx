@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, api, downloadAudit, downloadAutoBackup, downloadBackup, type AuditPage, type BackupList, type Check, type Diagnostics,
+import { ApiError, api, downloadAudit, downloadAutoBackup, downloadBackup, restoreBackup, type AuditPage, type BackupList, type Check, type Diagnostics,
   type MaintenanceAction, type ProbeResult, type ProbeTarget, type SettingItem, type SettingsData, type SetupState, type SystemStatus,
   type User } from "../api";
 import { useAuth } from "../auth";
@@ -9,6 +9,7 @@ import { Icon } from "../components/Icon";
 import { openTutorial } from "../components/Shell";
 import { Checklist } from "./Setup";
 import { useToast } from "../components/Toast";
+import { useInApp } from "../desktop";
 import { formatDateTime, plural } from "../format";
 
 type Tab = "geral" | "ajustes" | "diagnostico" | "manutencao" | "atividades" | "contas";
@@ -331,7 +332,7 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
           <div className="ops-head">
             <div>
               <h2>Ajustes pela tela</h2>
-              <p className="panel__lead">Valem na hora, sem reiniciar o servidor nem editar o <code>.env</code>. Ficam em <code>data/ajustes.json</code>, e as chaves em <code>data/segredos.json</code>. {overridden ? `${plural(overridden, "item diferente", "itens diferentes")} do padrão.` : "Tudo no padrão do .env."} Para o passo a passo guiado, abra o <Link to="/configurar">assistente de configuração</Link>.</p>
+              <p className="panel__lead">Valem na hora, sem fechar o Nexo nem editar o <code>.env</code>. Ficam em <code>ajustes.json</code>, e as chaves em <code>segredos.json</code>, na pasta de dados. {overridden ? `${plural(overridden, "item diferente", "itens diferentes")} do padrão.` : "Tudo no padrão do .env."} Para o passo a passo guiado, abra o <Link to="/configurar">assistente de configuração</Link>.</p>
             </div>
             <span className="panel__actions">
               {overridden > 0 && <button className="ghost-button small" type="button" onClick={() => restore()}>Restaurar padrões</button>}
@@ -416,7 +417,7 @@ function SettingsPanel({ onReindex }: { onReindex: () => void }) {
       <div className="box">
         <section className="panel">
           <h2>Definidos no .env</h2>
-          <p className="panel__lead">Trocar estes itens exige editar o <code>.env</code> e reiniciar, porque mudam o banco, o banco vetorial ou a segurança do servidor. O passo a passo está no <code>Manual-Nexo.pdf</code>.</p>
+          <p className="panel__lead">Trocar estes itens exige editar o <code>.env</code> da pasta do Nexo e abrir o aplicativo de novo, porque mudam o banco, o banco vetorial ou a segurança do servidor interno. O passo a passo está no <code>Manual-Nexo.pdf</code>.</p>
           <dl className="config">
             {Object.entries(data.fixed).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
           </dl>
@@ -561,7 +562,7 @@ function AutoBackupPanel({ onDone }: { onDone: () => void }) {
     setBusy("now");
     try {
       setData(await api.backupNow());
-      toast("Backup gravado em data/backups.");
+      toast("Backup gravado na pasta backups dos dados do Nexo.");
       onDone();
     } catch (e) {
       toast((e as ApiError).message, "error");
@@ -636,6 +637,7 @@ const MAINTENANCE: { action: MaintenanceAction; title: string; text: string; con
 
 function MaintenancePanel({ status, onDone }: { status: SystemStatus | null; onDone: () => void }) {
   const toast = useToast();
+  const inApp = useInApp();
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [days, setDays] = useState("90");
@@ -669,6 +671,17 @@ function MaintenancePanel({ status, onDone }: { status: SystemStatus | null; onD
     }
   }
 
+  async function restore() {
+    setBusy("restore");
+    try {
+      await restoreBackup();
+    } catch (e) {
+      toast((e as ApiError).message, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const failed = status?.documents.by_status.FAILED ?? 0;
   const outdated = status?.documents.outdated ?? 0;
   return (
@@ -679,12 +692,11 @@ function MaintenancePanel({ status, onDone }: { status: SystemStatus | null; onD
         <section className="panel ops-backup">
           <h2>Baixar backup agora</h2>
           <p className="panel__lead">Um .zip com o banco, as contas, os ajustes, os segredos e os arquivos enviados. Os vetores não entram: depois de restaurar, o Nexo reindexa sozinho.</p>
-          <button className="primary-button" onClick={backup} disabled={!!busy}><Icon name="download" size={16} />{busy === "backup" ? "Gerando o arquivo…" : "Baixar backup"}</button>
-          <div className="ops-cli">
-            <span>Pela linha de comando, com o servidor parado para restaurar:</span>
-            <code>python -m nexo backup --saida nexo.zip</code>
-            <code>python -m nexo restaurar nexo.zip --substituir</code>
+          <div className="panel__actions">
+            <button className="primary-button" onClick={backup} disabled={!!busy}><Icon name="download" size={16} />{busy === "backup" ? "Gerando o arquivo…" : "Baixar backup"}</button>
+            {inApp && <button className="ghost-button" onClick={restore} disabled={!!busy}><Icon name="refresh" size={16} />{busy === "restore" ? "Aguardando o arquivo…" : "Restaurar backup"}</button>}
           </div>
+          {inApp && <p className="ops-cli">Restaurar fecha o Nexo, guarda os dados atuais numa cópia e abre de novo com o backup escolhido.</p>}
         </section>
         <section className="panel">
           <h2>Conversas antigas</h2>

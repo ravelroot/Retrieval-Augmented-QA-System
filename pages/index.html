@@ -138,7 +138,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
         <h1 class="fina">Respostas só com os seus documentos. Com a página.</h1>
         <p>O Nexo cria agentes de IA, cada um preso à própria base de conhecimento. Eles conversam com a equipe, atendem clientes pelo WhatsApp e pelo site e respondem a qualquer ferramenta compatível com a OpenAI, sempre citando o trecho e a página. Se a informação não estiver lá, o Nexo diz que não encontrou.</p>
         <div class="hero__cta">
-          <a class="botao" href="#instalar">Instalar em minutos</a>
+          <a class="botao" href="https://github.com/ravelroot/Retrieval-Augmented-QA-System/releases/latest">Baixar para Windows</a>
           <a class="botao botao--claro" href="Manual-Nexo.pdf">Ler o manual (PDF)</a>
         </div>
       </div>
@@ -174,7 +174,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wr
         <h2 class="fina">Quatro passos até o agente no ar.</h2>
       </div>
       <ol class="caixa passos">
-        <li><b>Configure</b><span>Rode o script de inicialização. O navegador abre sozinho e o assistente guia senha, inteligência e backup.</span></li>
+        <li><b>Instale</b><span>Baixe o Nexo-Setup.exe, instale sem administrador e abra pela pesquisa do Windows. A primeira abertura já traz a base e o agente de teste com o Llama 3.1.</span></li>
         <li><b>Alimente</b><span>Envie PDF, DOCX, EPUB, PPTX, XLSX, CSV, HTML e outros, escreva textos ou importe páginas por link.</span></li>
         <li><b>Crie o agente</b><span>Dê nome, instruções, saudação e uma base. Ele só responde com o que estiver nela.</span></li>
         <li><b>Publique</b><span>Converse pelo chat, conecte o WhatsApp, cole o widget no site ou use a API compatível com OpenAI.</span></li>
@@ -228,19 +228,18 @@ resposta = cliente.chat.completions.create(
     <section class="bloco" id="instalar">
       <div class="bloco__head">
         <span>Instalar</span>
-        <h2 class="fina">Python 3.11 e Node.js 20. O resto o script faz.</h2>
+        <h2 class="fina">Um instalador para Windows. Abra pela pesquisa.</h2>
       </div>
       <div class="duas">
         <div class="codigo">
-          <div class="codigo__bar"><span>Windows</span><button class="copiar" type="button" data-copiar="win">Copiar</button></div>
-          <pre id="win">git clone https://github.com/ravelroot/Retrieval-Augmented-QA-System.git
-cd Retrieval-Augmented-QA-System
-.\iniciar.cmd</pre>
-          <p>Linux e macOS: <code>./iniciar.sh</code>. Com Docker: <code>docker compose --profile app --profile ollama up -d --build</code>.</p>
+          <div class="codigo__bar"><span>Windows 10 e 11</span></div>
+          <p>Baixe o <a href="https://github.com/ravelroot/Retrieval-Augmented-QA-System/releases/latest"><b>Nexo-Setup.exe</b></a>, instale e abra o Nexo pelo menu Iniciar ou digitando <b>Nexo</b> na pesquisa do Windows. Para o Llama 3.1, instale o Ollama e rode uma vez:</p>
+          <pre id="win">winget install --id Ollama.Ollama -e
+ollama pull llama3.1</pre>
         </div>
         <div class="codigo">
           <div class="codigo__bar"><span>Primeiro acesso</span></div>
-          <p>O navegador abre em <code>http://127.0.0.1:8000</code>. Entre com <code>admin</code> e <code>Nexo@2026</code>: o Nexo pede uma senha nova e o assistente guia a escolha da inteligência, do acesso e do backup. Para experimentar sem os seus arquivos, use <b>Criar base de teste</b> no último passo.</p>
+          <p>O Nexo abre numa janela própria, sem navegador. Entre com <code>admin</code> e <code>Nexo@2026</code> e escolha uma senha nova. A <b>Base de teste</b> e o <b>Agente de teste</b> já estão prontos em Chats com agentes; o assistente de configuração fica em Sistema e conta.</p>
           <p>Manual completo em <a href="Manual-Nexo.pdf">Manual-Nexo.pdf</a> e estrutura dos dados em <a href="Banco-de-Dados-Nexo.pdf">Banco-de-Dados-Nexo.pdf</a>.</p>
         </div>
       </div>
@@ -249,10 +248,10 @@ cd Retrieval-Augmented-QA-System
     <section class="final">
       <div>
         <h2 class="fina">Seus documentos, respondendo por você.</h2>
-        <p>Código aberto, sem dado pessoal no repositório, pronto para rodar no seu computador ou servidor.</p>
+        <p>Código aberto, sem dado pessoal no repositório, instalado no seu computador com os dados guardados nele.</p>
       </div>
       <div class="final__cta">
-        <a class="botao" href="https://github.com/ravelroot/Retrieval-Augmented-QA-System">Baixar no GitHub</a>
+        <a class="botao" href="https://github.com/ravelroot/Retrieval-Augmented-QA-System/releases/latest">Baixar para Windows</a>
         <a class="botao botao--claro" href="Manual-Nexo.pdf">Manual (PDF)</a>
       </div>
     </section>

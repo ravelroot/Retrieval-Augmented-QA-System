@@ -124,5 +124,9 @@ def stamp_unsigned(signature: str) -> int:
         return len(rows)
 
 
+def shutdown() -> None:
+    _executor.shutdown(wait=False, cancel_futures=True)
+
+
 def wait_idle(timeout: float = 60.0) -> None:
     _executor.submit(lambda: None).result(timeout=timeout)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 import threading
 import time
 import uuid
@@ -12,9 +13,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.routing import APIRoute
-from fastapi.staticfiles import StaticFiles
 
 from nexo import __version__, context, db, jobs, maintenance
 from nexo.api.agents import router as agents_router
@@ -31,6 +31,13 @@ WEB_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 log = logging.getLogger("nexo")
 access = logging.getLogger("nexo.access")
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+WINDOW_COOKIE = "nexo_janela"
+ONLY_IN_APP = ('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Nexo</title></head>'
+               '<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;height:90vh;margin:0">'
+               '<p>O painel do Nexo abre só pelo aplicativo instalado no computador.</p></body></html>')
+NO_BUILD = ('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Nexo</title></head>'
+            '<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;height:90vh;margin:0">'
+            '<p>A interface não foi compilada. Rode npm run build na pasta frontend.</p></body></html>')
 
 TAGS = (
     ("/api/auth", "Contas e sessão"),
@@ -104,7 +111,11 @@ async def lifespan(app: FastAPI):
         backups.stop()
 
 
-def create_app() -> FastAPI:
+def _same(a: str, b: str) -> bool:
+    return secrets.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
+def create_app(janela_chave: str | None = None) -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="Nexo", version=__version__, description=DESCRIPTION, lifespan=lifespan, docs_url="/api/docs",
                   openapi_url="/api/openapi.json", redoc_url=None)
@@ -179,22 +190,28 @@ def create_app() -> FastAPI:
                     route.tags = [tag]
         app.include_router(part)
 
-    if WEB_DIR.exists():
-        assets = WEB_DIR / "assets"
-        if assets.exists():
-            app.mount("/assets", StaticFiles(directory=assets), name="assets")
+    if janela_chave:
+        @app.get("/janela", include_in_schema=False)
+        async def window_entry(chave: str = ""):
+            if not _same(chave, janela_chave):
+                return HTMLResponse(ONLY_IN_APP, status_code=403)
+            response = RedirectResponse("/", status_code=303)
+            response.set_cookie(WINDOW_COOKIE, janela_chave, httponly=True, samesite="strict", path="/")
+            return response
 
         @app.get("/{path:path}", include_in_schema=False)
-        async def spa(path: str):
+        async def spa(request: Request, path: str):
             if path.startswith(("api/", "v1/")):
                 return JSONResponse({"code": "NOT_FOUND", "message": "Rota não encontrada.", "fields": {}},
                                     status_code=404)
+            if not _same(request.cookies.get(WINDOW_COOKIE, ""), janela_chave):
+                return HTMLResponse(ONLY_IN_APP, status_code=403)
+            if not (WEB_DIR / "index.html").is_file():
+                return HTMLResponse(NO_BUILD, status_code=503)
             target = (WEB_DIR / path).resolve()
             if path and target.is_file() and WEB_DIR in target.parents:
                 return FileResponse(target)
-            return FileResponse(WEB_DIR / "index.html")
+            return FileResponse(WEB_DIR / "index.html", headers={"Cache-Control": "no-store"})
 
     return app
 
-
-app = create_app()

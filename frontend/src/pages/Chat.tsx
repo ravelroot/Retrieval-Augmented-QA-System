@@ -292,7 +292,7 @@ export function ChatPage() {
       setCopied(m.id);
       window.setTimeout(() => setCopied(null), 1600);
     } catch {
-      toast("O navegador bloqueou a cópia. Selecione o texto e copie manualmente.", "error");
+      toast("Não foi possível copiar. Selecione o texto e copie manualmente.", "error");
     }
   }
 

@@ -14,7 +14,7 @@ type StepId = "senha" | "ia" | "acesso" | "pronto";
 
 const LABELS: Record<StepId, { title: string; lead: string }> = {
   senha: { title: "Nova senha", lead: "A conta admin ainda usa a senha que vem com o Nexo. Escolha uma só sua antes de continuar." },
-  ia: { title: "Inteligência", lead: "Escolha quem escreve as respostas. Os documentos continuam no seu servidor; só os trechos relevantes vão para o modelo." },
+  ia: { title: "Inteligência", lead: "Escolha quem escreve as respostas. Os documentos continuam no seu computador; só os trechos relevantes vão para o modelo." },
   acesso: { title: "Acesso e proteção", lead: "Como as pessoas chegam ao Nexo e como os dados ficam protegidos." },
   pronto: { title: "Tudo pronto", lead: "Siga os próximos passos quando quiser. Esta lista fica em Sistema e conta." },
 };
@@ -210,7 +210,7 @@ function IntelligenceStep({ items, onSaved }: { items: SettingItem[]; onSaved: (
           <Field label={preset.needsKey ? "Chave da API" : "Chave da API (se o serviço pedir)"} name="api-key" type="password"
             autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} error={fields.openai_api_key}
             placeholder={keyConfigured ? "•••••••• já configurada" : "Cole a chave aqui"}
-            hint={keyConfigured ? "Deixe em branco para manter a chave atual." : "Fica só no servidor, em data/segredos.json."} />
+            hint={keyConfigured ? "Deixe em branco para manter a chave atual." : "Fica só neste computador, em segredos.json."} />
           <Field label="Modelo" name="model" value={model} onChange={(e) => setModel(e.target.value)} error={fields.llm_model}
             placeholder={preset.modelExample ? `ex.: ${preset.modelExample}` : ""}
             hint="Use o nome exato do modelo, como aparece na lista do serviço." />
@@ -283,7 +283,7 @@ function AccessStep({ items, onSaved }: { items: SettingItem[]; onSaved: () => v
       )}
       <label className="check setup-check">
         <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} />
-        <span><b>Backup automático todo dia</b><small>Guarda os 7 mais recentes em data/backups. Dá para baixar em Sistema e conta → Manutenção.</small></span>
+        <span><b>Backup automático todo dia</b><small>Guarda os 7 mais recentes na pasta backups. Dá para baixar em Sistema e conta → Manutenção.</small></span>
       </label>
       <label className="check setup-check">
         <input type="checkbox" checked={registration} onChange={(e) => setRegistration(e.target.checked)} />

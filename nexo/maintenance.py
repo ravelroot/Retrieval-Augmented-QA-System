@@ -559,6 +559,20 @@ def _safe_members(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     return members
 
 
+def read_manifest(archive_path: Path) -> dict:
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            if "manifesto.json" not in archive.namelist():
+                raise MaintenanceError("O arquivo não tem o manifesto do Nexo.")
+            manifest = json.loads(archive.read("manifesto.json"))
+            _safe_members(archive)
+    except (OSError, ValueError, zipfile.BadZipFile) as e:
+        raise MaintenanceError("O arquivo não é um backup .zip do Nexo.") from e
+    if not isinstance(manifest, dict):
+        raise MaintenanceError("O manifesto do backup é inválido.")
+    return manifest
+
+
 def restore_backup(archive_path: Path, data_dir: Path, replace: bool = False) -> dict:
     if not archive_path.is_file():
         raise MaintenanceError(f"Arquivo não encontrado: {archive_path}")
