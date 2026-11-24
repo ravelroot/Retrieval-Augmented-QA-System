@@ -14,12 +14,13 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { id: "ollama", label: "Ollama", hint: "Gratuito, roda no seu computador ou servidor. Precisa do Ollama instalado.", provider: "ollama",
-    model: "llama3.1", needsKey: false },
+  { id: "ollama", label: "Ollama", hint: "Gratuito, roda no seu computador ou servidor. Sem placa de vídeo, prefira um modelo pequeno, como llama3.2:3b.",
+    provider: "ollama", model: "llama3.1", needsKey: false },
   { id: "openai", label: "OpenAI", hint: "Modelos da OpenAI com uma chave de API paga.", provider: "openai", model: "gpt-4o-mini",
     keyUrl: "https://platform.openai.com/api-keys", needsKey: true },
-  { id: "groq", label: "Groq", hint: "Serviço compatível com a OpenAI, muito rápido, com plano gratuito.", provider: "compativel",
-    baseUrl: "https://api.groq.com/openai/v1", modelExample: "openai/gpt-oss-20b", keyUrl: "https://console.groq.com/keys", needsKey: true },
+  { id: "groq", label: "Groq", hint: "Responde em poucos segundos sem pesar no computador: o modelo roda na nuvem do Groq. Tem plano gratuito.",
+    provider: "compativel", baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-20b", modelExample: "openai/gpt-oss-20b",
+    keyUrl: "https://console.groq.com/keys", needsKey: true },
   { id: "openrouter", label: "OpenRouter", hint: "Um só cadastro para modelos de vários fornecedores.", provider: "compativel",
     baseUrl: "https://openrouter.ai/api/v1", modelExample: "meta-llama/llama-3.1-8b-instruct", keyUrl: "https://openrouter.ai/keys", needsKey: true },
   { id: "gemini", label: "Google Gemini", hint: "Modelos Gemini pela interface compatível com a OpenAI.", provider: "compativel",

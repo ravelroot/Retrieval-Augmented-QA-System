@@ -893,9 +893,15 @@ def vetorial(d):
         ("Agente e aba Testar", "Filtro source_id dentro dos documentos prontos da base"),
         ("Mover item de base", "Nada muda na coleção: só a coluna base_id"),
         ("Excluir item ou base", "Apaga todos os vetores com source_id do item antes de apagar a linha e o arquivo"),
-        ("Reindexar ou editar texto", "Apaga os vetores do item e grava os novos"),
+        ("Reindexar ou editar texto", "Calcula os vetores novos, apaga os do item e grava os novos de uma vez"),
         ("Ações em lote", "Cada item segue a regra da operação correspondente acima"),
     ], larguras=["30%", "70%"])
+    d.secao("Gravação sem travar as perguntas", novo=True)
+    d.p("Os embeddings de um documento são calculados antes de qualquer gravação, fora da trava do motor de busca. Só "
+        "depois o Nexo pega a trava, apaga os vetores antigos do item e grava os novos em lotes de 64, de uma vez. Assim, "
+        "o chat continua respondendo enquanto um arquivo grande é indexado: a pergunta espera, no máximo, a gravação, e "
+        "não o cálculo dos vetores. Se o modelo de embeddings mudar no meio do cálculo, os vetores são refeitos com o "
+        "modelo novo já dentro da trava, para a coleção nunca misturar espaços vetoriais.")
     d.secao("Trocar o modelo de embeddings")
     d.p("Vetores de modelos diferentes não são comparáveis, e a coleção não aceita vetores de outro tamanho. Por isso o "
         "Nexo guarda em `data/vetores.json` uma assinatura do espaço vetorial (provedor, modelo e prefixos dos "
@@ -972,7 +978,7 @@ def contas(d):
         "Os tokens das conexões do WhatsApp também não dependem dele.")
     d.secao("data/ajustes.json")
     d.p("Guarda só os valores alterados na tela Sistema e conta › Ajustes, como `{\"top_k\": 12, \"llm_provider\": "
-        "\"compativel\"}`. Na leitura da configuração, esses valores vão por cima do `.env`; **Restaurar padrões** apaga as "
+        "\"compativel\", \"ollama_keep_alive\": \"2h\"}`. Na leitura da configuração, esses valores vão por cima do `.env`; **Restaurar padrões** apaga as "
         "chaves do arquivo. O arquivo é regravado de forma atômica e entra no backup.")
     d.secao("data/segredos.json", novo=True)
     d.p("Mesmo formato do `ajustes.json`, só com as chaves salvas pela tela: `openai_api_key` (OpenAI ou serviço "

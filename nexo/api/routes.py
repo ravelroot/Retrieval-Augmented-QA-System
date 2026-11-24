@@ -28,7 +28,7 @@ from nexo.api.deps import ApiError, Principal, current_user, get_users, must_cha
 from nexo.config import Settings, get_settings
 from nexo.rag import providers
 from nexo.migrations import ensure_default_base
-from nexo.rag.engine import Answer, BotProfile, get_engine, is_salutation
+from nexo.rag.engine import Answer, BotProfile, get_engine, small_talk
 from nexo.rag.providers import ProviderError
 from nexo.security import hash_api_key, issue_token, new_api_key
 from nexo.users import UserError, UserStore
@@ -612,7 +612,9 @@ def export_conversation(conversation_id: str, fmt: Literal["markdown", "json"] =
 
 
 def bot_profile(bot: db.BotRow) -> BotProfile:
-    return BotProfile(name=bot.name, instructions=bot.instructions, greeting=bot.greeting, fallback=bot.fallback)
+    suggestions = tuple(line.strip() for line in (bot.suggestions or "").split("\n") if line.strip())
+    return BotProfile(name=bot.name, instructions=bot.instructions, greeting=bot.greeting, fallback=bot.fallback,
+                      topic=bot.base.name if bot.base is not None else None, suggestions=suggestions)
 
 
 def base_scope(database: Session, base_id: str) -> list[str]:
@@ -622,7 +624,7 @@ def base_scope(database: Session, base_id: str) -> list[str]:
 
 def bot_scope(database: Session, bot: db.BotRow, question: str) -> list[str]:
     scope = base_scope(database, bot.base_id)
-    if not scope and not (bot.greeting and is_salutation(question)):
+    if not scope and not small_talk(question, bot.name):
         name = bot.base.name if bot.base is not None else "do agente"
         raise ApiError(409, "NO_DOCUMENTS", f"A base \"{name}\" ainda não tem conteúdo pronto. Adicione arquivos ou "
                                              "textos e aguarde a indexação.")
@@ -752,6 +754,11 @@ def ask_stream(conversation_id: str, body: sc.QuestionIn, p: Principal = Depends
     return StreamingResponse(_stream_answer(settings, c.id, p, question, history, scope, profile),
                              media_type="text/event-stream",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+
+
+@router.post("/engine/warmup", response_model=sc.WarmupOut, status_code=202)
+def warmup(p: Principal = Depends(current_user), settings: Settings = Depends(get_settings)):
+    return sc.WarmupOut(started=get_engine(settings).warm())
 
 
 @router.post("/messages/{message_id}/regenerate", response_model=sc.MessageOut)

@@ -56,6 +56,10 @@ ADJUSTABLE: tuple[Adjustable, ...] = (
                "Nome do modelo no provedor, ex.: llama3.1, gpt-4o-mini ou o nome listado pelo serviço.", "text"),
     Adjustable("ollama_url", "Inteligência", "Endereço do Ollama", "Onde o Ollama responde. No mesmo computador: http://localhost:11434.",
                "url", placeholder="http://localhost:11434"),
+    Adjustable("ollama_keep_alive", "Inteligência", "Manter o modelo do Ollama carregado",
+               "Tempo que o modelo fica na memória depois de responder, ex.: 30m ou 2h. Evita recarregar a cada pergunta. "
+               "-1 mantém sempre; 0 libera a memória na hora, mas cada resposta volta a carregar o modelo.", "text",
+               placeholder="30m"),
     Adjustable("openai_base_url", "Inteligência", "Endereço do serviço compatível",
                "Obrigatório para serviços compatíveis. Vazio usa a própria OpenAI.", "url", required=False,
                placeholder="https://api.groq.com/openai/v1"),
@@ -68,8 +72,9 @@ ADJUSTABLE: tuple[Adjustable, ...] = (
     Adjustable("embed_model", "Embeddings", "Modelo de embeddings",
                "Ex.: intfloat/multilingual-e5-small, text-embedding-3-small ou nomic-embed-text. Trocar reindexa o acervo.",
                "text", reindex=True, wipe=True),
-    Adjustable("reranker", "Reranking", "Reranking", "Reordena os trechos pela relação real com a pergunta antes da resposta.",
-               "choice", choices=RERANK_CHOICES),
+    Adjustable("reranker", "Reranking", "Reranking",
+               "Reordena os trechos pela relação real com a pergunta e descarta os que não ajudam. Desligado, a resposta "
+               "sai um pouco mais rápido, com menos precisão.", "choice", choices=RERANK_CHOICES),
     Adjustable("rerank_model", "Reranking", "Modelo de reranking do HuggingFace",
                "Usado quando o reranking é do HuggingFace.", "text"),
     Adjustable("cohere_model", "Reranking", "Modelo de reranking da Cohere", "Usado quando o reranking é da Cohere.", "text"),
@@ -85,9 +90,12 @@ ADJUSTABLE: tuple[Adjustable, ...] = (
     Adjustable("top_n", "Busca", "Trechos enviados ao modelo",
                "Quantos trechos seguem para a resposta depois do reranking.", "int"),
     Adjustable("min_similarity", "Busca", "Similaridade mínima", "Corte da busca vetorial, de -1 a 1.", "float"),
-    Adjustable("min_rerank_score", "Busca", "Nota mínima do reranker", "Corte depois do reranking, de 0 a 1.", "float"),
+    Adjustable("min_rerank_score", "Busca", "Nota mínima do reranker",
+               "De 0 a 1: a chance de o trecho responder à pergunta. Abaixo do corte, o modelo ainda avalia os 2 melhores "
+               "trechos se chegarem perto; sem nenhum perto, a resposta é que não encontrou.", "float"),
     Adjustable("history_turns", "Busca", "Turnos de histórico",
-               "Quantas trocas anteriores entram na reescrita da pergunta.", "int"),
+               "Quantas trocas anteriores o modelo lê quando a pergunta depende delas, como em “e o plano Plus?”. Zero "
+               "trata cada pergunta sozinha.", "int"),
     Adjustable("chunk_size", "Indexação", "Tamanho do trecho", "Em tokens. Mudar exige reindexar o acervo.", "int",
                reindex=True),
     Adjustable("chunk_overlap", "Indexação", "Sobreposição dos trechos",

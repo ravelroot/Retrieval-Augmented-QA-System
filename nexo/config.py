@@ -1,9 +1,12 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+KEEP_ALIVE = re.compile(r"-1|\d+|(\d+(\.\d+)?(h|m|s))+")
 
 
 class Settings(BaseSettings):
@@ -40,6 +43,7 @@ class Settings(BaseSettings):
     llm_timeout: float = 120.0
     ollama_url: str = "http://localhost:11434"
     ollama_context: int | None = Field(None, ge=2048, le=131072)
+    ollama_keep_alive: str = "30m"
     openai_base_url: str | None = None
     openai_api_key: str | None = Field(None, validation_alias=AliasChoices("NEXO_OPENAI_API_KEY", "OPENAI_API_KEY"))
     cohere_api_key: str | None = Field(None, validation_alias=AliasChoices("NEXO_COHERE_API_KEY", "COHERE_API_KEY"))
@@ -66,7 +70,7 @@ class Settings(BaseSettings):
     top_n: int = Field(4, ge=1, le=20)
     min_similarity: float = Field(0.15, ge=-1.0, le=1.0)
     min_rerank_score: float = Field(0.1, ge=0.0, le=1.0)
-    history_turns: int = Field(3, ge=0, le=10)
+    history_turns: int = Field(2, ge=0, le=10)
     verify_answers: bool = False
 
     @field_validator("database_url", "secret", "public_url", "openai_base_url", "openai_api_key", "cohere_api_key", "chroma_host",
@@ -84,6 +88,14 @@ class Settings(BaseSettings):
         if not value.lower().startswith(("http://", "https://")) or len(value) < 10:
             raise ValueError("Use um endereço começando com http:// ou https://.")
         return value
+
+    @field_validator("ollama_keep_alive", mode="before")
+    @classmethod
+    def _keep_alive(cls, value):
+        text = str(value if value is not None else "").strip().lower().replace(" ", "")
+        if not KEEP_ALIVE.fullmatch(text):
+            raise ValueError("Use um tempo como 30m, 2h ou 90s; -1 mantém sempre carregado e 0 libera na hora.")
+        return text
 
     @field_validator("log_level", mode="before")
     @classmethod

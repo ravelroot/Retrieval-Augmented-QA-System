@@ -70,6 +70,14 @@ def visao_geral(d):
          "Botão na entrada, no assistente e no menu; a barra de título do Windows acompanha o tema."),
         ("Zoom de 75%", "janela do Nexo",
          "A interface abre no equivalente a 75% de um navegador; Ctrl + roda do mouse ajusta na hora."),
+        ("Respostas mais rápidas", "uma chamada ao modelo",
+         "Perguntas encadeadas usam a conversa sem a chamada extra de reescrita, e só os trechos que ajudam vão ao modelo."),
+        ("Menos recusas", "notas de 0 a 1",
+         "O corte do reranker usa a escala certa, trechos perto do corte ainda vão ao modelo e respostas parciais ficam."),
+        ("Conversa natural", "oi, obrigado, o que você faz?",
+         "Respondidos na hora, sem busca. Depois de um “não encontrei”, as perguntas sugeridas do agente voltam."),
+        ("Modelos prontos", "ao abrir o chat",
+         "Embeddings, reranker e o modelo do Ollama carregam antes da primeira pergunta; o Ollama fica carregado por 30 minutos."),
     ])
     d.p("**Na 2.4.0**, vieram o assistente de configuração, o provedor de IA e as chaves pela tela com teste de conexão, a "
         "troca segura de embeddings, o widget para sites, a API compatível com OpenAI, o backup automático e a lista de "
@@ -188,7 +196,7 @@ def instalacao(d):
         ("WhatsApp (opcional)", "Evolution API v2 ou conta Meta", "Atender clientes pelo WhatsApp (capítulo 6)"),
     ], larguras=["23%", "30%", "47%"])
     d.nota("Sem Ollama ou sem GPU?", "Escolha OpenAI, Groq, OpenRouter, Gemini ou outro serviço compatível no assistente "
-           "de configuração (seção 3.6), ou o modo sem modelo para validar a instalação. Os modelos de embeddings e "
+           "de configuração (seção 3.7), ou o modo sem modelo para validar a instalação. Os modelos de embeddings e "
            "reranking padrão rodam bem em CPU.")
 
     d.secao("Caminho rápido")
@@ -295,13 +303,18 @@ python -m nexo
 def configuracao(d):
     d.capitulo("Configuração",
                "Quase tudo se configura pela tela, com o servidor no ar: o assistente de configuração no primeiro acesso e "
-               "a aba Sistema e conta › Ajustes depois (seções 3.6 e 3.7). O arquivo .env continua valendo como base, e é "
+               "a aba Sistema e conta › Ajustes depois (seções 3.7 e 3.8). O arquivo .env continua valendo como base, e é "
                "nele que ficam o banco, o banco vetorial e a segurança do servidor interno. No aplicativo instalado, ele fica "
                "em %LOCALAPPDATA%\\Nexo\\.env; pelo código-fonte, na pasta do projeto.")
     d.secao("Modos prontos")
     d.tabela(["Modo", "Linhas no .env", "Quando usar"], [
         ("Local e gratuito (padrão)", "`NEXO_LLM_PROVIDER=ollama` `NEXO_LLM_MODEL=llama3.1` "
          "`NEXO_EMBED_PROVIDER=huggingface` `NEXO_RERANKER=huggingface`", "Documentos sigilosos que não podem sair da máquina"),
+        ("Rápido sem placa de vídeo [[novo]]", "`NEXO_LLM_PROVIDER=compativel` "
+         "`NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1` `NEXO_LLM_MODEL=openai/gpt-oss-20b` `OPENAI_API_KEY=sua-chave`",
+         "Respostas em poucos segundos sem pesar no computador; os trechos relevantes vão para a nuvem do Groq"),
+        ("Local e leve [[novo]]", "`NEXO_LLM_PROVIDER=ollama` `NEXO_LLM_MODEL=llama3.2:3b`",
+         "Computador sem placa de vídeo e documentos que não podem sair da máquina; respostas mais simples"),
         ("OpenAI", "`NEXO_LLM_PROVIDER=openai` `NEXO_LLM_MODEL=gpt-4o-mini` `OPENAI_API_KEY=sua-chave`",
          "Respostas mais elaboradas sem precisar de GPU"),
         ("Compatível com OpenAI [[novo]]", "`NEXO_LLM_PROVIDER=compativel` `NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1` "
@@ -357,6 +370,8 @@ def configuracao(d):
         ("`NEXO_OLLAMA_URL`", "http://localhost:11434", "Endereço do Ollama"),
         ("`NEXO_OLLAMA_CONTEXT`", "automático", "Contexto do Ollama em tokens (num_ctx). Vazio usa de 8192 a 32768, conforme "
          "o tamanho e a quantidade de trechos; o máximo do modelo pede muita memória"),
+        ("`NEXO_OLLAMA_KEEP_ALIVE` [[novo]]", "30m", "Tempo que o modelo do Ollama fica na memória depois de responder (30m, "
+         "2h, 90s). -1 mantém sempre; 0 libera na hora, mas cada resposta volta a carregar o modelo"),
         ("`OPENAI_API_KEY`", "vazio", "Chave da OpenAI (também aceita NEXO_OPENAI_API_KEY)"),
         ("`NEXO_OPENAI_BASE_URL`", "vazio", "Endereço do serviço compatível (obrigatório com compativel) ou de um proxy da OpenAI"),
         "Embeddings e banco vetorial",
@@ -376,15 +391,17 @@ def configuracao(d):
         ("`NEXO_TOP_K`", "12", "Candidatos trazidos pela busca vetorial"),
         ("`NEXO_TOP_N`", "4", "Trechos enviados ao modelo depois do reranking"),
         ("`NEXO_MIN_SIMILARITY`", "0.15", "Corte 1: similaridade de cosseno mínima para um trecho ser considerado"),
-        ("`NEXO_MIN_RERANK_SCORE`", "0.1", "Corte 2: nota mínima do reranker (0 a 1)"),
-        ("`NEXO_HISTORY_TURNS`", "3", "Trocas anteriores usadas para reescrever a pergunta (0 a 10)"),
+        ("`NEXO_MIN_RERANK_SCORE`", "0.1", "Corte 2: nota mínima do reranker, de 0 a 1 (a chance de o trecho responder). "
+         "Abaixo dela, os 2 melhores trechos ainda vão ao modelo se tiverem ao menos um décimo do corte"),
+        ("`NEXO_HISTORY_TURNS`", "2", "Trocas anteriores que o modelo lê quando a pergunta depende delas (0 a 10)"),
         ("`NEXO_VERIFY_ANSWERS`", "false", "Liga a verificação de fidelidade, uma segunda chamada ao modelo"),
     ], larguras=["37%", "24%", "39%"])
 
     d.secao("Calibrando a precisão")
     d.lista([
-        "**Respostas dizendo que não encontrou, mas a informação existe:** baixe `NEXO_MIN_SIMILARITY` (por exemplo 0.1) e "
-        "`NEXO_MIN_RERANK_SCORE` (0.05), ou aumente `NEXO_TOP_K`.",
+        "**Respostas dizendo que não encontrou, mas a informação existe:** confira as notas na aba Testar. Se o trecho certo "
+        "aparece com nota baixa, baixe `NEXO_MIN_RERANK_SCORE` (0.05); se ele nem aparece, aumente `NEXO_TOP_K` ou baixe "
+        "`NEXO_MIN_SIMILARITY` (0.1).",
         "**Respostas misturando assuntos:** suba `NEXO_MIN_RERANK_SCORE` (0.3) e reduza `NEXO_TOP_N` para 3. Separar os "
         "assuntos em bases e agentes diferentes também ajuda.",
         "**Tabelas e listas longas cortadas:** aumente `NEXO_CHUNK_SIZE` para 768 ou 1024 e reindexe.",
@@ -392,6 +409,27 @@ def configuracao(d):
     d.nota("Antes de mexer:", "use a aba Testar da base (seção 4.6) ou a Busca nos trechos para ver as notas reais dos "
            "trechos, e o Painel de qualidade para acompanhar a taxa de resposta depois do ajuste. Para medir em vez de "
            "adivinhar, use `scripts/avaliar.py` (seção 10.2).")
+
+    d.secao("Deixando as respostas mais rápidas", novo=True)
+    d.p("Quase todo o tempo de uma resposta é do modelo de linguagem. Num computador sem placa de vídeo, um modelo de 8B "
+        "pelo Ollama escreve poucas palavras por segundo e ocupa o processador inteiro. O Nexo já faz a parte dele: uma "
+        "só chamada ao modelo por pergunta, só os trechos que ajudam no prompt, o modelo do Ollama carregado antes da "
+        "primeira pergunta e mantido na memória, sem a etapa de “pensar” e com limite de 1.024 tokens por resposta. O "
+        "resto depende da escolha do modelo:")
+    d.tabela(["Situação", "O que fazer", "Efeito"], [
+        ("Sem placa de vídeo e os trechos podem ir para a nuvem", "Groq com `openai/gpt-oss-20b` (plano gratuito)",
+         "Respostas em poucos segundos sem pesar no computador"),
+        ("Sem placa de vídeo e nada pode sair da máquina", "`ollama pull llama3.2:3b` e esse nome em Modelo de linguagem",
+         "Mais leve que o Llama 3.1 8B, com respostas mais simples"),
+        ("Vários usuários na empresa", "Um computador com placa de vídeo NVIDIA rodando o Ollama para todos",
+         "Todos usam o mesmo modelo rápido; em cada Nexo, aponte o Endereço do Ollama para ele"),
+        ("Respostas ainda lentas", "Trechos enviados ao modelo = 3 e, se preciso, Reranking desligado",
+         "Prompt menor e menos processamento antes da resposta"),
+        ("Memória apertada", "Manter o modelo do Ollama carregado = 0 ou 5m", "Libera a memória mais cedo; a próxima "
+         "resposta volta a carregar o modelo"),
+    ], larguras=["30%", "38%", "32%"])
+    d.nota("Privacidade:", "com o Groq, o Gemini ou outro serviço em nuvem, os arquivos continuam no computador, mas os "
+           "trechos relevantes de cada pergunta vão para o provedor. Confira se a política da empresa permite.")
 
     d.secao("Serviços externos")
     d.p("O Nexo usa ChromaDB local e SQLite por padrão, dentro da pasta de dados. Para usar serviços próprios, instale-os "
@@ -443,7 +481,8 @@ NEXO_DATABASE_URL=postgresql+psycopg://nexo:SENHA@servidor-postgres:5432/nexo
         "**Restaurar padrões** desfaz todos. Os campos aparecem conforme o provedor escolhido: o endereço do Ollama só com "
         "o Ollama, a chave da Cohere só com o reranking da Cohere.")
     d.tabela(["Grupo", "Itens", "Observação"], [
-        ("Inteligência [[novo]]", "provedor, modelo, endereço do Ollama, endereço do serviço compatível, chave da API",
+        ("Inteligência [[novo]]", "provedor, modelo, endereço do Ollama, tempo que o modelo do Ollama fica carregado, "
+         "endereço do serviço compatível, chave da API",
          "**Testar o modelo** confere antes de salvar; trocar recarrega o modelo na próxima pergunta"),
         ("Embeddings [[novo]]", "provedor e modelo de embeddings", "Trocar pede confirmação, apaga os vetores e reindexa o "
          "acervo; **Testar os embeddings** mostra as dimensões do vetor"),
@@ -531,7 +570,9 @@ def usando(d):
         "fontes são renovadas e a avaliação anterior é apagada.",
         "Cada trecho mostra a página (ou a parte, em arquivos que não são PDF), a similaridade, a nota do reranker e o "
         "link para abrir o arquivo.",
-        "Perguntas seguintes podem usar \"isso\" ou \"e depois?\": o Nexo reescreve a pergunta com o histórico antes de buscar.",
+        "Perguntas seguintes podem usar \"isso\" ou \"e depois?\": o Nexo junta a pergunta anterior na busca e mostra "
+        "a conversa recente ao modelo, numa chamada só.",
+        "Cumprimentos, agradecimentos, despedidas e \"o que você faz?\" são respondidos na hora, sem busca nos documentos.",
         "**Fixar**: o alfinete no topo da conversa (ou na lista) leva a conversa ao grupo **Fixadas**, no alto da "
         "lista. Conversas fixadas não são apagadas pela retenção automática.",
         "**Rascunho**: o que você digitou e não enviou fica guardado por conversa, mesmo trocando de conversa ou "
@@ -552,10 +593,12 @@ def usando(d):
     d.sub("Quando a resposta não está nos documentos")
     d.tela("tela-nao-encontrado.png", "Pergunta fora do conteúdo dos documentos: o Nexo responde que não encontrou e "
            "sugere como reformular.", altura_max_mm=105)
-    d.p("Se nenhum trecho passar pelos cortes de relevância, o modelo nem é chamado e a resposta aparece num quadro "
-        "marcado, com três saídas: **Ver trechos parecidos**, **Consultar todos os documentos** (quando há escopo) e "
-        "**Enviar outro arquivo**. A pergunta entra nas lacunas do painel de qualidade e, se houver webhook inscrito, "
-        "dispara `question.unanswered`.")
+    d.p("Se nenhum trecho passar pelos cortes de relevância nem chegar perto deles, o modelo nem é chamado e a resposta "
+        "aparece num quadro marcado, com três saídas: **Ver trechos parecidos**, **Consultar todos os documentos** (quando "
+        "há escopo) e **Enviar outro arquivo**. A pergunta entra nas lacunas do painel de qualidade e, se houver webhook "
+        "inscrito, dispara `question.unanswered`.")
+    d.p("Quando os trechos respondem só parte da pergunta, o Nexo responde essa parte, com as citações, e diz em uma "
+        "frase o que não está nos documentos [[novo]].")
 
     d.secao("Chats com agentes", quebra=True)
     d.tela("tela-chats.png", "Chats com agentes lado a lado: cada coluna conversa com um agente diferente, que responde "
@@ -706,7 +749,9 @@ def usando(d):
         "**Sugerir resposta:** o agente redige uma resposta para a última mensagem do cliente, com as fontes, e coloca no "
         "campo de texto sem enviar. Revise e envie.",
         "**Aguardando atendente:** quando o agente não encontra a resposta na base, ou quando o cliente pede \"atendente\" "
-        "ou \"humano\", o contato ganha essa marca, o agente pausa nele e sai o evento `whatsapp.handoff`.",
+        "ou \"humano\", o contato ganha essa marca, o agente pausa nele e sai o evento `whatsapp.handoff`. Cumprimentos, "
+        "agradecimentos e despedidas, como \"obrigado\" e \"tchau\", são respondidos pelo agente e não passam o contato "
+        "para a equipe [[novo]].",
     ])
     d.sub("Respostas prontas")
     d.tela("tela-respostas-prontas.png", "Menu de respostas prontas aberto na caixa de resposta do WhatsApp.",
@@ -869,7 +914,7 @@ def usando(d):
     d.tela("tela-ajustes.png", "Aba Ajustes: o provedor de IA escolhido na lista, os campos que ele pede e o teste de "
            "conexão de cada grupo.", altura_max_mm=120)
     d.p("Muda o provedor de IA, as chaves e os parâmetros do pipeline e do acesso com o servidor no ar. Os campos e as "
-        "regras estão na seção 3.7. **Salvar** só fica ativo quando algo mudou; um erro de validação aparece no próprio "
+        "regras estão na seção 3.8. **Salvar** só fica ativo quando algo mudou; um erro de validação aparece no próprio "
         "campo, e cada grupo de provedor tem o seu botão de teste [[novo]].")
     d.sub("Diagnóstico")
     d.tela("tela-diagnostico.png", "Aba Diagnóstico: o resumo na tampa preta e cada verificação com o que fazer.",
@@ -1481,23 +1526,37 @@ flowchart LR
     d.secao("Respondendo uma pergunta", quebra=True)
     d.diagrama(f"""
 flowchart TB
-  P[{no("Pergunta", "conversa geral, /api/ask, agente ou Refazer")}] --> H[{no("Reescrita com o histórico", "NEXO_HISTORY_TURNS")}]
+  P[{no("Pergunta", "conversa geral, /api/ask, agente ou Refazer")}] --> T[{no("Conversa? oi, obrigado, o que você faz", "sim: resposta na hora, sem busca")}]
+  T --> H[{no("Pergunta encadeada? junta a anterior na busca", "NEXO_HISTORY_TURNS · sem chamada ao modelo")}]
   H --> B[{no("Busca vetorial no escopo da conversa", "NEXO_TOP_K candidatos · status searching")}]
   B --> C1[{no("Corte 1 · similaridade mínima", "NEXO_MIN_SIMILARITY · nenhum trecho passa: resposta padrão")}]
-  C1 --> R[{no("Reranking com cross-encoder", "HuggingFace ou Cohere")}]
-  R --> C2[{no("Corte 2 · nota mínima do reranker", "NEXO_MIN_RERANK_SCORE · nenhum trecho passa: resposta padrão")}]
-  C2 --> L[{no("LLM com prompt estrito e citações [n]", "NEXO_TOP_N trechos · status writing · eventos delta")}]
+  C1 --> R[{no("Reranking com cross-encoder", "notas de 0 a 1 · HuggingFace ou Cohere")}]
+  R --> C2[{no("Corte 2 · nota mínima do reranker", "NEXO_MIN_RERANK_SCORE · perto do corte: 2 melhores · longe: resposta padrão")}]
+  C2 --> L[{no("LLM com regras fixas e citações [n]", "só os trechos úteis · status writing · eventos delta")}]
   L --> V[{no("Verificação de fidelidade (opcional)", "NEXO_VERIFY_ANSWERS")}]
   V --> F[{no("Resposta + fontes com página", "gravada no fim · evento done")}]
   class C1,C2 escuro
-  class P,H,B,R,L,V,F claro
+  class P,T,H,B,R,L,V,F claro
 {ESTILO_FLUXO}
 """, "Os dois cortes de relevância, em destaque, decidem se o modelo de linguagem é chamado. A busca nos trechos para "
-     "no reranking e devolve os candidatos sem passar pelo modelo.", altura_max_mm=150)
-    d.p("Quando nenhum trecho passa pelos cortes, o modelo de linguagem não é chamado: a resposta padrão \"Não encontrei "
-        "essa informação nos documentos selecionados.\" é gravada com `answered = false`, os webhooks ativos recebem "
-        "`question.unanswered` e a pergunta entra nas lacunas do painel. Numa conversa geral, o escopo é a lista de "
-        "documentos escolhida (ou todo o acervo pronto); numa conversa com agente, é a base dele, como mostra a seção seguinte.")
+     "no reranking e devolve os candidatos sem passar pelo modelo.", altura_max_mm=175)
+    d.p("Quando nenhum trecho passa pelos cortes nem chega perto deles, o modelo de linguagem não é chamado: a resposta "
+        "padrão \"Não encontrei essa informação nos documentos selecionados.\" é gravada com `answered = false`, os "
+        "webhooks ativos recebem `question.unanswered` e a pergunta entra nas lacunas do painel. Numa conversa geral, o "
+        "escopo é a lista de documentos escolhida (ou todo o acervo pronto); numa conversa com agente, é a base dele, como "
+        "mostra a seção seguinte.")
+    d.p("**Notas do reranker [[novo]].** O cross-encoder padrão devolve notas sem escala; o Nexo as converte para a faixa "
+        "de 0 a 1 (sigmoide), a mesma do corte e das barras dos trechos. Depois do corte, só seguem os trechos com ao "
+        "menos um quinto da nota do melhor, até `NEXO_TOP_N`: o prompt fica menor e mais preciso. Se nenhum trecho passa "
+        "do corte, mas o melhor tem ao menos um décimo dele, os 2 melhores vão ao modelo, que responde ou diz que não "
+        "encontrou.")
+    d.p("**Perguntas encadeadas [[novo]].** Quando a pergunta depende da anterior (começa com \"e\" ou \"mas\", tem "
+        "\"isso\", \"ele\" ou \"dela\", ou tem até duas palavras de conteúdo), a busca usa a pergunta anterior junto, e "
+        "o prompt traz as últimas `NEXO_HISTORY_TURNS` trocas, resumidas e sem as citações antigas. Não há chamada extra "
+        "ao modelo para reescrever a pergunta. Perguntas completas seguem sozinhas.")
+    d.p("**Resposta e recusa.** O modelo responde a parte que os trechos cobrem e diz o que faltou. Só uma resposta que é "
+        "basicamente a frase padrão de quando não encontra vira `answered = false`; uma resposta parcial com citações é "
+        "mantida com as fontes.")
     d.p("**Streaming.** Na rota `/messages/stream`, o mesmo caminho avisa `status` `searching` antes da busca e `writing` "
         "quando o modelo começa, manda o texto em eventos `delta` e só grava a troca no fim, no evento `done`. Se a "
         "conexão cair ou o usuário clicar em Parar, nada é gravado.")
@@ -1508,11 +1567,11 @@ flowchart TB
     d.secao("Como o agente responde")
     d.diagrama(f"""
 flowchart TB
-  P[{no("Pergunta ao agente", "chat, /api/ask com bot_id ou WhatsApp")}] --> C{{"<b>Cumprimento?</b>"}}
-  C -- sim --> S[{no("Devolve a saudação do agente")}]
+  P[{no("Pergunta ao agente", "chat, /api/ask com bot_id ou WhatsApp")}] --> C{{"<b>Conversa?</b>"}}
+  C -- sim --> S[{no("Saudação do agente, agradecimento ou perguntas sugeridas", "sem busca e sem modelo")}]
   C -- não --> E[{no("Escopo = documentos prontos da base do agente", "filtro source_id IN (…) no banco vetorial")}]
-  E --> B[{no("Reescrita, busca, corte 1, reranking e corte 2", "NEXO_TOP_K · NEXO_MIN_SIMILARITY · NEXO_MIN_RERANK_SCORE")}]
-  B --> PR[{no("Prompt: regras estritas + instruções do agente + trechos numerados", "nome e tom vêm das instruções; as regras prevalecem")}]
+  E --> B[{no("Busca, corte 1, reranking e corte 2", "NEXO_TOP_K · NEXO_MIN_SIMILARITY · NEXO_MIN_RERANK_SCORE")}]
+  B --> PR[{no("Prompt: regras fixas + instruções do agente + trechos numerados", "nome e tom vêm das instruções; as regras prevalecem")}]
   B -. sem trechos ou sem base .-> N[{no("Frase “quando não souber” do agente", "answered = false")}]
   class C escuro
   class P,E,B,PR claro
@@ -1525,9 +1584,11 @@ flowchart TB
 
     d.secao("Como as alucinações são reduzidas")
     d.tabela(["Mecanismo", "Efeito"], [
-        ("Cortes de similaridade e de reranking", "Trechos fracos são descartados. Sem trechos, o LLM não é chamado"),
-        ("Reranking com cross-encoder", "Reordena os candidatos por relevância real"),
-        ("Prompt estrito", "Proíbe conhecimento próprio e exige citação [n]; as instruções do agente não podem mudar essas regras"),
+        ("Cortes de similaridade e de reranking", "Trechos fracos são descartados; os que ficam perto do corte vão ao "
+         "modelo, que decide. Sem trechos, o LLM não é chamado"),
+        ("Reranking com cross-encoder", "Reordena os candidatos por relevância real, com notas de 0 a 1"),
+        ("Regras fixas no prompt", "Só os trechos, sem inventar valores, prazos, nomes ou passos; respostas parciais dizem o "
+         "que faltou; citação [n] obrigatória; as instruções do agente não podem mudar essas regras"),
         ("Base por agente", "Cada agente só enxerga os documentos da própria base, o que evita misturar assuntos"),
         ("Temperatura 0,1", "Respostas estáveis e próximas do texto"),
         ("Verificação de fidelidade", "Opcional: confere se a resposta é sustentada pelos trechos"),
@@ -1876,6 +1937,11 @@ python -m pytest
         "escopo, reranking, scripts, busca, exportação, métricas, chaves, pergunta direta, webhooks e contas; as bases, "
         "os textos, mover entre bases, agentes, conversas com agentes, a migração de um banco da 2.0, o tutorial e o "
         "WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão).")
+    d.p("Na 3.0 entram `tests/test_dialogo.py` (cumprimentos, agradecimentos, despedidas e ajuda, perguntas encadeadas, "
+        "histórico resumido e respostas parciais) e `tests/test_desempenho.py` (notas do reranker de 0 a 1, Ollama "
+        "mantido carregado e sem \"pensar\", raciocínio baixo no Groq e no Gemini, pré-aquecimento e agente sem conteúdo "
+        "que ainda cumprimenta), além de novos casos em `tests/test_engine.py` (corte relativo, segunda chance para "
+        "trechos perto do corte, uma chamada ao modelo por pergunta e indexação fora da trava do motor).")
     d.p("A 2.2 trouxe `tests/test_streaming.py` e `tests/test_formatos.py`. Na 2.3 entram `tests/test_manutencao.py` "
         "(migração de um banco da 2.2, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e "
         "restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas, "
@@ -1977,9 +2043,14 @@ cd frontend && npm update && npm run build
         ("EPUB, PPTX, XLSX ou ODT recusado (413)", "Algum item do pacote passa de 50 MB descompactado", "Divida o arquivo ou "
          "reduza as imagens embutidas"),
         ("Agente diz que a base não tem conteúdo", "Base vazia ou itens ainda indexando", "Envie arquivos ou textos e aguarde Pronto"),
-        ("Respostas sempre \"Não encontrei\"", "Cortes de relevância altos", "Veja as notas na aba Testar e baixe os cortes"),
+        ("Respostas sempre \"Não encontrei\"", "Cortes de relevância altos ou o documento não foi indexado",
+         "Veja as notas na aba Testar e baixe os cortes (seção 3.3); confira se o item está Pronto"),
+        ("Respostas lentas e o computador travando", "Modelo grande rodando no processador", "Use o Groq ou um modelo "
+         "pequeno, como llama3.2:3b (seção 3.4)"),
+        ("A primeira resposta demora mais", "Modelos sendo carregados", "Abra o chat alguns segundos antes; o Nexo carrega os "
+         "modelos ao abrir a tela"),
         ("Resposta aparece só no fim, de uma vez", "Proxy guardando a resposta em buffer", "Desligue o buffer da rota de "
-         "streaming (seção 3.5)"),
+         "streaming (seção 3.6)"),
         ("Sessão encerrada de repente", "Senha trocada ou redefinida, ou Sair dos outros dispositivos (401 SESSION_REVOKED)",
          "Entre de novo com a senha atual"),
         ("Não consigo excluir uma base", "Algum agente usa a base, ou é a padrão", "Troque a base do agente antes"),

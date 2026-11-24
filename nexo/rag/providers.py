@@ -7,10 +7,15 @@ import re
 import time
 from typing import Any
 
+from llama_index.core.bridge.pydantic import PrivateAttr
+from llama_index.core.postprocessor.types import BaseNodePostprocessor
+from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle
+
 from nexo.config import Settings
 
 
 CONTEXT_WINDOW = 32768
+MAX_ANSWER_TOKENS = 1024
 
 LLM_PROVIDERS = {"ollama": "Ollama", "openai": "OpenAI", "compativel": "Compatível com OpenAI", "extrativo": "Extrativo"}
 
@@ -58,6 +63,24 @@ def ollama_context(s: Settings) -> int:
     return min(32768, max(8192, math.ceil(needed / 1024) * 1024))
 
 
+def keep_alive(value: str) -> int | str:
+    text = value.strip()
+    return int(text) if re.fullmatch(r"-?\d+", text) else text
+
+
+def _family(model: str) -> str:
+    return model.lower().rsplit("/", 1)[-1]
+
+
+def reasoning_effort(s: Settings) -> str | None:
+    url = (s.openai_base_url or "").lower()
+    family = _family(s.llm_model)
+    if ("api.groq.com" in url and family.startswith("gpt-oss")) or (
+            "generativelanguage.googleapis.com" in url and family.startswith("gemini")):
+        return "low"
+    return None
+
+
 def build_llm(s: Settings):
     if s.llm_provider == "extrativo":
         return None
@@ -67,7 +90,9 @@ def build_llm(s: Settings):
         except ImportError as e:
             raise _need("llama-index-llms-ollama", "o Ollama") from e
         return Ollama(model=s.llm_model, base_url=s.ollama_url, temperature=s.llm_temperature,
-                      request_timeout=s.llm_timeout, context_window=ollama_context(s))
+                      request_timeout=s.llm_timeout, context_window=ollama_context(s), keep_alive=keep_alive(s.ollama_keep_alive),
+                      thinking="low" if _family(s.llm_model).startswith("gpt-oss") else False,
+                      additional_kwargs={"num_predict": MAX_ANSWER_TOKENS})
     if s.llm_provider == "openai":
         try:
             from llama_index.llms.openai import OpenAI
@@ -84,10 +109,17 @@ def build_llm(s: Settings):
             raise _need("llama-index-llms-openai-like", "um serviço compatível com a OpenAI") from e
         if not s.openai_base_url:
             raise ProviderError("Informe o endereço do serviço compatível com a OpenAI (NEXO_OPENAI_BASE_URL).")
+        effort = reasoning_effort(s)
         return OpenAILike(model=s.llm_model, api_base=s.openai_base_url, api_key=s.openai_api_key or "sem-chave",
                           temperature=s.llm_temperature, timeout=s.llm_timeout, is_chat_model=True,
-                          context_window=CONTEXT_WINDOW, max_retries=1)
+                          context_window=CONTEXT_WINDOW, max_retries=1,
+                          additional_kwargs={"reasoning_effort": effort} if effort else {})
     raise ProviderError(f"Provedor de LLM desconhecido: {s.llm_provider}")
+
+
+def preload(llm: Any, s: Settings) -> None:
+    if s.llm_provider == "ollama" and llm is not None:
+        llm.client.generate(model=llm.model, prompt="", keep_alive=llm.keep_alive, options={"num_ctx": llm.context_window})
 
 
 def build_vector_store(s: Settings):
@@ -116,17 +148,39 @@ def build_vector_store(s: Settings):
     raise ProviderError(f"Banco vetorial desconhecido: {s.vector_store}")
 
 
+class CrossEncoderRerank(BaseNodePostprocessor):
+    model: str
+    _encoder: Any = PrivateAttr()
+
+    def __init__(self, model: str):
+        super().__init__(model=model)
+        import torch
+        from llama_index.core.utils import infer_torch_device
+        from sentence_transformers import CrossEncoder
+        self._encoder = CrossEncoder(model, device=infer_torch_device(), max_length=512, trust_remote_code=False,
+                                     activation_fn=torch.nn.Sigmoid())
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "NexoCrossEncoderRerank"
+
+    def _postprocess_nodes(self, nodes: list[NodeWithScore], query_bundle: QueryBundle | None = None) -> list[NodeWithScore]:
+        if not nodes or query_bundle is None:
+            return list(nodes)
+        pairs = [(query_bundle.query_str, n.node.get_content(metadata_mode=MetadataMode.EMBED)) for n in nodes]
+        scores = self._encoder.predict(pairs, batch_size=min(len(pairs), 16), show_progress_bar=False)
+        for node, score in zip(nodes, scores):
+            node.score = float(score)
+        return sorted(nodes, key=lambda n: n.score or 0.0, reverse=True)
+
+
 def build_reranker(s: Settings) -> Any:
     if s.reranker == "none":
         return None
     if s.reranker == "huggingface":
-        try:
-            from llama_index.core.postprocessor import SentenceTransformerRerank
-        except ImportError as e:
-            raise _need("sentence-transformers", "o reranking do HuggingFace") from e
         if importlib.util.find_spec("sentence_transformers") is None:
             raise _need("sentence-transformers", "o reranking do HuggingFace")
-        return SentenceTransformerRerank(model=s.rerank_model, top_n=s.top_n)
+        return CrossEncoderRerank(model=s.rerank_model)
     if s.reranker == "cohere":
         try:
             from llama_index.postprocessor.cohere_rerank import CohereRerank

@@ -189,6 +189,7 @@ function visible(name: string, draft: Record<string, string | boolean>): boolean
   const embed = String(draft.embed_provider ?? "");
   const rerank = String(draft.reranker ?? "");
   if (name === "ollama_url") return llm === "ollama" || embed === "ollama";
+  if (name === "ollama_keep_alive") return llm === "ollama";
   if (name === "openai_base_url" || name === "openai_api_key") return llm === "openai" || llm === "compativel" || embed === "openai";
   if (name === "llm_model") return llm !== "extrativo";
   if (name === "embed_model") return embed !== "hash";

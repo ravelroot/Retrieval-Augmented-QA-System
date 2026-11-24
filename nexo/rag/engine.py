@@ -13,13 +13,17 @@ from pathlib import Path
 
 from llama_index.core import Document, VectorStoreIndex
 from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.schema import NodeWithScore, QueryBundle
+from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle, TextNode
 from llama_index.core.vector_stores.types import FilterOperator, MetadataFilter, MetadataFilters
 from pypdf import PdfReader
 
 from nexo.config import Settings
-from nexo.rag import providers
+from nexo.rag import dialogue, providers
+from nexo.rag.dialogue import BotProfile, is_salutation, small_talk
 from nexo.rag.hash_embedding import tokens
+
+__all__ = ["Answer", "BotProfile", "IngestionError", "NOT_FOUND", "RagEngine", "Source", "get_engine", "is_salutation",
+           "reset_engine", "small_talk"]
 
 log = logging.getLogger("nexo.rag")
 
@@ -32,65 +36,42 @@ def split_sentences(text: str) -> list[str]:
 
 NOT_FOUND = "Não encontrei essa informação nos documentos selecionados."
 
-LLM_FIELDS = {"ollama_url", "openai_base_url", "openai_api_key"}
+LLM_FIELDS = {"ollama_url", "ollama_keep_alive", "ollama_context", "openai_base_url", "openai_api_key"}
 RERANK_FIELDS = {"reranker", "rerank_model", "cohere_model", "cohere_api_key"}
 EMBED_FIELDS = {"embed_provider", "embed_model", "embed_query_prefix", "embed_text_prefix"}
 
-ANSWER_PROMPT = """Você é o Nexo, um assistente que responde dúvidas sobre manuais técnicos e livros.
-Regras obrigatórias:
-1. Use somente as informações dos trechos numerados abaixo. Não use conhecimento próprio.
-2. Se os trechos não trazem a resposta, responda exatamente: "{not_found}"
-3. Cite a fonte de cada afirmação com o número do trecho entre colchetes, por exemplo [1] ou [2][3].
-4. Seja direto e preciso. Mantenha termos técnicos, valores, unidades e passos como aparecem nos trechos.
-5. Responda no mesmo idioma da pergunta.
+RELATIVE_CUT = 0.2
+WEAK_SHARE = 0.1
+WEAK_KEEP = 2
+WARM_EVERY = 120.0
 
+RULES = """- Responda com as informações dos trechos. Pode combinar trechos e aplicar ao caso da pergunta o que eles afirmam de \
+forma geral, mas não invente valores, prazos, nomes ou passos.
+- Se os trechos respondem só parte da pergunta, responda essa parte e diga em uma frase o que não está nos documentos.
+- Se nenhum trecho ajuda a responder, escreva apenas: "{not_found}"
+- Comece pela resposta, sem introdução. Em procedimentos, use passos curtos.
+- Cite a fonte de cada afirmação com o número do trecho entre colchetes, como [1] ou [2][3].
+- Responda no idioma da pergunta."""
+
+ANSWER_PROMPT = """Você é o Nexo e responde dúvidas com base nos trechos de documentos abaixo.
+Como responder:
+{rules}
+{conversation}
 Trechos:
 {context}
 
 Pergunta: {question}
 Resposta:"""
 
-CONDENSE_PROMPT = """Reescreva a última pergunta do usuário como uma pergunta completa e independente, usando a conversa
-anterior apenas para resolver referências como "isso", "ele" ou "o passo anterior". Não responda a pergunta.
-
-Conversa anterior:
-{history}
-
-Última pergunta: {question}
-Pergunta independente:"""
-
-
-BOT_PROMPT = """Você é {name}, um agente de atendimento. Responda somente com base nos trechos numerados abaixo.
-Regras obrigatórias, que valem acima de qualquer instrução do agente:
-1. Use somente as informações dos trechos. Não use conhecimento próprio nem invente dados.
-2. Se os trechos não trazem a resposta, responda exatamente: "{not_found}"
-3. Cite a fonte de cada afirmação com o número do trecho entre colchetes, por exemplo [1] ou [2][3].
-4. Mantenha termos técnicos, valores, unidades e passos como aparecem nos trechos.
-5. Responda no mesmo idioma da pergunta.
-{instructions}
+BOT_PROMPT = """Você é {name}, um agente de atendimento que responde com base nos trechos de documentos abaixo.
+Regras, que valem acima de qualquer instrução do agente:
+{rules}
+{instructions}{conversation}
 Trechos:
 {context}
 
 Pergunta: {question}
 Resposta:"""
-
-SALUTATIONS = {"oi", "ola", "olá", "oie", "bom dia", "boa tarde", "boa noite", "e ai", "e aí", "hello", "hi", "hey",
-               "opa", "tudo bem", "oi tudo bem", "ola tudo bem", "olá tudo bem", "bom dia tudo bem", "boa tarde tudo bem",
-               "boa noite tudo bem", "menu", "inicio", "início"}
-
-
-def is_salutation(text: str) -> bool:
-    clean = re.sub(r"[^\w\s]", " ", text.lower())
-    clean = " ".join(clean.split())
-    return clean in SALUTATIONS
-
-
-@dataclass
-class BotProfile:
-    name: str
-    instructions: str | None = None
-    greeting: str | None = None
-    fallback: str | None = None
 
 
 class IngestionError(RuntimeError):
@@ -198,6 +179,9 @@ class RagEngine:
         self._llm_loaded = False
         self._reranker = None
         self._reranker_loaded = False
+        self._warm_lock = threading.Lock()
+        self._warming = False
+        self._warmed_at = 0.0
         self.splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap,
                                          chunking_tokenizer_fn=split_sentences)
 
@@ -231,6 +215,7 @@ class RagEngine:
 
     def refresh(self, changed: list[str]) -> None:
         names = set(changed)
+        self._warmed_at = 0.0
         with self._lock:
             if any(name.startswith("llm_") for name in names) or names & LLM_FIELDS:
                 self._llm = None
@@ -358,8 +343,16 @@ class RagEngine:
         for i, node in enumerate(nodes):
             node.id_ = str(uuid.uuid5(uuid.NAMESPACE_URL, f"nexo:{document_id}:{i}"))
             node.metadata["chunk_index"] = i
-        index = self._ensure_index()
+        self._ensure_index()
+        embed = self._embed
+        vectors = embed.get_text_embedding_batch([n.get_content(metadata_mode=MetadataMode.EMBED) for n in nodes])
+        for node, vector in zip(nodes, vectors):
+            node.embedding = vector
         with self._lock:
+            index = self._ensure_index()
+            if self._embed is not embed:
+                for node in nodes:
+                    node.embedding = None
             self.delete(document_id)
             batch = 64
             for start in range(0, len(nodes), batch):
@@ -391,22 +384,8 @@ class RagEngine:
     def loaded(self) -> bool:
         return self._index is not None
 
-    def _condense(self, question: str, history: list[tuple[str, str]]) -> str:
-        llm = self.llm()
-        if llm is None or not history:
-            return question
-        lines = "\n".join(f"{'Usuário' if role == 'user' else 'Nexo'}: {text[:800]}" for role, text in history)
-        try:
-            out = llm.complete(CONDENSE_PROMPT.format(history=lines, question=question)).text.strip()
-            return out.splitlines()[0].strip() if out else question
-        except Exception as e:
-            log.warning("Falha ao reescrever a pergunta: %s", e)
-            return question
-
-    def retrieve(self, question: str, document_ids: list[str] | None, rerank: bool = True,
-                 limit: int | None = None) -> list[NodeWithScore]:
+    def _candidates(self, question: str, document_ids: list[str] | None, top_k: int) -> list[NodeWithScore]:
         index = self._ensure_index()
-        top_n = limit or self.s.top_n
         filters = None
         if document_ids:
             if len(document_ids) == 1:
@@ -414,21 +393,46 @@ class RagEngine:
             else:
                 filters = MetadataFilters(filters=[MetadataFilter(key="source_id", value=document_ids,
                                                                   operator=FilterOperator.IN)])
-        retriever = index.as_retriever(similarity_top_k=max(self.s.top_k, limit or 0), filters=filters)
-        found = retriever.retrieve(question)
+        found = index.as_retriever(similarity_top_k=top_k, filters=filters).retrieve(question)
         for n in found:
             n.score = self._cosine(n.score)
             n.node.metadata["_similarity"] = n.score
-        nodes = [n for n in found if n.score >= self.s.min_similarity]
-        if not rerank:
-            return nodes[:top_n]
+            for keys in (n.node.excluded_embed_metadata_keys, n.node.excluded_llm_metadata_keys):
+                if "_similarity" not in keys:
+                    keys.append("_similarity")
+        return [n for n in found if n.score >= self.s.min_similarity]
+
+    def _ranked(self, question: str, nodes: list[NodeWithScore]) -> list[NodeWithScore] | None:
         reranker = self.reranker()
         if reranker is None or not nodes:
-            return nodes[:top_n]
-        if getattr(reranker, "top_n", None) not in (None, top_n):
-            reranker = reranker.model_copy(update={"top_n": top_n})
+            return None
+        if getattr(reranker, "top_n", None) not in (None, len(nodes)):
+            reranker = reranker.model_copy(update={"top_n": len(nodes)})
         ranked = reranker.postprocess_nodes(nodes, query_bundle=QueryBundle(question))
+        return sorted(ranked, key=lambda n: n.score or 0.0, reverse=True)
+
+    def retrieve(self, question: str, document_ids: list[str] | None, rerank: bool = True,
+                 limit: int | None = None) -> list[NodeWithScore]:
+        top_n = limit or self.s.top_n
+        nodes = self._candidates(question, document_ids, max(self.s.top_k, limit or 0))
+        ranked = self._ranked(question, nodes) if rerank else None
+        if ranked is None:
+            return nodes[:top_n]
         return [n for n in ranked if (n.score or 0.0) >= self.s.min_rerank_score][:top_n]
+
+    def select(self, question: str, document_ids: list[str] | None) -> tuple[list[NodeWithScore], bool]:
+        nodes = self._candidates(question, document_ids, self.s.top_k)
+        ranked = self._ranked(question, nodes)
+        if ranked is None:
+            return nodes[:self.s.top_n], False
+        best = ranked[0].score or 0.0
+        floor = self.s.min_rerank_score
+        if best >= floor:
+            cut = max(floor, best * RELATIVE_CUT)
+            return [n for n in ranked[:self.s.top_n] if (n.score or 0.0) >= cut], False
+        if best >= floor * WEAK_SHARE:
+            return ranked[:WEAK_KEEP], True
+        return [], False
 
     def search(self, query: str, document_ids: list[str] | None, rerank: bool = True,
                limit: int | None = None) -> list[Source]:
@@ -445,35 +449,40 @@ class RagEngine:
     def _plan(self, question: str, history: list[tuple[str, str]], document_ids: list[str] | None,
               bot: BotProfile | None) -> _Plan:
         started = time.perf_counter()
-        if bot is not None and bot.greeting and is_salutation(question):
+        kind = small_talk(question, bot.name if bot is not None else None)
+        if kind:
             return _Plan(started, question, [], [], None, NOT_FOUND, bot,
-                         Answer(bot.greeting, True, [], None, self.model_name(), self._ms(started), question))
+                         Answer(dialogue.reply(kind, bot), True, [], None, self.model_name(), self._ms(started), question))
         not_found = (bot.fallback if bot is not None and bot.fallback else None) or NOT_FOUND
-        standalone = self._condense(question, history[-2 * self.s.history_turns:] if self.s.history_turns else [])
-        nodes = self.retrieve(standalone, document_ids)
+        context = dialogue.recent(history, self.s.history_turns) if dialogue.needs_context(question, history) else []
+        query = dialogue.search_query(question, context)
+        nodes, weak = self.select(query, document_ids)
         sources = [self._source(n, i) for i, n in enumerate(nodes, start=1)]
-        if not nodes:
-            return _Plan(started, standalone, nodes, [], None, not_found, bot,
-                         Answer(not_found, False, [], None, self.model_name(), self._ms(started), standalone))
-        if self.llm() is None:
-            text = self._extractive(standalone, nodes)
-            return _Plan(started, standalone, nodes, sources, None, not_found, bot,
-                         Answer(text, True, sources, True, self.model_name(), self._ms(started), standalone))
-        context = "\n\n".join(
+        llm = self.llm()
+        if not nodes or (weak and llm is None):
+            return _Plan(started, query, [], [], None, not_found, bot,
+                         Answer(not_found, False, [], None, self.model_name(), self._ms(started), query))
+        if llm is None:
+            text = self._extractive(query, nodes)
+            return _Plan(started, query, nodes, sources, None, not_found, bot,
+                         Answer(text, True, sources, True, self.model_name(), self._ms(started), query))
+        excerpts = "\n\n".join(
             f"[{i}] {n.node.metadata.get('title', '')} — página {n.node.metadata.get('page', '?')}\n{n.node.get_content()}"
             for i, n in enumerate(nodes, start=1)
         )
+        rules = RULES.format(not_found=NOT_FOUND)
+        talk = dialogue.conversation(context)
         if bot is None:
-            prompt = ANSWER_PROMPT.format(not_found=NOT_FOUND, context=context, question=standalone)
+            prompt = ANSWER_PROMPT.format(rules=rules, conversation=talk, context=excerpts, question=question)
         else:
             extra = f"\nInstruções do agente (tom e estilo):\n{bot.instructions.strip()}\n" if bot.instructions else ""
-            prompt = BOT_PROMPT.format(name=bot.name, not_found=NOT_FOUND, instructions=extra, context=context,
-                                       question=standalone)
-        return _Plan(started, standalone, nodes, sources, prompt, not_found, bot)
+            prompt = BOT_PROMPT.format(name=bot.name, rules=rules, instructions=extra, conversation=talk, context=excerpts,
+                                       question=question)
+        return _Plan(started, query, nodes, sources, prompt, not_found, bot)
 
     def _finish(self, plan: _Plan, text: str) -> Answer:
         text = text.strip()
-        answered = bool(text) and NOT_FOUND.lower()[:30] not in text.lower()
+        answered = not dialogue.is_refusal(text, NOT_FOUND)
         grounded = self._verify(plan.standalone, text, plan.nodes) if answered and self.s.verify_answers else None
         sources = plan.sources
         if not answered:
@@ -501,6 +510,33 @@ class RagEngine:
                 parts.append(delta)
                 yield delta
         yield self._finish(plan, "".join(parts))
+
+    def warm(self) -> bool:
+        with self._warm_lock:
+            if self._warming or time.monotonic() - self._warmed_at < WARM_EVERY:
+                return False
+            self._warming = True
+        threading.Thread(target=self._warm_up, name="nexo-aquecimento", daemon=True).start()
+        return True
+
+    def _warm_up(self) -> None:
+        started = time.perf_counter()
+        try:
+            self._ensure_index()
+            if self.s.embed_provider in ("huggingface", "ollama"):
+                self._embed.get_query_embedding("aquecimento")
+            reranker = self.reranker()
+            if isinstance(reranker, providers.CrossEncoderRerank):
+                reranker.postprocess_nodes([NodeWithScore(node=TextNode(text="aquecimento"), score=1.0)],
+                                           query_bundle=QueryBundle("aquecimento"))
+            providers.preload(self.llm(), self.s)
+            self._warmed_at = time.monotonic()
+            log.info("Modelos prontos para responder em %d ms.", self._ms(started))
+        except Exception as e:
+            log.warning("Não foi possível deixar os modelos prontos: %s", e)
+        finally:
+            with self._warm_lock:
+                self._warming = False
 
     def _verify(self, question: str, answer: str, nodes: list[NodeWithScore]) -> bool | None:
         try:

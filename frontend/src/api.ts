@@ -828,6 +828,17 @@ async function download(path: string, fallbackName: string, fallbackError: strin
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+let warmedAt = 0;
+
+export function warmUp(): void {
+  const now = Date.now();
+  if (now - warmedAt < 60_000) return;
+  warmedAt = now;
+  request<{ started: boolean }>("POST", "/engine/warmup").catch(() => {
+    warmedAt = 0;
+  });
+}
+
 export function downloadExport(id: string, format: "markdown" | "json"): Promise<void> {
   return download(`/conversations/${id}/export?format=${format}`, `nexo-conversa.${format === "json" ? "json" : "md"}`,
     "Não foi possível exportar a conversa.");

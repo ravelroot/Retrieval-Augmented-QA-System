@@ -42,6 +42,10 @@ A 3.0.0 transforma o Nexo num aplicativo para Windows. Ele é instalado pelo `Ne
 | **Zoom de 75%** | A interface abre no equivalente a 75% de um navegador. `Ctrl` + roda do mouse ajusta na hora. |
 | **Ícone** | Quadrado preto com bordas levemente arredondadas e o N branco, em todos os tamanhos do Windows. |
 | **Release automática** | Publicar uma release no GitHub dispara o workflow `desktop.yml`, que compila, verifica o pacote e anexa o `Nexo-Setup-<versão>.exe` à release. |
+| **Respostas mais rápidas** | Cada pergunta chama o modelo uma vez só: perguntas encadeadas, como "e o plano Plus?", usam a conversa anterior sem a chamada extra de reescrita. Só os trechos que ajudam vão ao modelo. O Ollama fica carregado por 30 minutos (`NEXO_OLLAMA_KEEP_ALIVE`), responde sem a etapa de "pensar" e para em 1.024 tokens; no Groq (`gpt-oss`) e no Gemini, o raciocínio fica no nível baixo. Ao abrir o chat, os modelos já são carregados. |
+| **Menos recusas** | O reranker padrão devolve notas sem escala, e o corte de 0,1 descartava trechos bons. Agora as notas vão de 0 a 1, os trechos que ficam perto do corte ainda vão ao modelo, que decide, e respostas parciais são mantidas, dizendo o que faltou. |
+| **Conversa natural** | Cumprimentos, agradecimentos, despedidas e "o que você faz?" são respondidos na hora, sem busca, com a saudação, a base e as perguntas sugeridas do agente. Depois de um "não encontrei", o chat do agente e o widget voltam a mostrar as perguntas sugeridas. No WhatsApp, um "obrigado" não passa mais o contato para a equipe. |
+| **Indexação sem travar o chat** | Os vetores de um arquivo novo são calculados fora da trava do motor: dá para perguntar enquanto outro arquivo é indexado. |
 
 ## Novidades da 2.4
 
@@ -114,11 +118,12 @@ A 2.1.0 transformou o Nexo numa plataforma de agentes, com a identidade visual "
 - **Atendimento pelo WhatsApp** com resposta automática do agente, passagem para atendente, assumir e devolver a conversa, sugestão de resposta e simulador.
 - **Tutorial de primeiro acesso**, guardado por conta.
 - **Envio de arquivos** por arrastar e soltar, com fila de indexação, detecção de duplicados por base, filtro, ordenação, renomear, mover, reindexar e excluir, um a um ou em lote.
-- **Respostas com base estrita** nos documentos: o modelo recebe só os trechos recuperados e é instruído a citar cada afirmação com `[n]`.
+- **Respostas com base estrita** nos documentos: o modelo recebe só os trechos recuperados, é instruído a citar cada afirmação com `[n]` e, quando os trechos cobrem só parte da pergunta, responde essa parte e diz o que faltou.
 - **Respostas em tempo real**, com botão para parar e botão para refazer a resposta.
 - **Trechos auditáveis**: ao lado da resposta aparecem o documento, a página, a similaridade, a nota do reranker, os termos da pergunta marcados e o botão para abrir o PDF na página certa.
 - **Escopo por conversa**: escolha quais documentos cada conversa consulta, ou converse com um agente, que consulta só a base dele.
-- **Contexto da conversa**: perguntas como "e o passo seguinte?" são reescritas com o histórico antes da busca.
+- **Contexto da conversa**: perguntas como "e o passo seguinte?" usam a pergunta anterior na busca e a conversa recente na resposta, sem chamada extra ao modelo.
+- **Conversa natural**: "oi", "obrigado", "tchau" e "o que você faz?" são respondidos na hora, sem busca.
 - **Busca nos trechos** sem LLM, para conferir o que o acervo diz e calibrar perguntas.
 - **Painel de qualidade** com as perguntas que ficaram sem resposta, para saber qual PDF falta no acervo, e exportação das perguntas em CSV.
 - **Integrações**: chaves de API, pergunta direta por HTTP, respostas em streaming, webhooks com novas tentativas e exportação de conversas.
@@ -131,26 +136,30 @@ A 2.1.0 transformou o Nexo numa plataforma de agentes, com a identidade visual "
 
 ```mermaid
 flowchart LR
-    P[Pergunta<br/>chat, API ou WhatsApp] --> G{Agente?}
+    P[Pergunta<br/>chat, API ou WhatsApp] --> K{Conversa?<br/>oi, obrigado, tchau}
+    K -- sim --> Q[Resposta na hora]
+    K -- não --> G{Agente?}
     G -- sim --> E[Escopo = documentos<br/>prontos da base do agente]
-    G -- não --> C[Reescrita com o histórico]
+    G -- não --> C[Pergunta encadeada?<br/>junta a anterior na busca]
     E --> C
     C --> B[Busca vetorial<br/>top_k trechos]
     B --> S{Similaridade<br/>mínima}
     S -- nada relevante --> N[Não encontrei]
-    S --> R[Reranking<br/>HuggingFace ou Cohere]
+    S --> R[Reranking<br/>notas de 0 a 1]
     R --> T{Nota mínima<br/>do reranker}
-    T -- nada relevante --> N
-    T --> L[LLM com prompt estrito,<br/>instruções do agente<br/>e citações numeradas]
+    T -- longe do corte --> N
+    T --> L[LLM com regras fixas,<br/>instruções do agente<br/>e citações numeradas]
+    T -- perto do corte --> W2[2 melhores trechos]
+    W2 --> L
     L --> V[Verificação de fidelidade<br/>opcional]
     V --> A[Resposta + fontes]
     N -.-> W[Webhook<br/>question.unanswered]
     N -.-> H[WhatsApp: aguardando<br/>atendente]
 ```
 
-1. **Dois cortes de relevância** (`NEXO_MIN_SIMILARITY` e `NEXO_MIN_RERANK_SCORE`). Se nenhum trecho passar, o modelo nem é chamado.
-2. **Reranking** com cross-encoder: reordena os candidatos da busca vetorial pela relação real com a pergunta e só os `NEXO_TOP_N` melhores seguem.
-3. **Prompt estrito** em português: usar só os trechos, citar `[n]`, responder exatamente "Não encontrei essa informação nos documentos selecionados." quando faltar base. As instruções de cada agente entram no prompt, mas não podem mudar essas regras; a frase de quando não souber é trocada pela do agente.
+1. **Dois cortes de relevância** (`NEXO_MIN_SIMILARITY` e `NEXO_MIN_RERANK_SCORE`, de 0 a 1). Se nenhum trecho passar nem chegar a um décimo do corte do reranker, o modelo nem é chamado; se o melhor ficar perto do corte, os 2 melhores vão ao modelo, que responde ou diz que não encontrou.
+2. **Reranking** com cross-encoder: reordena os candidatos da busca vetorial pela relação real com a pergunta. Seguem até `NEXO_TOP_N` trechos, só os que têm ao menos um quinto da nota do melhor.
+3. **Regras fixas** no prompt, em português: usar só os trechos (pode combiná-los e aplicar ao caso o que eles afirmam de forma geral), não inventar valores, prazos, nomes ou passos, citar `[n]`, responder a parte coberta dizendo o que faltou e, quando nada ajudar, responder exatamente "Não encontrei essa informação nos documentos selecionados.". As instruções de cada agente entram no prompt, mas não podem mudar essas regras; a frase de quando não souber é trocada pela do agente.
 4. **Verificação de fidelidade** opcional (`NEXO_VERIFY_ANSWERS=true`) com o `FaithfulnessEvaluator` do LlamaIndex.
 5. **Temperatura baixa** (0,1 por padrão).
 6. **Lacunas visíveis**: toda pergunta sem resposta aparece no Painel de qualidade e pode disparar um webhook; no WhatsApp, o contato passa para a equipe.
@@ -240,12 +249,16 @@ No aplicativo instalado, o `.env` fica em `%LOCALAPPDATA%\Nexo\.env`. Tudo isso 
 |---|---|---|
 | **Local e gratuito** (padrão) | [Ollama](https://ollama.com) e `ollama pull llama3.1` | já vem configurado |
 | **OpenAI** | uma chave de API | `NEXO_LLM_PROVIDER=openai`, `NEXO_LLM_MODEL=gpt-4o-mini`, `OPENAI_API_KEY=...` |
+| **Rápido sem placa de vídeo** | uma chave gratuita do [Groq](https://console.groq.com/keys) | `NEXO_LLM_PROVIDER=compativel`, `NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1`, `NEXO_LLM_MODEL=openai/gpt-oss-20b`, `OPENAI_API_KEY=...` |
+| **Local e leve** | Ollama e `ollama pull llama3.2:3b` | `NEXO_LLM_MODEL=llama3.2:3b` |
 | **Compatível com OpenAI** | uma chave do serviço (Groq, OpenRouter, Gemini) ou o LM Studio aberto | `NEXO_LLM_PROVIDER=compativel`, `NEXO_OPENAI_BASE_URL=https://api.groq.com/openai/v1`, `NEXO_LLM_MODEL=...`, `OPENAI_API_KEY=...` |
 | **Reranking Cohere** | uma chave de API | `NEXO_RERANKER=cohere`, `COHERE_API_KEY=...` |
 | **Qdrant** | Qdrant local ou em nuvem | `NEXO_VECTOR_STORE=qdrant` e, para servidor, `NEXO_QDRANT_URL=...` |
 | **Teste sem modelos** | nada | `NEXO_EMBED_PROVIDER=hash`, `NEXO_LLM_PROVIDER=extrativo`, `NEXO_RERANKER=none` |
 
 No modo padrão, o modelo de embeddings (`intfloat/multilingual-e5-small`) e o reranker (`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`) são baixados do HuggingFace na primeira pergunta e funcionam em CPU.
+
+**Respostas lentas?** Num computador sem placa de vídeo, um modelo de 8B pelo Ollama escreve poucas palavras por segundo e ocupa o processador inteiro. Para respostas em poucos segundos, use o Groq com `openai/gpt-oss-20b` (os arquivos ficam no computador, mas os trechos relevantes de cada pergunta vão para a nuvem do Groq) ou, para não enviar nada para fora, um modelo pequeno como `llama3.2:3b`. Em **Ajustes → Busca**, 3 trechos enviados ao modelo deixam o prompt menor.
 
 O modo de teste usa um embedding léxico e devolve as frases mais relevantes dos trechos, sem LLM. Serve para validar a instalação e rodar os testes, não para uso real. As capturas de tela deste README foram feitas nesse modo.
 
@@ -480,6 +493,7 @@ A configuração base fica no `.env` (modelo em [`.env.example`](.env.example));
 | `NEXO_LLM_PROVIDER` | `ollama` | `ollama`, `openai`, `compativel` ou `extrativo` |
 | `NEXO_LLM_MODEL` | `llama3.1` | Modelo de linguagem |
 | `NEXO_OLLAMA_CONTEXT` | automático (8192 a 32768) | Contexto do Ollama em tokens (`num_ctx`). Vazio calcula pelo tamanho e pela quantidade de trechos; valores altos pedem muita memória |
+| `NEXO_OLLAMA_KEEP_ALIVE` | `30m` | Tempo que o modelo do Ollama fica na memória depois de responder (`30m`, `2h`, `90s`; `-1` mantém sempre, `0` libera na hora) |
 | `NEXO_EMBED_PROVIDER` | `huggingface` | `huggingface`, `openai`, `ollama` ou `hash` |
 | `NEXO_EMBED_MODEL` | `intfloat/multilingual-e5-small` | Modelo de embeddings |
 | `NEXO_VECTOR_STORE` | `chroma` | `chroma` ou `qdrant` |
@@ -487,7 +501,8 @@ A configuração base fica no `.env` (modelo em [`.env.example`](.env.example));
 | `NEXO_CHUNK_SIZE` / `NEXO_CHUNK_OVERLAP` | `512` / `64` | Tamanho dos trechos e sobreposição, em tokens |
 | `NEXO_TOP_K` / `NEXO_TOP_N` | `12` / `4` | Candidatos da busca e trechos que vão ao modelo |
 | `NEXO_MIN_SIMILARITY` | `0.15` | Similaridade mínima de cosseno |
-| `NEXO_MIN_RERANK_SCORE` | `0.1` | Nota mínima do reranker |
+| `NEXO_MIN_RERANK_SCORE` | `0.1` | Nota mínima do reranker, de 0 a 1. Abaixo dela, os 2 melhores trechos ainda vão ao modelo se tiverem ao menos um décimo do corte |
+| `NEXO_HISTORY_TURNS` | `2` | Trocas anteriores que o modelo lê quando a pergunta depende delas (0 trata cada pergunta sozinha) |
 | `NEXO_VERIFY_ANSWERS` | `false` | Verificação de fidelidade com uma segunda chamada ao LLM |
 | `NEXO_WEBHOOK_TIMEOUT` | `5` | Segundos de espera por entrega de webhook |
 | `NEXO_OPENAI_BASE_URL` | vazio | Endereço do serviço compatível com a OpenAI (obrigatório com `compativel`) |
@@ -689,7 +704,7 @@ python -m pytest
 ruff check .
 ```
 
-Os testes usam o modo sem modelos e cobrem o aplicativo (painel entregue só para a janela, cookie da janela, nomes de arquivo seguros, abertura de documentos e da referência da API, restauração só por administradores, restauração pendente, instância única, primeira abertura já configurada), a troca obrigatória da senha padrão, os provedores e as chaves pela tela (com `data/segredos.json` em 0600), o teste de conexão, a troca de embeddings com reindexação automática, o assistente e os primeiros passos, o backup automático com rotação e download, o widget para sites (sites autorizados, pré-voo, limite por visitante, corpo grande, pausa, troca de chave e exclusão em cascata), a API compatível com OpenAI (modelos, resposta, streaming, erros e permissão), a linha de comando `configurar` e `senha`, a checagem da porta, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas.
+Os testes usam o modo sem modelos e cobrem o aplicativo (painel entregue só para a janela, cookie da janela, nomes de arquivo seguros, abertura de documentos e da referência da API, restauração só por administradores, restauração pendente, instância única, primeira abertura já configurada), a troca obrigatória da senha padrão, os provedores e as chaves pela tela (com `data/segredos.json` em 0600), o teste de conexão, a troca de embeddings com reindexação automática, o assistente e os primeiros passos, o backup automático com rotação e download, o widget para sites (sites autorizados, pré-voo, limite por visitante, corpo grande, pausa, troca de chave e exclusão em cascata), a API compatível com OpenAI (modelos, resposta, streaming, erros e permissão), a linha de comando `configurar` e `senha`, a checagem da porta, ajustes pela tela, índice desatualizado, diagnóstico, manutenção, backup e restauração, registro de atividades, permissão e validade das chaves, limite de perguntas, CORS, métricas do Prometheus, conversas fixadas, comentários nas avaliações, perguntas sugeridas, duplicação de agentes, painel por agente, respostas prontas, trechos indexados, importação por link (com bloqueio da rede interna), linha de comando, logs JSON, base de teste, migração de um banco da 2.2, respostas em streaming (com um modelo simulado), refazer resposta, sessões encerradas por troca de senha, criação de contas e redefinição de senha por administradores, leitura de EPUB, PPTX, XLSX e ODT (inclusive arquivos corrompidos e grandes demais), ações em lote, busca nas conversas, exportação CSV do painel, novas tentativas dos webhooks, `X-Request-ID`, prontidão, bases de conhecimento e formatos, textos, mover entre bases, agentes, conversas com agentes, migração de um banco da 2.0, tutorial, WhatsApp (simulador, webhook da Meta com assinatura, Evolution com token, envio, passagem para atendente e sugestão), autenticação, bloqueio por tentativas, cadastro em arquivo, envio e indexação de PDF, respostas com fontes, pergunta fora do conteúdo, escopo, reranking, permissões, exclusão de vetores, busca nos trechos, exportação, painel de qualidade, chaves de API, pergunta direta, webhooks com assinatura e gestão de contas. Na 3.0 entram a conversa natural (cumprimentos, agradecimentos, despedidas e ajuda), as perguntas encadeadas com uma chamada só ao modelo, o histórico resumido, as respostas parciais, as notas do reranker de 0 a 1, a segunda chance para trechos perto do corte, o corte relativo, o Ollama mantido carregado e sem "pensar", o raciocínio baixo no Groq e no Gemini, o pré-aquecimento dos modelos e a indexação fora da trava do motor.
 
 ## Documentação em PDF
 

@@ -372,11 +372,11 @@ def history_for(s, contact_id: str, before: datetime | None, limit: int) -> list
 
 def answer_for(s, bot: db.BotRow, question: str, history: list[tuple[str, str]]):
     from nexo.api.routes import base_scope, bot_profile, source_kinds
-    from nexo.rag.engine import Answer, get_engine, is_salutation
+    from nexo.rag.engine import Answer, get_engine, small_talk
     settings = get_settings()
     profile = bot_profile(bot)
     scope = base_scope(s, bot.base_id)
-    if not scope and not (bot.greeting and is_salutation(question)):
+    if not scope and not small_talk(question, bot.name):
         return Answer(profile.fallback or PAUSED_TEXT, False, [], None, "", 0, question), {}
     result = get_engine(settings).ask(question, history, scope or ["__vazio__"], profile)
     return result, source_kinds(s, result.sources)

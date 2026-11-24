@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ApiError, api, askStream, type Bot, type Conversation, type ConversationSummary, type Message } from "../api";
+import { ApiError, api, askStream, warmUp, type Bot, type Conversation, type ConversationSummary, type Message } from "../api";
 import { AnswerText } from "../components/AnswerText";
 import { BotAvatar } from "../components/BotAvatar";
 import { Icon } from "../components/Icon";
@@ -262,6 +262,15 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
             </div>
           );
         })}
+        {!pending && bot && bot.suggestions.length > 0 && items[items.length - 1]?.answered === false && (
+          <div className="suggestions" role="group" aria-label="Perguntas sugeridas">
+            {bot.suggestions.map((text) => (
+              <button key={text} type="button" className="suggestion" onClick={() => submit(undefined, text)}>
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
         {pending && (
           <>
             <div className="msg msg--user"><p>{pending}</p></div>
@@ -284,7 +293,7 @@ function ChatPane({ tab, bot, focused, compact, onFocus, onClose, onUpdate, onAc
       {error && <p className="alert pane__error" role="alert">{error}</p>}
 
       <form className="composer pane__composer" onSubmit={submit}>
-        <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
+        <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey} onFocus={warmUp}
           placeholder={bot ? `Pergunte a ${bot.name}` : "Agente indisponível"} aria-label={`Mensagem para ${bot?.name ?? "o agente"}`}
           rows={1} maxLength={4000} disabled={!!pending || !bot} />
         {pending ? (
@@ -319,6 +328,7 @@ export function ChatsPage() {
   useEffect(() => {
     api.bots().then(setBots).catch(() => setBots([]));
     loadConversations();
+    warmUp();
   }, [loadConversations]);
 
   useEffect(() => persist(saved), [saved]);

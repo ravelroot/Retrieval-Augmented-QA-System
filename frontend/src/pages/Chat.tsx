@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ApiError, api, askStream, downloadExport, type Conversation, type ConversationSummary, type Message, type StreamStage } from "../api";
+import { ApiError, api, askStream, downloadExport, warmUp, type Conversation, type ConversationSummary, type Message, type StreamStage } from "../api";
 import { AnswerText } from "../components/AnswerText";
 import { Icon } from "../components/Icon";
 import { SourcesPanel } from "../components/SourcesPanel";
@@ -76,6 +76,7 @@ export function ChatPage() {
   useEffect(() => {
     loadList();
     reloadDocuments();
+    warmUp();
   }, [loadList, reloadDocuments]);
 
   useEffect(() => {
@@ -580,7 +581,7 @@ export function ChatPage() {
         {error && <p className="alert chat__error" role="alert">{error}</p>}
 
         <form className="composer" onSubmit={submit}>
-          <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey}
+          <textarea ref={textarea} value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={onKey} onFocus={warmUp}
             placeholder={ready.length ? "Pergunte algo sobre os documentos" : "Envie arquivos em Documentos para perguntar"}
             aria-label="Pergunta" rows={2} maxLength={4000} disabled={!!pending} />
           {pending ? (

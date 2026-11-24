@@ -282,6 +282,10 @@ class FeedbackIn(BaseModel):
     comment: str | None = Field(None, max_length=1000)
 
 
+class WarmupOut(BaseModel):
+    started: bool
+
+
 class SearchIn(BaseModel):
     query: str = Field(min_length=1, max_length=500)
     document_ids: list[str] = Field(default_factory=list, max_length=200)

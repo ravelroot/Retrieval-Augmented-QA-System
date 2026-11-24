@@ -134,7 +134,8 @@
       log.appendChild(typing);
     }
     sugs.innerHTML = "";
-    if (!state.items.length && !state.busy) {
+    var last = state.items[state.items.length - 1];
+    if (!state.busy && (!last || (last.role === "assistant" && last.answered === false))) {
       (state.config.suggestions || []).forEach(function (text) {
         var b = el("button", "sug");
         b.type = "button";
@@ -173,7 +174,8 @@
       return r.json().catch(function () { return {}; }).then(function (data) { return { ok: r.ok, data: data }; });
     }).then(function (res) {
       if (res.ok) {
-        state.items.push({ role: "assistant", content: res.data.answer || "", sources: res.data.sources || [] });
+        state.items.push({ role: "assistant", content: res.data.answer || "", sources: res.data.sources || [],
+          answered: res.data.answered !== false });
       } else {
         state.items.push({ role: "assistant", error: true, content: res.data.message || "Não foi possível responder agora." });
       }

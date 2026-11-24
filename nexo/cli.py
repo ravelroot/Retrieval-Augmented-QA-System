@@ -28,7 +28,7 @@ def _settings():
 PRESETS = (
     ("ollama", "Ollama no seu computador (gratuito, roda local)", None, "llama3.1"),
     ("openai", "OpenAI (precisa de uma chave de API)", None, "gpt-4o-mini"),
-    ("compativel", "Groq", "https://api.groq.com/openai/v1", None),
+    ("compativel", "Groq (rápido, na nuvem, com plano gratuito)", "https://api.groq.com/openai/v1", "openai/gpt-oss-20b"),
     ("compativel", "OpenRouter", "https://openrouter.ai/api/v1", None),
     ("compativel", "Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai", None),
     ("compativel", "LM Studio no seu computador", "http://localhost:1234/v1", None),
