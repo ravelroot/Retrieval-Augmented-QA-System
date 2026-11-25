@@ -181,7 +181,7 @@ class RagEngine:
         self._reranker_loaded = False
         self._warm_lock = threading.Lock()
         self._warming = False
-        self._warmed_at = 0.0
+        self._warmed_at: float | None = None
         self.splitter = SentenceSplitter(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap,
                                          chunking_tokenizer_fn=split_sentences)
 
@@ -215,7 +215,7 @@ class RagEngine:
 
     def refresh(self, changed: list[str]) -> None:
         names = set(changed)
-        self._warmed_at = 0.0
+        self._warmed_at = None
         with self._lock:
             if any(name.startswith("llm_") for name in names) or names & LLM_FIELDS:
                 self._llm = None
@@ -513,11 +513,14 @@ class RagEngine:
 
     def warm(self) -> bool:
         with self._warm_lock:
-            if self._warming or time.monotonic() - self._warmed_at < WARM_EVERY:
+            if self._warming or self._recently_warmed():
                 return False
             self._warming = True
         threading.Thread(target=self._warm_up, name="nexo-aquecimento", daemon=True).start()
         return True
+
+    def _recently_warmed(self) -> bool:
+        return self._warmed_at is not None and time.monotonic() - self._warmed_at < WARM_EVERY
 
     def _warm_up(self) -> None:
         started = time.perf_counter()

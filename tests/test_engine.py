@@ -180,9 +180,17 @@ def test_warm_up_is_throttled_and_reset_by_settings(tmp_path):
     deadline = time.monotonic() + 10
     while e._warming and time.monotonic() < deadline:
         time.sleep(0.02)
-    assert e._warmed_at > 0
+    assert e._warmed_at is not None
     assert e.warm() is False
     e.refresh(["llm_model"])
+    assert e.warm() is True
+
+
+def test_warm_up_runs_right_after_boot(tmp_path, monkeypatch):
+    import nexo.rag.engine as engine_module
+    monkeypatch.setattr(engine_module, "time", SimpleNamespace(monotonic=lambda: 5.0, perf_counter=time.perf_counter))
+    e = scored_engine(tmp_path)
+    monkeypatch.setattr(e, "_warm_up", lambda: None)
     assert e.warm() is True
 
 
